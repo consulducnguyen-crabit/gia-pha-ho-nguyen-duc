@@ -21,6 +21,7 @@ Use GitHub Actions least privilege and environment protection. Maintain schema v
 ## Quy trình do người dùng phê duyệt — 2026-11-10
 
 Các hướng dẫn này ưu tiên hơn giới hạn tự quyết trong tài liệu bàn giao cũ.
+- Người dùng tái xác nhận: nội dung cần làm rõ trong phạm vi tự quyết phải được Codex chủ động lập phương án và giao agent độc lập phản biện; khi phương án đạt thì tự triển khai, tiếp tục review/sửa/kiểm thử đến khi đạt tiêu chí nghiệm thu. Không dừng để xin xác nhận lại cho các bước đã được ủy quyền hoặc các chính sách đã duyệt.
 - Với nội dung có thể tự quyết trong phạm vi được giao: lập phương án, giao agent độc lập phản biện, sửa code và chạy kiểm thử phù hợp. Lặp lại review/fix cho đến khi đạt; không coi việc agent đồng ý là thay thế bằng chứng kiểm thử.
 - Được phép sử dụng agent độc lập cho phản biện và kiểm tra triển khai.
 - Với nội dung không thể tự quyết (chính sách dòng họ, quyền riêng tư, ngân sách, quyền quản trị hoặc thay đổi production chưa được duyệt): đặt câu hỏi kèm tối thiểu ba phương án cụ thể, luôn đánh dấu phương án Codex đề xuất và giải thích ngắn tác động. Không coi im lặng là chấp thuận.
