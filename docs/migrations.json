@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "migrations": [],
+  "policy": "No production data migrations exist. Every future migration requires reviewed dry-run, verified backup, version compatibility and recovery instructions."
+}

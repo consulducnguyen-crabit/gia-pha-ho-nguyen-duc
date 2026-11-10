@@ -1,0 +1,7 @@
+rules_version = '2';
+service firebase.storage {
+ match /b/{bucket}/o {
+  // Privacy tiers, media ownership and roles remain undecided; keep media closed.
+  match /{path=**} { allow read, write: if false; }
+ }
+}

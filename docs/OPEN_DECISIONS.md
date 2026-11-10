@@ -1,0 +1,11 @@
+# Các quyết định còn cần chốt
+
+Bảy chính sách dòng họ đã được phê duyệt, xem APPROVED_DECISIONS.md. Không hỏi lại các lựa chọn này.
+
+Chưa phê duyệt hạ tầng có chi phí hoặc production: Firebase region, Blaze/billing cho Storage, dự án/remote GitHub, danh tính người chịu trách nhiệm duyệt và sao lưu.
+
+Thông tin phục vụ định cỡ: số hồ sơ và truy cập đồng thời dự kiến. Trong dev dùng truy vấn có giới hạn, không tự giả định quy mô production.
+
+Ngày âm: lưu nguyên lịch, độ chính xác và tháng nhuận; không tự chuyển khi thiếu thông tin. Chưa cần chốt cách chuyển đổi để lưu đúng dữ liệu gốc.
+
+Codex được tự lập phương án kỹ thuật, dùng agent độc lập phản biện, sửa và kiểm thử theo AGENTS.md. Các quyết định vượt thẩm quyền cần câu hỏi có ít nhất ba phương án, đánh dấu đề xuất. Tiếp tục phần độc lập khi chờ trả lời.
