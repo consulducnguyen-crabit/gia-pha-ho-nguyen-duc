@@ -1,7 +1,7 @@
 rules_version = '2';
 service firebase.storage {
  match /b/{bucket}/o {
-  // Privacy tiers, media ownership and roles remain undecided; keep media closed.
+  // Privacy policy is approved; media stays closed until granular ACL is verified.
   match /{path=**} { allow read, write: if false; }
  }
 }

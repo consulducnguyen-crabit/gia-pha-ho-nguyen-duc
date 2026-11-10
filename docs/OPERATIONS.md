@@ -24,9 +24,41 @@ Trước migration thật: người phụ trách được chỉ định tạo Fi
 ## Rollback
 Bản nền không migrate dữ liệu. Rollback frontend bằng build commit trước; rollback rules chỉ về bản đã review và vẫn default-deny, sau khi chạy emulator tests. Không dùng rules mở để chữa lỗi truy cập. Mọi migration tương lai phải có manifest, dry-run, backup được xác minh và hướng phục hồi trước khi áp dụng.
 
-## Kết quả xác minh trong môi trường bàn giao
-- Lint, TypeScript, 4 unit tests và production build: đạt.
-- Chromium hệ thống: màn hình chưa cấu hình, desktop 1440px và mobile 390px, không tràn ngang hoặc lỗi JavaScript: đạt.
-- Firebase rules tests: đã viết 17 trường hợp, chưa chạy được do proxy trả HTTP 403 Domain forbidden khi tải Firestore emulator từ storage.googleapis.com. Cần cho phép domain này trong environment settings rồi chạy lại `npm run test:rules`. Không bỏ kiểm thử trong CI.
-- Luồng đăng nhập/tra cứu emulator và restore drill: chưa xác minh do cùng blocker. Script `scripts/browser-check.mjs` sẵn cho emulator; `--setup` kiểm tra giao diện không cấu hình. Dùng `CHROMIUM_PATH=/usr/bin/chromium` nếu sử dụng Chromium hệ thống.
-- Build có cảnh báo bundle Firebase lớn (~817 kB trước gzip); cần chia bundle/tải lười trước tối ưu production.
+## Kết quả xác minh
+
+Xem [báo cáo kiểm chứng](VERIFICATION.md) cho kết quả chạy emulator, 30 rules tests,
+6 unit tests, Chromium và diễn tập restore. Blocker tải emulator trong bản bàn giao
+cũ đã được giải quyết ở môi trường hiện tại; không bỏ rules tests trong CI.
+
+Tra cứu chỉ lấy dữ liệu từ server. Quyền chỉ mở sau snapshot membership từ server;
+khi SDK phát hiện mất kết nối, giao diện đóng dữ liệu và chờ xác nhận lại. Người
+dùng đã xem dữ liệu vẫn có thể giữ bản sao; đây không phải cơ chế xóa dữ liệu từ xa.
+
+Với emulator và Vite đang chạy, seed trước rồi chạy
+`CHROMIUM_PATH=/usr/bin/chromium npm run test:browser`. Script kiểm tra thu hồi quyền,
+kể cả thu hồi lúc browser offline; chỉ gọi privileged REST ở localhost/demo.
+`--setup` dùng cho Vite không bật emulator và chưa cấu hình Firebase.
+
+Build vẫn có cảnh báo bundle Firebase lớn (~817 kB trước gzip); cần chia bundle/tải
+lười trước tối ưu production. Backend phê duyệt và ACL media chưa triển khai.
+
+## Lặp lại diễn tập restore (chỉ dữ liệu giả)
+
+Khởi động emulator, chạy `npx vitest run tests/rules.test.ts` để tạo fixtures (gồm
+media và names), rồi seed theo hướng dẫn trên. Khi emulator còn chạy:
+
+```sh
+node scripts/restore-check.mjs --record /tmp/gia-pha-before-restore.json
+npx firebase emulators:export /tmp/gia-pha-backup --project demo-gia-pha
+```
+
+Sau khi export thành công, dừng emulator bằng Ctrl+C; khởi động tiến trình mới:
+
+```sh
+npx firebase emulators:exec --project demo-gia-pha --only auth,firestore,storage --import /tmp/gia-pha-backup 'node scripts/restore-check.mjs --verify /tmp/gia-pha-before-restore.json'
+```
+
+Dùng thư mục export mới mỗi lần, không ghi đè backup chưa kiểm tra. Script so sánh
+số lượng và SHA-256 nội dung của 10 collections fixture cùng subcollection names,
+kiểm tra sáu hồ sơ giả, UID/đăng nhập Auth và SHA-256 media. Đây là diễn tập fixture
+emulator, không chứng minh restore production hoặc kiểm kê toàn bộ schema.

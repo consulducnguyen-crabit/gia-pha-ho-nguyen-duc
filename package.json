@@ -8,8 +8,9 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run tests/domain.test.ts",
+    "test": "vitest run tests/domain.test.ts tests/latestRequest.test.ts",
     "test:rules": "firebase emulators:exec --project demo-gia-pha --only firestore,storage 'vitest run tests/rules.test.ts'",
+    "test:browser": "node scripts/browser-check.mjs",
     "emulators": "firebase emulators:start --project demo-gia-pha",
     "seed": "node scripts/seed.mjs"
   },

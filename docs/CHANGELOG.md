@@ -2,7 +2,7 @@
 
 - Nền React/TypeScript/Vite, giao diện tiếng Việt responsive, hash router.
 - Firebase Auth và listener quyền enabled; tra cứu theo prefix có limit 30.
-- Rules mặc định từ chối, không ghi client; media khóa cho đến khi duyệt chính sách.
+- Rules mặc định từ chối, không ghi client; media khóa cho đến khi kiểm chứng ACL.
 - Emulator seed giả, kiểm thử graph/rules, CI và tài liệu vận hành.
 - Không chốt quyết định mở, không deploy và không thay đổi dữ liệu thật.
 
@@ -12,3 +12,14 @@
 - Tra cứu/seed chuyển sang memberProfiles; khóa canonical và dữ liệu nhạy cảm với mọi client.
 - Bổ sung ba rules tests chặn đọc chi tiết (17 trường hợp tổng cộng).
 - Agent độc lập review tĩnh đạt cho patch giới hạn. Lint/typecheck đạt; unit tests/build đạt trước chỉnh câu chữ cuối. Emulator vẫn chưa xác minh vì mạng chặn storage.googleapis.com; không deploy production.
+
+# Kiểm chứng emulator và sửa bản nền — 2026-11-10
+
+- Chạy 17 rules tests gốc đạt; thêm 13 regression tự nâng quyền, sửa/xóa canonical,
+  subcollection và thu hồi membership. Suite mở rộng đạt 30/30.
+- Chặn response tìm kiếm cũ ghi đè response mới; vô hiệu hóa response sau unmount.
+- Không mở quyền từ snapshot cache; tra cứu server-only; cho đăng xuất khi chờ quyền.
+- Chromium kiểm tra đăng nhập/tra cứu/mobile, thu hồi quyền và thu hồi khi offline.
+- Thêm script đối chiếu fixture restore và hướng dẫn export/import emulator.
+- Hai agent độc lập phản biện và bổ sung regression. Không đổi bảy chính sách,
+  không mở canonical/media, không deploy hoặc thay đổi production.

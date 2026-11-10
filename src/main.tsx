@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter, NavLink, Route, Routes } from "react-router-dom";
 import {
@@ -10,7 +10,7 @@ import {
 import {
   collection,
   doc,
-  getDocs,
+  getDocsFromServer,
   limit,
   onSnapshot,
   orderBy,
@@ -20,6 +20,7 @@ import {
 } from "firebase/firestore";
 import { auth, db, emulator } from "./firebase";
 import { normalizeName, type Person } from "./domain";
+import { latestRequest } from "./latestRequest";
 import "./style.css";
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -37,7 +38,15 @@ function App() {
       if (u)
         stop = onSnapshot(
           doc(db!, "users", u.uid),
-          (s) => setAccess(s.data()?.enabled === true ? "member" : "pending"),
+          { includeMetadataChanges: true },
+          (s) =>
+            setAccess(
+              s.metadata.fromCache
+                ? "loading"
+                : s.data()?.enabled === true
+                  ? "member"
+                  : "pending",
+            ),
           () => setAccess("error"),
         );
     });
@@ -129,7 +138,12 @@ function Gate({ state, user }: { state: string; user: User | null }) {
             </div>
           </>
         ) : state === "loading" ? (
-          <p role="status">Đang kiểm tra quyền truy cập…</p>
+          <>
+            <p role="status">Đang kiểm tra quyền truy cập…</p>
+            {user && (
+              <button onClick={() => void signOut(auth!)}>Đăng xuất</button>
+            )}
+          </>
         ) : state === "pending" || state === "error" ? (
           <>
             <p>
@@ -250,12 +264,16 @@ function Overview() {
   );
 }
 function People() {
+  const requests = useRef(latestRequest());
+  useEffect(() => () => requests.current.invalidate(), []);
   const [search, setSearch] = useState("");
   const [people, setPeople] = useState<Person[]>([]);
   const [status, setStatus] = useState("");
   const [selected, setSelected] = useState<Person | null>(null);
   async function load(value: string) {
+    const isCurrent = requests.current.start();
     setStatus("Đang tải…");
+    setPeople([]);
     setSelected(null);
     try {
       const term = normalizeName(value);
@@ -272,7 +290,8 @@ function People() {
             orderBy("normalizedName"),
             limit(30),
           );
-      const result = await getDocs(q);
+      const result = await getDocsFromServer(q);
+      if (!isCurrent()) return;
       setPeople(result.docs.map((d) => ({ ...d.data(), id: d.id }) as Person));
       setStatus(
         result.empty
@@ -280,6 +299,7 @@ function People() {
           : "Hiển thị tối đa 30 hồ sơ. Tìm theo phần đầu tên để thu hẹp kết quả.",
       );
     } catch {
+      if (!isCurrent()) return;
       setPeople([]);
       setStatus("Không thể tải hồ sơ. Quyền truy cập có thể đã thay đổi.");
     }
