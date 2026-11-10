@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 const env = import.meta.env;
 export const emulator = env.VITE_USE_EMULATORS === "true";
 if (emulator && !["localhost", "127.0.0.1"].includes(location.hostname))
@@ -30,7 +31,11 @@ const app = configured
   : null;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
+export const membershipFunctions =
+  app && emulator ? getFunctions(app, "us-central1") : null;
 if (emulator && auth && db) {
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
 }
+if (membershipFunctions)
+  connectFunctionsEmulator(membershipFunctions, "127.0.0.1", 5001);

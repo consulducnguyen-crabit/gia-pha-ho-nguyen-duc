@@ -23,3 +23,16 @@
 - Thêm script đối chiếu fixture restore và hướng dẫn export/import emulator.
 - Hai agent độc lập phản biện và bổ sung regression. Không đổi bảy chính sách,
   không mở canonical/media, không deploy hoặc thay đổi production.
+
+# Backend lời mời — 2026-11-10
+
+- Functions callable emulator-only và Admin SDK server riêng; fail closed trước
+  mọi Admin operation nếu không đúng project demo và loopback hosts.
+- Tạo/nhận/thu hồi lời mời, thu hồi membership và audit transaction; chỉ role member.
+- Token dùng một lần, UID/email binding, thời hạn dev48h, accessVersion chống lời
+  mời cũ sau thu hồi; UUID receipt chống retry gây thay đổi quyền đã cấp lại.
+- UI nhận lời mời và quản lý chỉ trong emulator với capability xác nhận từ server.
+- Bổ sung 33 backend integration cases, 11 guard tests và browser regression.
+  32 integration chạy cùng suite đạt, ca cuối mới thêm chạy riêng đạt.
+- Cài/build/test backend trong CI; hướng dẫn fixtures, rollback và giới hạn Auth
+  principal có sẵn. Chưa provisioning/gửi thư, production authority hoặc deploy.

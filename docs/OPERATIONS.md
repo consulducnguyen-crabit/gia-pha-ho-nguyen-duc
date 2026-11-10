@@ -1,13 +1,20 @@
 # Vận hành bản nền 0.1
 
 ## Phạm vi
-Schema version 1. Chưa có migration dữ liệu hoặc backend ghi; mọi ghi từ trình duyệt bị từ chối. Media bị khóa toàn bộ cho đến khi triển khai và kiểm chứng ACL chi tiết. Vai trò editor/approver chưa có đặc quyền. Không phân phối dữ liệu giả trong frontend bundle.
+Schema version 1. Chưa có migration dữ liệu thật. Backend lời mời chỉ ghi membership,
+invitations và audit trong emulator; mọi ghi trực tiếp từ trình duyệt bị từ chối.
+Media bị khóa toàn bộ cho đến khi triển khai và kiểm chứng ACL chi tiết. Vai trò
+editor/approver chưa có đặc quyền. Không phân phối dữ liệu giả trong frontend bundle.
 
 ## Thiết lập dev
-Node 24, Java 21. `npm ci`; `npm run emulators` (project demo-gia-pha).
+Node 24, Java 21. `npm ci`; `npm ci --prefix functions`; `npm run emulators` (project demo-gia-pha).
 Ở terminal khác: `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 npm run seed`.
 Chạy frontend: `VITE_USE_EMULATORS=true npm run dev`. Đăng nhập thanhvien@example.test / Demo-only-2026! (chỉ emulator).
 Không dùng emulator từ hostname bên ngoài localhost/127.0.0.1. Không expose cổng emulator.
+
+Luồng lời mời/cấp quyền có hướng dẫn riêng tại [INVITATIONS.md](INVITATIONS.md).
+Functions emulator trên 127.0.0.1:5001; backend fail closed ngoài emulator.
+Kết quả mới nhất tại [INVITATIONS_VERIFICATION.md](INVITATIONS_VERIFICATION.md).
 
 ## Kiểm thử
 `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:rules`, `npm run build`.

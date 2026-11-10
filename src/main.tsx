@@ -21,10 +21,12 @@ import {
 import { auth, db, emulator } from "./firebase";
 import { normalizeName, type Person } from "./domain";
 import { latestRequest } from "./latestRequest";
+import { AcceptInvitation, MembershipAdmin } from "./Membership";
 import "./style.css";
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [access, setAccess] = useState("loading");
+  const [canManageMembership, setCanManageMembership] = useState(false);
   useEffect(() => {
     if (!auth || !db) {
       setAccess("setup");
@@ -33,21 +35,31 @@ function App() {
     let stop = () => {};
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       stop();
+      setCanManageMembership(false);
       setUser(u);
       setAccess(u ? "loading" : "login");
       if (u)
         stop = onSnapshot(
           doc(db!, "users", u.uid),
           { includeMetadataChanges: true },
-          (s) =>
+          (s) => {
+            setCanManageMembership(
+              !s.metadata.fromCache &&
+                s.data()?.enabled === true &&
+                s.data()?.canManageMembership === true,
+            );
             setAccess(
               s.metadata.fromCache
                 ? "loading"
                 : s.data()?.enabled === true
                   ? "member"
                   : "pending",
-            ),
-          () => setAccess("error"),
+            );
+          },
+          () => {
+            setCanManageMembership(false);
+            setAccess("error");
+          },
         );
     });
     return () => {
@@ -55,7 +67,8 @@ function App() {
       unsubscribe();
     };
   }, []);
-  if (access !== "member") return <Gate state={access} user={user} />;
+  if (access !== "member")
+    return <Gate key={user?.uid ?? "signed-out"} state={access} user={user} />;
   return (
     <div className="shell">
       <aside>
@@ -71,6 +84,9 @@ function App() {
             ⌂ Tổng quan
           </NavLink>
           <NavLink to="/persons">♧ Tra cứu thành viên</NavLink>
+          {emulator && canManageMembership && (
+            <NavLink to="/accounts">Tài khoản và lời mời</NavLink>
+          )}
           <NavLink to="/roadmap">☷ Tiến độ triển khai</NavLink>
         </nav>
         <div className="aside-foot">
@@ -91,6 +107,12 @@ function App() {
             <Route path="/" element={<Overview />} />
             <Route path="/persons" element={<People />} />
             <Route path="/roadmap" element={<Roadmap />} />
+            {emulator && canManageMembership && (
+              <Route
+                path="/accounts"
+                element={<MembershipAdmin key={user?.uid} />}
+              />
+            )}
             <Route path="*" element={<h1>Không tìm thấy trang</h1>} />
           </Routes>
         </main>
@@ -154,6 +176,9 @@ function Gate({ state, user }: { state: string; user: User | null }) {
             <button onClick={() => void signOut(auth!)}>
               Đăng xuất {user?.email}
             </button>
+            {state === "pending" && user && emulator && (
+              <AcceptInvitation key={user.uid} />
+            )}
           </>
         ) : (
           <>
@@ -362,6 +387,10 @@ function Roadmap() {
           Đăng nhập, kiểm tra quyền theo thời gian thực, tra cứu có giới hạn,
           cấu hình emulator và kiểm thử bảo mật.
         </p>
+        <p>
+          Lời mời một lần, nhận quyền và thu hồi quyền tài khoản đã có bản thử
+          nghiệm trên emulator. Chưa mở trên production.
+        </p>
         <h2>Chính sách đã được phê duyệt</h2>
         <p>
           Truyền dòng, con nuôi, số gốc, số người duyệt, cấp tài khoản, hồ sơ
@@ -370,7 +399,7 @@ function Roadmap() {
         <h2>Chưa mở</h2>
         <p>
           Cây tương tác, gửi và duyệt đề xuất, nhập Excel, ảnh, tài liệu và quản
-          trị tài khoản.
+          trị tài khoản production.
         </p>
       </article>
     </>

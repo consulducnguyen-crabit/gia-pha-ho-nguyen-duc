@@ -1,5 +1,8 @@
 # Kiểm chứng bản nền — 2026-11-10
 
+Báo cáo này ghi vòng kiểm chứng trước backend lời mời. Xem kết quả mới hơn tại
+[INVITATIONS_VERIFICATION.md](INVITATIONS_VERIFICATION.md).
+
 Đọc AGENTS.md và APPROVED_DECISIONS.md trước khi triển khai. Giữ nguyên bảy chính
 sách đã duyệt. Chỉ dùng project demo-gia-pha, emulator loopback và dữ liệu giả.
 Nhánh cục bộ: fix/emulator-verification; baseline là mã giải nén từ ZIP người dùng
@@ -44,8 +47,9 @@ Màn chờ quyền có nút đăng xuất để người dùng thoát được k
 
 ## Giới hạn còn lại
 
-Đây là bản nền đăng nhập và đọc projection cơ bản. Chưa hoàn tất backend phê
-duyệt hai người, cấp lời mời, cây tương tác, nhập Excel, quản trị hoặc ACL media.
+Đây là bản nền đăng nhập và đọc projection cơ bản. Backend/UI lời mời đã được bổ
+sung sau vòng này cho emulator; provisioning và quản trị production chưa hoàn tất.
+Chưa hoàn tất backend phê duyệt hai người, cây tương tác, nhập Excel hoặc ACL media.
 Canonical và media vẫn khóa với client. Dữ liệu đã được người dùng nhận có thể
 được giữ lại; gate khi SDK phát hiện offline không phải cơ chế thu hồi bản sao.
 

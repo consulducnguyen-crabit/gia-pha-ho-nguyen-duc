@@ -38,3 +38,10 @@ Mã nguồn đã được dựng trên branch `feat/secure-foundation`. Đã có
 Chạy nhanh: `npm ci`, `npm run emulators`; seed theo hướng dẫn rồi `VITE_USE_EMULATORS=true npm run dev`.
 
 Chưa phát hành production. Bảy chính sách đã chốt tại docs/APPROVED_DECISIONS.md; OPEN_DECISIONS chỉ còn các mục hạ tầng và vận hành.
+
+## Backend lời mời thử nghiệm
+
+Đã có callable backend và UI tạo/nhận/thu hồi lời mời, cấp/thu hồi membership trên
+emulator. Cài thêm `npm ci --prefix functions` trước `npm run emulators`.
+Xem [hướng dẫn lời mời](docs/INVITATIONS.md). Chỉ dùng Auth principal giả có sẵn;
+chưa gửi thư, chưa provisioning hoặc quản trị production.
