@@ -40,6 +40,13 @@ beforeAll(async () => {
         enabled: role !== "disabled",
         roleIds: [role],
       });
+    await setDoc(doc(c.firestore(), "users", "manager"), {
+      enabled: true,
+      roleIds: ["member"],
+      canManageMembership: true,
+      accessVersion: 1,
+      schemaVersion: 1,
+    });
     await setDoc(doc(c.firestore(), "memberProfiles", "fake"), {
       displayName: "Nhân vật giả",
     });
@@ -286,6 +293,50 @@ describe("default-deny access", () => {
         setDoc(doc(db, "treeSnapshots", "other"), { data: "x" }),
       );
     });
+  for (const role of [
+    "anonymous",
+    "pending",
+    "member",
+    "editor",
+    "approver",
+    "disabled",
+  ])
+    it(`${role} cannot list accounts or read another account`, async () => {
+      const c =
+        role === "anonymous"
+          ? env.unauthenticatedContext()
+          : env.authenticatedContext(role);
+      await assertFails(getDocs(collection(c.firestore(), "users")));
+      await assertFails(getDoc(doc(c.firestore(), "users", "manager")));
+    });
+  it("an account manager can read the account list but never write accounts", async () => {
+    const db = env.authenticatedContext("manager").firestore();
+    await assertSucceeds(getDocs(collection(db, "users")));
+    await assertSucceeds(getDoc(doc(db, "users", "member")));
+    await assertFails(
+      setDoc(doc(db, "users", "member"), { enabled: true, roleIds: ["admin"] }),
+    );
+    await assertFails(
+      updateDoc(doc(db, "users", "member"), { enabled: false }),
+    );
+    await assertFails(deleteDoc(doc(db, "users", "member")));
+    await assertFails(
+      setDoc(doc(db, "users", "someone-new"), {
+        enabled: true,
+        roleIds: ["member"],
+        canManageMembership: true,
+      }),
+    );
+  });
+  it("manager status comes from the trusted users document, not from client claims", async () => {
+    const db = env
+      .authenticatedContext("member", {
+        canManageMembership: true,
+        role: "admin",
+      })
+      .firestore();
+    await assertFails(getDocs(collection(db, "users")));
+  });
   it("ignores claimed roles without membership", async () => {
     await assertFails(
       getDoc(

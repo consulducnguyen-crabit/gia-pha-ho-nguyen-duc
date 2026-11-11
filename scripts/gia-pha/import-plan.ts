@@ -276,7 +276,7 @@ export function decideTarget(
     return {
       ok: false,
       reason:
-        "Chỉ nạp vào emulator hoặc project dev (-dev). Production bị cấm ở bước này.",
+        "Chỉ chạy trên emulator hoặc project dev (-dev). Production bị cấm ở bước này.",
     };
   if (!env.GOOGLE_APPLICATION_CREDENTIALS)
     return {
