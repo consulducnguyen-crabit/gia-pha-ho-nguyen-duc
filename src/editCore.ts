@@ -81,7 +81,7 @@ const KNOWN_FIELDS = [
   "removeFlags",
   "replaceRawDate",
 ];
-const CONTROL = /[\p{Cc}\p{Cf}]/u;
+export const CONTROL = /[\p{Cc}\p{Cf}]/u;
 
 export function currentEditVersion(snapshot: Doc): number {
   const v = snapshot.editVersion;
@@ -91,10 +91,10 @@ export function currentEditVersion(snapshot: Doc): number {
   return v;
 }
 
-function invalid(message: string): never {
+export function invalid(message: string): never {
   throw new EditError("INVALID", message);
 }
-function checkYear(label: string, v: unknown) {
+export function checkYear(label: string, v: unknown) {
   if (v === null) return;
   if (
     typeof v !== "number" ||
@@ -129,7 +129,7 @@ function dateWithYear(
     );
   return yearDate(year);
 }
-function yearDate(year: number | null) {
+export function yearDate(year: number | null) {
   return year === null
     ? null
     : {

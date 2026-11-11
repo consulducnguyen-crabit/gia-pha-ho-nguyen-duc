@@ -58,3 +58,8 @@
 
 - Nút "Sửa hồ sơ" và biểu mẫu trên trang hồ sơ, chỉ quản trị viên; xem IN_APP_EDIT_UI.md.
 - `parseSnapshot` đọc `editVersion`; thêm `editForm.ts`, `PersonEdit.tsx`, kiểm tra trình duyệt.
+
+# Thêm con và vợ/chồng trong app (PR C1, 2026-11-11)
+
+- `applyAdd`, `commitAdd`, biểu mẫu Thêm con / Thêm vợ/chồng; rules cho PERSON_ADDED và SPOUSE_ADDED.
+  Chỉ thêm, không ghi đè quan hệ cũ. Xem IN_APP_EDIT_ADD.md. Chưa deploy rules lên prod.

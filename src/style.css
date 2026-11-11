@@ -806,3 +806,14 @@ textarea {
 .edit-panel input[type="checkbox"] {
   flex: none;
 }
+.edit-panel input[type="radio"] {
+  display: inline-block;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0 var(--space-2) 0 0;
+  padding: 0;
+  vertical-align: middle;
+  accent-color: var(--color-primary);
+}

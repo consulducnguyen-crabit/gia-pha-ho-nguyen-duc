@@ -14,45 +14,113 @@ service cloud.firestore {
    allow get: if request.auth != null && (request.auth.uid == uid || manager());
    allow list: if manager();
   }
+  // --- In-app edits (admin = manager) ---------------------------------------------------------
+  // Every edit is ONE atomic batch that must carry an append-only auditLogs/edit-{editVersion} and a
+  // treeSnapshots/main update (editVersion + 1). The audit id is derived from the version, so a second
+  // writer racing on the same version fails (the audit doc already exists) and no edit is unlogged.
+  //  - PERSON_EDITED: persons/{id} + memberProfiles/{id} (profileVersion + 1) [+ personPrivate].
+  //  - PERSON_ADDED : new persons/memberProfiles [+ personPrivate] + relations (listed in the audit).
+  //  - SPOUSE_ADDED : unions/{unionId} [+ a new person listed in the audit's createdPersonIds].
+  // Rules cannot parse the snapshot JSON, so its content stays the trusted client's (applyEdit/applyAdd)
+  // job; the snapshot rule only proves that the matching canonical docs are created/bumped in the batch.
+  function snapshotPath() { return /databases/$(database)/documents/treeSnapshots/main; }
+  function nextEditVersion() { return get(snapshotPath()).data.get('editVersion', 0) + 1; }
+  function auditData(n) {
+   return getAfter(/databases/$(database)/documents/auditLogs/$('edit-' + string(n))).data;
+  }
+  function personDoc(id) { return /databases/$(database)/documents/persons/$(id); }
+  function profileDoc(id) { return /databases/$(database)/documents/memberProfiles/$(id); }
+  function relationDoc(id) { return /databases/$(database)/documents/relations/$(id); }
+  function unionDoc(id) { return /databases/$(database)/documents/unions/$(id); }
+  function bumps(path) { return getAfter(path).data.profileVersion == get(path).data.profileVersion + 1; }
+  function editGate(personId) {
+   let n = nextEditVersion();
+   let a = auditData(n);
+   return manager()
+    && getAfter(snapshotPath()).data.editVersion == n
+    && a.actorUid == request.auth.uid
+    && a.event == 'PERSON_EDITED'
+    && a.personId == personId;
+  }
+  function createGate(personId) {
+   let n = nextEditVersion();
+   let a = auditData(n);
+   return manager()
+    && getAfter(snapshotPath()).data.editVersion == n
+    && a.actorUid == request.auth.uid
+    && a.event in ['PERSON_ADDED', 'SPOUSE_ADDED']
+    && personId.matches('[A-Za-z0-9_-]{1,100}')
+    && personId in a.createdPersonIds;
+  }
+  function snapshotUpdateOk(n) {
+   let a = auditData(n);
+   return a.actorUid == request.auth.uid
+    && ((a.event == 'PERSON_EDITED' && bumps(personDoc(a.personId)) && bumps(profileDoc(a.personId)))
+     || (a.event == 'PERSON_ADDED'
+         && !exists(personDoc(a.personId)) && existsAfter(personDoc(a.personId))
+         && !exists(relationDoc(a.relationIds[0]))
+         && getAfter(relationDoc(a.relationIds[0])).data.childId == a.personId)
+     || (a.event == 'SPOUSE_ADDED'
+         && !exists(unionDoc(a.unionId)) && existsAfter(unionDoc(a.unionId))));
+  }
+  function profileShapeOk() {
+   let d = request.resource.data;
+   return d.keys().hasOnly(['displayName', 'normalizedName', 'profileVersion', 'schemaVersion', 'birthYear', 'deathYear'])
+    && d.displayName is string && d.displayName.size() > 0 && d.displayName.size() <= 120
+    && d.normalizedName is string && d.normalizedName.size() <= 240
+    && d.schemaVersion == 1
+    && d.get('birthYear', 1000) is int && d.get('deathYear', 1000) is int
+    && d.get('birthYear', 1000) >= 1000 && d.get('birthYear', 1000) <= 2200
+    && d.get('deathYear', 1000) >= 1000 && d.get('deathYear', 1000) <= 2200;
+  }
+  function relationCreateOk(id) {
+   let n = nextEditVersion();
+   let a = auditData(n);
+   let d = request.resource.data;
+   return manager()
+    && getAfter(snapshotPath()).data.editVersion == n
+    && a.actorUid == request.auth.uid && a.event == 'PERSON_ADDED'
+    && d.keys().hasOnly(['parentId', 'childId', 'parentRole', 'relationType', 'lineageTransmission',
+        'verificationStatus', 'version', 'schemaVersion', 'sourceRefs', 'createdAt'])
+    && d.parentId is string && d.childId == a.personId && id in a.relationIds
+    && id == 'r-' + d.parentId + '-' + d.childId
+    && exists(personDoc(d.parentId))
+    && d.parentRole in ['FATHER', 'MOTHER'] && d.relationType in ['BIOLOGICAL', 'ADOPTIVE']
+    && d.lineageTransmission == (d.parentRole == 'FATHER'
+        && getAfter(personDoc(d.childId)).data.category == 'CLAN')
+    && d.verificationStatus == 'APPROVED'
+    && d.version == 1 && d.schemaVersion == 1 && d.createdAt == request.time
+    && d.sourceRefs == ['auditLogs/edit-' + string(n)];
+  }
+  function unionCreateOk(id) {
+   let n = nextEditVersion();
+   let a = auditData(n);
+   let d = request.resource.data;
+   return manager()
+    && getAfter(snapshotPath()).data.editVersion == n
+    && a.actorUid == request.auth.uid && a.event == 'SPOUSE_ADDED' && id == a.unionId
+    && d.keys().hasOnly(['partnerIds', 'order', 'status', 'note', 'sourceRefs', 'schemaVersion', 'createdAt'])
+    && d.partnerIds is list && d.partnerIds.size() == 2 && a.personId in d.partnerIds
+    && d.partnerIds[0] is string && d.partnerIds[1] is string && d.partnerIds[0] != d.partnerIds[1]
+    && id == (d.partnerIds[0] < d.partnerIds[1]
+        ? 'u-' + d.partnerIds[0] + '-' + d.partnerIds[1]
+        : 'u-' + d.partnerIds[1] + '-' + d.partnerIds[0])
+    && existsAfter(personDoc(d.partnerIds[0])) && existsAfter(personDoc(d.partnerIds[1]))
+    && (d.order == null || (d.order is string && d.order.size() <= 20))
+    && d.schemaVersion == 1 && d.createdAt == request.time
+    && d.sourceRefs == ['auditLogs/edit-' + string(n)];
+  }
   // Trusted backend publishes only allowlisted basic fields here.
   match /memberProfiles/{id} {
    allow read: if member();
    // Members see only name and birth/death years (decision 2026-11-11): strict allowlist.
    allow update: if editGate(id) && request.resource.data.profileVersion is int
-    && request.resource.data.profileVersion == resource.data.profileVersion + 1
-    && request.resource.data.keys().hasOnly(['displayName', 'normalizedName', 'profileVersion', 'schemaVersion',
-        'birthYear', 'deathYear'])
-    && request.resource.data.displayName is string && request.resource.data.displayName.size() > 0
-    && request.resource.data.displayName.size() <= 120
-    && request.resource.data.normalizedName is string && request.resource.data.normalizedName.size() <= 240
-    && request.resource.data.schemaVersion == 1
-    && request.resource.data.get('birthYear', 1000) is int && request.resource.data.get('deathYear', 1000) is int
-    && request.resource.data.get('birthYear', 1000) >= 1000 && request.resource.data.get('birthYear', 1000) <= 2200
-    && request.resource.data.get('deathYear', 1000) >= 1000 && request.resource.data.get('deathYear', 1000) <= 2200;
+    && request.resource.data.profileVersion == resource.data.profileVersion + 1 && profileShapeOk();
+   allow create: if createGate(id) && !exists(personDoc(id))
+    && request.resource.data.profileVersion == 1 && profileShapeOk();
   }
-  // --- In-app edits (admin = manager) ---------------------------------------------------------
-  // Every edit is ONE atomic batch of FOUR+ writes that must all be present: persons/{id},
-  // memberProfiles/{id} (each profileVersion + 1), treeSnapshots/main (editVersion + 1) and an
-  // append-only auditLogs/edit-{editVersion}. The audit id is derived from the version, so a second
-  // writer racing on the same version fails (the audit doc already exists) and no edit is unlogged.
-  // Rules cannot parse the snapshot JSON, so its content stays the trusted client's (applyEdit) job.
-  function snapshotPath() { return /databases/$(database)/documents/treeSnapshots/main; }
-  function nextEditVersion() { return get(snapshotPath()).data.get('editVersion', 0) + 1; }
-  function auditAfter() {
-   return getAfter(/databases/$(database)/documents/auditLogs/$('edit-' + string(nextEditVersion())));
-  }
-  function editGate(personId) {
-   return manager()
-    && getAfter(snapshotPath()).data.editVersion == nextEditVersion()
-    && auditAfter().data.actorUid == request.auth.uid
-    && auditAfter().data.personId == personId;
-  }
-  function bumps(path) { return getAfter(path).data.profileVersion == get(path).data.profileVersion + 1; }
-  function personDoc(id) { return /databases/$(database)/documents/persons/$(id); }
-  function profileDoc(id) { return /databases/$(database)/documents/memberProfiles/$(id); }
   // One versioned snapshot (names, birth/death years, generation, branch, relations). get only:
-  // no listing. Clients may only update data + editVersion, one version at a time, together with
-  // an audit and the version bump of the person it names.
+  // no listing. Clients may only update data + editVersion, one version at a time, with an audit.
   match /treeSnapshots/{id} {
    allow get: if member();
    allow update: if id == 'main' && manager()
@@ -60,28 +128,34 @@ service cloud.firestore {
     && request.resource.data.editVersion == nextEditVersion()
     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['data', 'editVersion'])
     && request.resource.data.data is string && request.resource.data.data.size() < 900000
-    && auditAfter().data.actorUid == request.auth.uid
-    && bumps(personDoc(auditAfter().data.personId))
-    && bumps(profileDoc(auditAfter().data.personId));
+    && snapshotUpdateOk(request.resource.data.editVersion);
   }
   match /auditLogs/{id} {
    // Account/invitation audits stay closed to every client; managers read only edit audits, by id.
-   allow get: if manager() && resource.data.event == 'PERSON_EDITED';
-   allow create: if manager()
-    && request.resource.data.keys().hasOnly(['event', 'actorUid', 'target', 'personId', 'editVersion',
-        'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
-    && request.resource.data.event == 'PERSON_EDITED'
-    && request.resource.data.schemaVersion == 1
-    && request.resource.data.fields is list && request.resource.data.before is map
-    && request.resource.data.after is map
-    && request.resource.data.editVersion is int
-    && request.resource.data.actorUid == request.auth.uid
-    && request.resource.data.timestamp == request.time
-    && request.resource.data.personId is string
-    && request.resource.data.target == 'persons/' + request.resource.data.personId
-    && request.resource.data.editVersion == nextEditVersion()
-    && id == 'edit-' + string(request.resource.data.editVersion)
-    && getAfter(snapshotPath()).data.editVersion == request.resource.data.editVersion;
+   allow get: if manager() && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED'];
+   allow create: if manager() && auditCreateOk(id);
+  }
+  function auditCreateOk(id) {
+   let d = request.resource.data;
+   return d.keys().hasOnly(['event', 'actorUid', 'target', 'personId', 'createdPersonIds', 'relationIds',
+        'unionId', 'editVersion', 'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
+    && d.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED']
+    && d.schemaVersion == 1
+    && d.fields is list && d.before is map && d.after is map
+    && d.editVersion is int
+    && d.actorUid == request.auth.uid
+    && d.timestamp == request.time
+    && d.personId is string
+    && d.target == 'persons/' + d.personId
+    && d.editVersion == nextEditVersion()
+    && id == 'edit-' + string(d.editVersion)
+    && getAfter(snapshotPath()).data.editVersion == d.editVersion
+    && ((d.event == 'PERSON_EDITED' && d.get('createdPersonIds', []).size() == 0)
+     || (d.event == 'PERSON_ADDED' && d.createdPersonIds == [d.personId]
+         && d.relationIds is list && d.relationIds.size() >= 1 && d.relationIds.size() <= 2
+         && d.get('unionId', null) == null)
+     || (d.event == 'SPOUSE_ADDED' && d.unionId is string
+         && d.createdPersonIds is list && d.createdPersonIds.size() <= 1));
   }
   match /persons/{id} {
    allow read: if manager();
@@ -92,13 +166,39 @@ service cloud.firestore {
         'birth', 'death', 'branchCode', 'sex', 'sexBasis', 'reviewFlags', 'profileVersion', 'updatedAt', 'updatedBy'])
     && request.resource.data.updatedAt == request.time
     && request.resource.data.updatedBy == request.auth.uid;
+   allow create: if createGate(id) && personCreateShapeOk();
+  }
+  function personCreateShapeOk() {
+   let d = request.resource.data;
+   return d.keys().hasOnly(['displayName', 'normalizedName', 'sex', 'sexBasis', 'category', 'branchCode',
+        'generation', 'declaredGeneration', 'birth', 'death', 'kyNhat', 'reviewFlags', 'profileVersion',
+        'schemaVersion', 'createdAt', 'createdBy'])
+    && d.displayName is string && d.displayName.size() > 0 && d.displayName.size() <= 120
+    && d.normalizedName is string && d.normalizedName.size() <= 240
+    && d.category in ['CLAN', 'SPOUSE', 'EXTERNAL']
+    && (d.category in ['SPOUSE', 'EXTERNAL'] || auditData(nextEditVersion()).event == 'PERSON_ADDED')
+    && (d.category == 'CLAN' || d.generation == null)
+    && (d.generation == null || d.generation is int)
+    && (d.branchCode == null || d.branchCode is string)
+    && d.declaredGeneration == null && d.kyNhat == null
+    && d.sexBasis in ['MANUAL', 'UNKNOWN']
+    && (d.birth == null || d.birth is map) && (d.death == null || d.death is map)
+    && (d.sex == null || d.sex in ['M', 'F'])
+    && d.reviewFlags == [] && d.profileVersion == 1 && d.schemaVersion == 1
+    && d.createdAt == request.time && d.createdBy == request.auth.uid;
+  }
+  function privateShapeOk() {
+   return request.resource.data.keys().hasOnly(['note', 'schemaVersion', 'importBatchId'])
+    && request.resource.data.note is string && request.resource.data.note.size() <= 2000;
   }
   match /personPrivate/{id} {
    allow read: if manager();
-   allow create, update: if editGate(id) && exists(personDoc(id))
-    && request.resource.data.keys().hasOnly(['note', 'schemaVersion', 'importBatchId'])
-    && request.resource.data.note is string && request.resource.data.note.size() <= 2000;
+   allow update: if editGate(id) && exists(personDoc(id)) && privateShapeOk();
+   allow create: if ((editGate(id) && exists(personDoc(id))) || (createGate(id) && !exists(personDoc(id))))
+    && privateShapeOk();
   }
+  match /relations/{id} { allow create: if relationCreateOk(id); }
+  match /unions/{id} { allow create: if unionCreateOk(id); }
   match /changeRequests/{id} {
    allow read: if member() && resource.data.authorUid == request.auth.uid;
   }

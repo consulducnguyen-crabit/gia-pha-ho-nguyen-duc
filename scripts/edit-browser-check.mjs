@@ -201,6 +201,82 @@ try {
     page.getByText("Tài liệu gốc chưa rõ, cần xác minh"),
   ).toHaveCount(0);
 
+  stage = "add spouse and child, with validation and navigation";
+  await page.goto(`${URL}/#/person/a`);
+  await page.getByRole("button", { name: "Thêm vợ/chồng" }).click();
+  await page.getByLabel("Họ tên (bắt buộc)").fill("Vợ Giả Ân");
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByText("Đã thêm quan hệ vợ/chồng và ghi nhật ký."),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Vợ Giả Ân" })).toBeVisible();
+  await page.getByRole("button", { name: "Thêm con" }).click();
+  for (const width of [360, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - globalThis.innerWidth,
+    );
+    if (overflow > 0)
+      throw Error(`Form thêm con tràn ngang ${overflow}px ở ${width}px`);
+    if (process.env.SHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.SHOT_DIR}/add-${width}.png`,
+        fullPage: true,
+      });
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "cha hay mẹ" }),
+  ).toBeVisible();
+  await page.getByLabel("Cha của đứa trẻ").check();
+  await page
+    .getByLabel(/^Mẹ của đứa trẻ \(nếu có ghi\)/)
+    .selectOption({ label: "Vợ Giả Ân" });
+  await page.getByLabel("Họ tên (bắt buộc)").fill("Giả Văn Mới");
+  await page.getByRole("textbox", { name: /^Năm sinh/ }).fill("1960");
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Giả Văn Mới", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Đã thêm người con và ghi nhật ký."),
+  ).toBeVisible();
+  await expect(page.getByText("Đời 3").first()).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Giả Văn Ân" }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Vợ Giả Ân" }).first(),
+  ).toBeVisible();
+  const kidDocs = await db
+    .collection("persons")
+    .where("displayName", "==", "Giả Văn Mới")
+    .get();
+  if (kidDocs.size !== 1) throw Error("Không thấy người con mới");
+  const kid = kidDocs.docs[0].id;
+  const rel = (await db.doc(`relations/r-a-${kid}`).get()).data();
+  if (!rel || rel.parentRole !== "FATHER" || rel.lineageTransmission !== true)
+    throw Error("Quan hệ cha-con sai");
+  const spouseDocs = await db
+    .collection("persons")
+    .where("displayName", "==", "Vợ Giả Ân")
+    .get();
+  const spouseId = spouseDocs.docs[0].id;
+  const rel2 = (await db.doc(`relations/r-${spouseId}-${kid}`).get()).data();
+  if (
+    !rel2 ||
+    rel2.parentRole !== "MOTHER" ||
+    rel2.lineageTransmission !== false
+  )
+    throw Error("Quan hệ mẹ-con sai");
+  const a3 = (await db.doc("auditLogs/edit-3").get()).data();
+  const a4 = (await db.doc("auditLogs/edit-4").get()).data();
+  if (a3.event !== "SPOUSE_ADDED" || a4.event !== "PERSON_ADDED")
+    throw Error("Nhật ký thêm người sai");
+  if ((await db.doc("treeSnapshots/main").get()).data().editVersion !== 4)
+    throw Error("editVersion phải là 4");
+
   stage = "version conflict is reported, nothing written";
   await page.goto(`${URL}/#/person/b`);
   await page.getByRole("button", { name: "Sửa hồ sơ" }).click();
