@@ -2,6 +2,7 @@
 // Không chứa dữ liệu thật; dữ liệu thật chỉ đi qua từ private-data/ lúc chạy.
 import { normalizeName, type Model } from "./dsl.ts";
 import { computeReviewFlags } from "./flags.ts";
+import { PROD_PROJECT } from "./prod-gate.ts";
 
 export interface PlanDoc {
   path: string;
@@ -260,13 +261,14 @@ export const IMPORT_COLLECTIONS = [
 ];
 
 export type TargetDecision =
-  | { ok: true; kind: "emulator" | "dev"; project: string }
+  | { ok: true; kind: "emulator" | "dev" | "prod"; project: string }
   | { ok: false; reason: string };
 
 // Chỉ cho phép emulator cục bộ hoặc project kết thúc bằng -dev. Production bị cấm.
 export function decideTarget(
   env: Record<string, string | undefined>,
   project: string | undefined,
+  options: { allowProd?: boolean } = {},
 ): TargetDecision {
   const host = env.FIRESTORE_EMULATOR_HOST;
   if (host) {
@@ -276,6 +278,14 @@ export function decideTarget(
   }
   if (!project)
     return { ok: false, reason: "Thiếu --project (hoặc đặt emulator)." };
+  if (options.allowProd && project === PROD_PROJECT) {
+    if (!env.GOOGLE_APPLICATION_CREDENTIALS)
+      return {
+        ok: false,
+        reason: "Thiếu GOOGLE_APPLICATION_CREDENTIALS (khóa để ngoài repo).",
+      };
+    return { ok: true, kind: "prod", project };
+  }
   if (/prod/i.test(project) || !/-dev$/.test(project))
     return {
       ok: false,

@@ -21,7 +21,7 @@ Chưa có Cloud Functions nên tài khoản được quản lý bằng **công c
 | `reset-password --email E --apply` | Đặt lại mật khẩu (chỉ tài khoản mật khẩu) |
 
 - Mặc định chỉ chạy thử. Cần `--apply` để ghi.
-- Đích chỉ là emulator loopback (đặt cả `FIRESTORE_EMULATOR_HOST` và `FIREBASE_AUTH_EMULATOR_HOST`) hoặc project `-dev` (cần `GOOGLE_APPLICATION_CREDENTIALS` trỏ tới khóa service account **để ngoài repo**, `--project <id>` và `--confirm <id>`). Production bị từ chối ở bước này.
+- Đích: emulator loopback (đặt cả `FIRESTORE_EMULATOR_HOST` và `FIREBASE_AUTH_EMULATOR_HOST`), project `-dev` hoặc **production** (`gia-pha-nguyen-duc-prod`). Project thật cần `GOOGLE_APPLICATION_CREDENTIALS` (khóa service account **để ngoài repo**), `--project <id>` và `--confirm <id>`; riêng prod cần thêm `--ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod"`.
 - Không thu hồi hay hạ quyền **quản trị viên cuối cùng** (trừ khi `--force`).
 - **Chống "đăng ký trước":** nếu đã có tài khoản mật khẩu cho email đó nhưng **chưa xác minh email** (tức là có người tự đăng ký, không phải do công cụ tạo), `grant` từ chối. Cần xóa tài khoản đó trong Firebase Console rồi chạy lại. Chỉ tài khoản do công cụ tạo (email đã xác minh bởi quản trị viên) hoặc Google mới được cấp quyền.
 - Khuyến nghị (cần kiểm chứng trên dev trước khi bật): tắt tự đăng ký trong Firebase Console (Authentication → Settings → User actions → bỏ "Enable create (sign-up)"). Chưa chắc việc này có chặn đăng nhập Google lần đầu cho tài khoản đã tạo sẵn hay không, nên chưa áp dụng.

@@ -37,7 +37,7 @@ Theo `docs/APPROVED_DECISIONS.md` và `docs/BUSINESS_RULES.md`:
 ## Nạp vào Firestore
 `npm run gia-pha:import -- [--apply] [--replace] [--project <id>] [--confirm <id>]`
 - Mặc định là chạy thử (không kết nối, không ghi), chỉ in số lượng tài liệu. Thêm `--apply` để ghi.
-- Đích chỉ là **emulator loopback** (`FIRESTORE_EMULATOR_HOST=127.0.0.1:8080`) hoặc project kết thúc bằng `-dev` (cần `GOOGLE_APPLICATION_CREDENTIALS` trỏ tới khóa service account **để ngoài repo** và `--confirm <project>`). Production bị từ chối.
+- Đích: **emulator loopback** (`FIRESTORE_EMULATOR_HOST=127.0.0.1:8080`), project `-dev` hoặc **production** `gia-pha-nguyen-duc-prod`. Project thật cần `GOOGLE_APPLICATION_CREDENTIALS` (khóa ngoài repo) và `--confirm <project>`. **Production đi qua cổng an toàn** (xem PROD_ROLLOUT.md): thêm `--ack "NAP DU LIEU THAT <project>"` và `--backup-dir` trỏ tới bản sao lưu mới (≤ 30 phút), đã kiểm chứng và khớp Firestore hiện tại.
 - Idempotent: mã tài liệu xác định (mã trong file trung gian) và lô `importBatches/import-<sha256>`; chạy lại cùng dữ liệu thì không làm gì. Collection đã có dữ liệu khác thì dừng; `--replace` (emulator/dev) xóa các collection nạp rồi nạp lại.
 - Từ chối khi dữ liệu còn ERROR.
 - Phân tách riêng tư (quyết định 2026-11-11): `memberProfiles` chỉ có tên và năm sinh/mất; `persons` giữ giới tính, loại, chi, đời, ngày gốc, kỵ nhật; `personPrivate` giữ ghi chú. Rules hiện chỉ cho thành viên đọc `memberProfiles`. Ngày mâu thuẫn trong văn bản (ví dụ "1954/1955") giữ nguyên bản gốc, không tự chọn năm.

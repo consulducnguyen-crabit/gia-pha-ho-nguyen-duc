@@ -8,24 +8,28 @@
 // Nơi lưu: trong backups/ hoặc private-data/ của repo (bị .gitignore chặn), hoặc ngoài repo. Dữ liệu sao lưu là dữ liệu
 // thật nên KHÔNG bao giờ để trong thư mục được commit và không đưa lên CI.
 import { createRequire } from "node:module";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   BACKUP_FORMAT,
   backupLocationAllowed,
   compareDocSets,
-  countDocs,
   decodeValue,
-  decryptBytes,
-  docLine,
   encryptBytes,
   parseDocLine,
   sha256,
-  verifyManifest,
   type Manifest,
   type ManifestFile,
 } from "./backup-core.ts";
 import { decideTarget } from "./import-plan.ts";
+import {
+  BackupError,
+  collectBackupEvidence,
+  liveCollections,
+  loadBackup,
+} from "./backup-io.ts";
+import { enforceProdGate } from "./prod-guard.ts";
+import { evaluateProdGate } from "./prod-gate.ts";
 
 const root = resolve(import.meta.dirname, "..", "..");
 const [command, ...args] = process.argv.slice(2);
@@ -38,70 +42,26 @@ function die(message: string, code = 2): never {
   console.error(`Từ chối: ${message}`);
   process.exit(code);
 }
-if (!["backup", "verify", "compare", "restore"].includes(command ?? "")) {
-  die("lệnh phải là backup, verify, compare hoặc restore.");
+if (
+  !["backup", "verify", "compare", "restore", "gate-check"].includes(
+    command ?? "",
+  )
+) {
+  die("lệnh phải là backup, verify, compare, gate-check hoặc restore.");
 }
 const passphrase = process.env.GIA_PHA_BACKUP_PASSPHRASE;
-const readBytes = (path: string) => new Uint8Array(readFileSync(path));
 
-function loadBackup(dirArg: string | undefined) {
-  if (!dirArg) die("thiếu --dir.");
-  const dir = resolve(root, dirArg);
-  if (!backupLocationAllowed(dir, root))
-    die(
-      "thư mục sao lưu phải ngoài repo hoặc trong backups/ hoặc private-data/.",
-    );
-  const manifest = JSON.parse(
-    readFileSync(join(dir, "manifest.json"), "utf8"),
-  ) as Manifest;
-  const result = verifyManifest(manifest, (name) => {
-    try {
-      return readBytes(join(dir, name));
-    } catch {
-      return undefined;
-    }
-  });
-  const problems = [...result.problems];
-  const collections = new Map<string, Map<string, string>>();
-  if (result.ok) {
-    if (manifest.encrypted && !passphrase)
-      die("bản sao lưu đã mã hóa; đặt GIA_PHA_BACKUP_PASSPHRASE.");
-    for (const file of manifest.files) {
-      if (!file.collection) continue;
-      let text: string;
-      try {
-        const raw = readBytes(join(dir, file.name));
-        text = Buffer.from(
-          manifest.encrypted ? decryptBytes(raw, passphrase!) : raw,
-        ).toString("utf8");
-      } catch (error) {
-        problems.push(`${file.name}: ${(error as Error).message}`);
-        continue;
-      }
-      try {
-        const { count } = countDocs(text);
-        if (count !== file.documents)
-          problems.push(
-            `${file.name}: số tài liệu ${count} khác manifest ${file.documents}`,
-          );
-      } catch (error) {
-        problems.push(`${file.name}: ${(error as Error).message}`);
-        continue;
-      }
-      const map = new Map<string, string>();
-      for (const line of text.split("\n")) {
-        if (!line.trim()) continue;
-        const doc = parseDocLine(line);
-        map.set(doc.id, line);
-      }
-      collections.set(file.collection, map);
-    }
+function load(dirArg: string | undefined) {
+  try {
+    return loadBackup(root, dirArg, passphrase);
+  } catch (error) {
+    if (error instanceof BackupError) die(error.message);
+    throw error;
   }
-  return { dir, manifest, problems, collections };
 }
 
 if (command === "verify") {
-  const { manifest, problems } = loadBackup(option("--dir"));
+  const { manifest, problems } = load(option("--dir"));
   const total = manifest.files.reduce((n, f) => n + f.documents, 0);
   console.log(
     `Sao lưu ${manifest.project} lúc ${manifest.createdAt}: ${manifest.files.length} tệp, ${total} tài liệu, ${manifest.encrypted ? "đã mã hóa" : "không mã hóa"}.`,
@@ -117,7 +77,7 @@ if (command === "verify") {
 // ---- Các lệnh cần kết nối Firestore ----
 const writing = command === "restore";
 if (writing && !flag("--apply")) {
-  const { manifest, problems } = loadBackup(option("--dir"));
+  const { manifest, problems } = load(option("--dir"));
   if (problems.length) die(`bản sao lưu không hợp lệ: ${problems[0]}`, 1);
   const rows = manifest.files
     .filter((f) => f.collection)
@@ -129,11 +89,11 @@ if (writing && !flag("--apply")) {
   process.exit(0);
 }
 const project = option("--project");
-let target: { kind: "emulator" | "dev" | "real"; project: string };
+let target: { kind: "emulator" | "dev" | "prod" | "real"; project: string };
 if (writing) {
-  const d = decideTarget(process.env, project);
+  const d = decideTarget(process.env, project, { allowProd: true });
   if (!d.ok) die(d.reason);
-  if (d.kind === "dev" && option("--confirm") !== d.project)
+  if (d.kind !== "emulator" && option("--confirm") !== d.project)
     die(`ghi vào project thật cần --confirm ${d.project}.`);
   target = { kind: d.kind, project: d.project };
 } else if (process.env.FIRESTORE_EMULATOR_HOST) {
@@ -163,16 +123,6 @@ const app = initializeApp(
 const db = getFirestore(app);
 console.log(`Đích: ${target.kind} / ${target.project}`);
 
-async function liveCollections(): Promise<Map<string, Map<string, string>>> {
-  const out = new Map<string, Map<string, string>>();
-  for (const col of await db.listCollections()) {
-    const map = new Map<string, string>();
-    for (const d of (await col.get()).docs)
-      map.set(d.id, docLine({ id: d.id, data: d.data() }));
-    out.set(col.id, map);
-  }
-  return out;
-}
 const SAFE_COLLECTION = /^[A-Za-z0-9_-]{1,64}$/;
 
 if (command === "backup") {
@@ -206,7 +156,7 @@ if (command === "backup") {
       sha256: sha256(bytes),
     });
   };
-  for (const [name, docs] of await liveCollections()) {
+  for (const [name, docs] of await liveCollections(db)) {
     if (!SAFE_COLLECTION.test(name))
       die(`tên collection không an toàn: ${name}`, 1);
     write(
@@ -265,14 +215,52 @@ if (command === "backup") {
   process.exit(0);
 }
 
-const { problems, collections } = loadBackup(option("--dir"));
+if (command === "gate-check") {
+  // Chỉ đọc, dùng được cho mọi đích: cho biết bản sao lưu đã sẵn sàng cho cổng nạp prod hay chưa.
+  let evidence;
+  try {
+    evidence = (
+      await collectBackupEvidence(root, option("--dir") ?? "", passphrase, db)
+    ).evidence;
+  } catch (error) {
+    if (error instanceof BackupError) die(error.message, 1);
+    throw error;
+  }
+  const verdict = evaluateProdGate({
+    action: "NAP DU LIEU THAT",
+    project: target.project,
+    confirm: target.project,
+    ack: `NAP DU LIEU THAT ${target.project}`,
+    needsBackup: true,
+    backup: evidence,
+    now: new Date(),
+  });
+  // Bỏ qua lý do "không phải project prod" khi kiểm tra trên emulator/dev.
+  const reasons = verdict.reasons.filter(
+    (r) => !r.startsWith("Cổng prod chỉ áp dụng"),
+  );
+  console.log(
+    `Bản sao lưu: project ${evidence.project}, tạo lúc ${evidence.createdAt}, kiểm tra ${evidence.verified ? "đạt" : "KHÔNG đạt"}, khớp hiện tại ${evidence.matchesLive ? "có" : "KHÔNG"}.`,
+  );
+  if (reasons.length) {
+    for (const r of reasons) console.error(` - ${r}`);
+    console.error("CHƯA SẴN SÀNG cho cổng nạp prod.");
+    process.exit(1);
+  }
+  console.log(
+    `SẴN SÀNG: bản sao lưu đủ điều kiện cho cổng nạp prod (còn hiệu lực trong ${30} phút kể từ lúc tạo).`,
+  );
+  process.exit(0);
+}
+
+const { problems, collections } = load(option("--dir"));
 if (problems.length) {
   for (const p of problems) console.error(`LỖI: ${p}`);
   die("bản sao lưu không hợp lệ.", 1);
 }
 
 if (command === "compare") {
-  const live = await liveCollections();
+  const live = await liveCollections(db);
   let bad = 0;
   const names = new Set([...collections.keys(), ...live.keys()]);
   for (const name of [...names].sort()) {
@@ -297,8 +285,20 @@ if (command === "compare") {
 }
 
 // restore
-if (target.kind === "real")
-  die("không khôi phục vào hệ thống thật ở bước này.");
+if (target.kind === "real") die("không khôi phục vào hệ thống thật.");
+if (target.kind === "prod")
+  await enforceProdGate({
+    root,
+    action: "KHOI PHUC",
+    project: target.project,
+    confirm: option("--confirm"),
+    ack: option("--ack"),
+    // Ghi đè dữ liệu hiện có cần bản sao lưu mới của trạng thái hiện tại để còn đường lui.
+    needsBackup: flag("--replace"),
+    backupDir: option("--pre-backup-dir"),
+    passphrase,
+    db,
+  });
 const existing = new Map<string, number>();
 for (const name of collections.keys())
   existing.set(name, (await db.collection(name).limit(1).get()).size);

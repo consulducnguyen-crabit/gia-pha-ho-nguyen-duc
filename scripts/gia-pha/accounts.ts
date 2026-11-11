@@ -24,6 +24,7 @@ import {
   type Command,
 } from "./accounts-core.ts";
 import { decideTarget } from "./import-plan.ts";
+import { evaluateProdGate } from "./prod-gate.ts";
 
 const root = resolve(import.meta.dirname, "..", "..");
 const [command, ...args] = process.argv.slice(2) as [
@@ -78,7 +79,9 @@ if (mutating && !apply) {
   process.exit(0);
 }
 
-const decision = decideTarget(process.env, option("--project"));
+const decision = decideTarget(process.env, option("--project"), {
+  allowProd: true,
+});
 if (!decision.ok) die(decision.reason);
 if (
   decision.kind === "emulator" &&
@@ -88,11 +91,26 @@ if (
 )
   die("cần cả FIREBASE_AUTH_EMULATOR_HOST loopback khi dùng emulator.");
 if (
-  decision.kind === "dev" &&
+  decision.kind !== "emulator" &&
   mutating &&
   option("--confirm") !== decision.project
 )
   die(`ghi vào project thật cần --confirm ${decision.project}.`);
+if (decision.kind === "prod" && mutating) {
+  const gate = evaluateProdGate({
+    action: "QUAN LY TAI KHOAN",
+    project: decision.project,
+    confirm: option("--confirm"),
+    ack: option("--ack"),
+    needsBackup: false,
+    now: new Date(),
+  });
+  if (!gate.ok) {
+    console.error("Cổng production KHÔNG ĐẠT:");
+    for (const reason of gate.reasons) console.error(` - ${reason}`);
+    process.exit(2);
+  }
+}
 
 const requireAdmin = createRequire(resolve(root, "functions", "package.json"));
 const { initializeApp, applicationDefault } =
