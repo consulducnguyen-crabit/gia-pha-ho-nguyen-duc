@@ -649,7 +649,7 @@ describe("proposal callable workflow on real emulators", () => {
         ...operation,
         relationId: randomUUID(),
         parentId: await person(),
-        parentRole: "MOTHER" as const,
+        parentRole: "FATHER" as const,
         relationType: "ADOPTIVE" as const,
       },
     ]) {
@@ -657,6 +657,30 @@ describe("proposal callable workflow on real emulators", () => {
       await deny(review(record, reviewer2), "failed-precondition");
     }
     expect((await db.collection("relations").get()).size).toBe(1);
+  });
+
+  it("keeps a single lineage founder: a second unconnected lineage root is refused at approval", async () => {
+    const first = await relationOperation();
+    await review(await submit(await draft(first)));
+    const second = await relationOperation();
+    const record = await submit(await draft(second));
+    await deny(review(record), "failed-precondition");
+    expect((await db.collection("relations").get()).size).toBe(1);
+    expect(
+      (await db.doc(`changeRequests/${record.requestId}`).get()).data()?.status,
+    ).toBe("SUBMITTED");
+    const joined = await relationOperation({
+      parentId: first.childId,
+      childId: second.parentId,
+    });
+    expect((await review(await submit(await draft(joined)))).status).toBe(
+      "APPROVED",
+    );
+  });
+
+  it("rejects an in-law mother as lineage carrier at draft time", async () => {
+    const operation = await relationOperation({ parentRole: "MOTHER" });
+    await deny(draft(operation), "invalid-argument");
   });
 
   it("accepts explicit father and mother roles without assuming either one transmits lineage", async () => {

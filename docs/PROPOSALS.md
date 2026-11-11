@@ -9,7 +9,7 @@ Không deploy production, không chọn người quản trị thật hoặc thay
   memberProfiles bằng bốn trường allowlist; không sao chép private fields.
 - RELATION_CREATE: thêm quan hệ mới, vai trò FATHER/MOTHER và loại
   BIOLOGICAL/ADOPTIVE do người đề xuất chỉ định. Không suy từ họ hoặc giới tính.
-- Truyền dòng cần lý do rõ ràng. Từ 2026-11-11 mọi đề xuất, kể cả truyền dòng,
+- Truyền dòng theo nam: chỉ vai trò cha mới truyền dòng; con nuôi cũng tính đời. Lý do tùy chọn. Từ 2026-11-11 mọi đề xuất, kể cả truyền dòng,
   chỉ cần một người duyệt (khác người đề xuất). Không tự duyệt.
 - Chưa sửa/xóa/gộp quan hệ, tính đời/chi, nhập Excel hoặc duyệt dữ liệu nhạy cảm.
 

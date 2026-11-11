@@ -8,6 +8,12 @@ Mỗi quan hệ cha/mẹ-con là một record có loại (sinh học, nuôi, tru
 
 Không cho phép chu trình tổ tiên. Quan hệ mâu thuẫn, thiếu nguồn hoặc không hợp lý theo thời gian phải được cảnh báo; không tự suy đoán.
 
+## Truyền dòng nội (chính sách 2026-11-11)
+- Dòng họ nội truyền theo **nam**: chỉ quan hệ với người **cha** (vai trò FATHER được chỉ định rõ, không suy từ họ hay giới tính) mới có `lineageTransmission = true`. Quan hệ với mẹ không truyền dòng.
+- **Con nuôi tính đời theo dòng** như con ruột. Loại quan hệ (`ADOPTIVE`) vẫn được lưu để ghi chú bằng badge/màu nhẹ trên giao diện, không tạo phân biệt.
+- **Một thủy tổ duy nhất.** Gốc truyền dòng là người có con theo dòng nhưng không có cha truyền dòng; chỉ được có đúng một. Backend từ chối quan hệ tạo thêm gốc chưa nối; nối một gốc vào dưới cây hiện có thì hợp lệ. Người kết hôn vào không phải gốc. Nhánh có nguồn gốc hợp nhất từ dòng khác được ghi chú ở chi (`mergedFrom`), không tách gốc riêng.
+- Lý do truyền dòng là tùy chọn; căn cứ/nguồn vẫn bắt buộc.
+
 ## Tính đời
 Mặc định đời con = đời người truyền dòng + 1 khi đã xác định đường truyền được duyệt. Đời không rõ nếu không có đường nối xác thực. Ghi nhận override tách biệt với quan hệ gốc, có lý do, người duyệt và ảnh hưởng.
 

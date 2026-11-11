@@ -5,7 +5,7 @@
 - `persons/{personId}/names/{nameId}`: type, value, sourceRefs.
 - `relations/{relationId}`: parentId, childId, relationType, lineageTransmission, verificationStatus, sourceRefs, version.
 - `unions/{unionId}`: partnerIds, status, eventDate, sourceRefs.
-- `branches/{branchId}`: name, founderPersonId, parentBranchId, status.
+- `branches/{branchId}`: name, founderPersonId, parentBranchId, status, mergedFrom (ghi chú nguồn gốc nếu nhánh hợp nhất từ dòng khác; không tách gốc riêng).
 - `generationOverrides/{overrideId}`: personId, generation, reason, approvedBy, approvedAt.
 - `changeRequests/{requestId}`: authorUid, status, baseVersions, proposedOperations, evidenceRefs, decision.
 - `users/{uid}`: enabled, roleIds, approvedAt, approvedBy; server-controlled.
