@@ -6,7 +6,7 @@ Dữ liệu gia phả thật **không bao giờ** nằm trong repo. Mọi file d
 1. Đọc file Word và ghi vào file trung gian `private-data/gia-pha.txt` (định dạng bên dưới), từng chi một.
 2. Chạy `npm run gia-pha:excel` (Node ≥ 24). Script kiểm tra dữ liệu rồi xuất `private-data/gia-pha-ban-nhap.xlsx` với các sheet `HUONG_DAN`, `PERSONS`, `RELATIONS`, `UNIONS`, `BRANCHES`, `ISSUES`.
 3. Tài khoản quản trị rà soát sheet `ISSUES` trước (ERROR phải sửa, WARN cần xác nhận), rồi đối chiếu từng sheet với văn bản gốc.
-4. Sau khi rà soát: nạp vào Firebase `dev` bằng script nạp (chạy thử `--dry-run` trước), kiểm tra, rồi mới nạp `prod` sau khi có sao lưu. (Script nạp là bước sau, chưa có.)
+4. Sau khi rà soát: nạp bằng `npm run gia-pha:import` (xem mục "Nạp vào Firestore"), thử trên emulator trước, rồi project `dev`; chỉ nạp `prod` sau khi có sao lưu đã kiểm chứng và được duyệt riêng.
 
 Script từ chối đọc hoặc ghi ngoài `private-data/`. Exit code khác 0 khi còn ERROR.
 
@@ -33,3 +33,17 @@ Theo `docs/APPROVED_DECISIONS.md` và `docs/BUSINESS_RULES.md`:
 - Đời được tính tự động từ thủy tổ; đời ghi trong văn bản chỉ để đối chiếu (`GEN_MISMATCH`).
 - Không tự gộp người trùng tên: chỉ cảnh báo `DUP_NAME` khi trùng họ tên đúng dấu và cùng đời đã biết (không báo "Tuấn"/"Tuân", không báo người chưa có đời như người kết hôn vào).
 - Kiểm tra thêm: chu trình, nhiều cha cùng loại, trùng quan hệ, mã chưa khai báo, người chưa nối.
+
+## Nạp vào Firestore
+`npm run gia-pha:import -- [--apply] [--replace] [--project <id>] [--confirm <id>]`
+- Mặc định là chạy thử (không kết nối, không ghi), chỉ in số lượng tài liệu. Thêm `--apply` để ghi.
+- Đích chỉ là **emulator loopback** (`FIRESTORE_EMULATOR_HOST=127.0.0.1:8080`) hoặc project kết thúc bằng `-dev` (cần `GOOGLE_APPLICATION_CREDENTIALS` trỏ tới khóa service account **để ngoài repo** và `--confirm <project>`). Production bị từ chối.
+- Idempotent: mã tài liệu xác định (mã trong file trung gian) và lô `importBatches/import-<sha256>`; chạy lại cùng dữ liệu thì không làm gì. Collection đã có dữ liệu khác thì dừng; `--replace` (emulator/dev) xóa các collection nạp rồi nạp lại.
+- Từ chối khi dữ liệu còn ERROR.
+- Phân tách riêng tư (quyết định 2026-11-11): `memberProfiles` chỉ có tên và năm sinh/mất; `persons` giữ giới tính, loại, chi, đời, ngày gốc, kỵ nhật; `personPrivate` giữ ghi chú. Rules hiện chỉ cho thành viên đọc `memberProfiles`. Ngày mâu thuẫn trong văn bản (ví dụ "1954/1955") giữ nguyên bản gốc, không tự chọn năm.
+- Quan hệ dùng đúng mô hình của backend đề xuất (`relations`, `graphState/parentage`).
+
+### Việc còn lại sau bước này
+- Luồng đề xuất (`PERSON_BASIC`) hiện ghi đè `memberProfiles` bằng projection 4 trường nên sẽ làm mất `birthYear`/`deathYear`; cần đổi sang merge trước khi dùng.
+- Giới hạn 200 quan hệ trong luồng đề xuất (`assertGraphCanAdd`) nhỏ hơn dữ liệu đã nạp (~620); cần nâng và đo chi phí đọc trước khi mở luồng đề xuất.
+
