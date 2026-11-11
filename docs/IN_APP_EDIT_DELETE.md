@@ -23,6 +23,12 @@ không sửa được và không được chọn làm cha/mẹ (quan hệ mới 
 
 ## Giới hạn đã biết
 
+- Rules chỉ client-kiểm (script đối soát bắt): ẩn người còn con (rules không liệt kê được con), số phiên bản khôi phục khớp
+  `deletedAtVersion` ở nhật ký, khôi phục khi cha/mẹ hay vợ/chồng còn đang ẩn, `normalizedName`/năm của bản thành viên tạo lại.
+- Khi khôi phục, các trường `deletedAt/By/With/AtVersion` cũ vẫn còn: chỉ `deleted` là nguồn sự thật. Rules chặn khôi phục
+  quan hệ đã bị THAY THẾ (`replacedBy`), và không cho tạo vợ/chồng mới với người đang ẩn.
+- Người có hơn hai quan hệ cha/mẹ (ruột + nuôi + mẹ) chưa ẩn được (thông báo rõ từ lõi).
+- Sau khi ẩn, app chuyển tới cha/mẹ, vợ/chồng hoặc thủy tổ để hiện thông báo kèm mã người và số phiên bản.
 - Người đã ẩn không liệt kê được trong app: phải nhớ mã người và số phiên bản (nằm trong thông báo và nhật ký).
 - Rules chỉ kiểm quan hệ đầu tiên trong lô ẩn/khôi phục và không kiểm nội dung JSON snapshot; script đối soát (PR D).
 - Quan hệ cha/mẹ cũ đã bị thay thế (C2a) vẫn chưa khôi phục được riêng lẻ.

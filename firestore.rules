@@ -137,6 +137,8 @@ service cloud.firestore {
         ? 'u-' + d.partnerIds[0] + '-' + d.partnerIds[1]
         : 'u-' + d.partnerIds[1] + '-' + d.partnerIds[0])
     && existsAfter(personDoc(d.partnerIds[0])) && existsAfter(personDoc(d.partnerIds[1]))
+    && getAfter(personDoc(d.partnerIds[0])).data.get('deleted', false) == false
+    && getAfter(personDoc(d.partnerIds[1])).data.get('deleted', false) == false
     && (d.order == null || (d.order is string && d.order.size() <= 20))
     && d.schemaVersion == 1 && d.createdAt == request.time
     && d.sourceRefs == ['auditLogs/edit-' + string(n)];
@@ -288,6 +290,7 @@ service cloud.firestore {
          && d.deletedWith == a.personId)
      || (!live && a.event == 'PERSON_RESTORED' && id in a.relationIds
          && resource.data.get('deletedWith', '') == a.personId
+         && resource.data.get('replacedBy', null) == null
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'version', 'restoredAt', 'restoredBy'])
          && d.deleted == false && d.restoredAt == request.time && d.restoredBy == request.auth.uid));
   }

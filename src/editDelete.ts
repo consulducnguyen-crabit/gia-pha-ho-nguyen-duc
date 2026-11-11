@@ -213,6 +213,8 @@ export function applyDelete(
     if (unions.length > 1)
       invalid("Người này có nhiều quan hệ vợ/chồng; chưa hỗ trợ ẩn.");
     const parentRows = data.relations.filter((r) => r[1] === id);
+    if (parentRows.length > 2)
+      invalid("Người này có hơn hai quan hệ cha/mẹ; chưa hỗ trợ ẩn.");
     relationIds = parentRows.map((r) => rid(String(r[0]), id));
     unionId = unions[0]
       ? uid2(String(unions[0][0]), String(unions[0][1]))

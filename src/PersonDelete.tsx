@@ -62,7 +62,8 @@ function HidePanel(props: Props & { close: () => void }) {
         actorUid: uid,
       });
       // Sau khi ẩn, chuyển tới cha/mẹ hoặc vợ/chồng để người dùng không ở trang người đã biến mất.
-      const next = index.parents(p.id)[0]?.id ?? index.spouses(p.id)[0] ?? null;
+      const next =
+        index.parents(p.id)[0]?.id ?? index.spouses(p.id)[0] ?? index.root;
       return {
         message: `Đã ẩn ${p.name} khỏi cây. Để khôi phục, nhập mã ${p.id} và số ${result.nextVersion} ở mục "Khôi phục người đã ẩn".`,
         focusId: next ?? "",

@@ -117,6 +117,11 @@ describe("ẩn người (xóa mềm)", () => {
     expect(code(() => run(s, del("k")))).toBe("INVALID");
     expect(code(() => run(delState(), del("khong-co")))).toBe("INVALID");
   });
+  it("chặn người có hơn hai quan hệ cha/mẹ", () => {
+    const t = tree();
+    t.relations.push(["z", "k", "F", "A", 0]);
+    expect(code(() => run(delState("k", t), del("k")))).toBe("INVALID");
+  });
   it("deleteReads trả các quan hệ cha/mẹ", () => {
     expect(deleteReads(snap(tree()), "k").sort()).toEqual(["r-a-k", "r-b-k"]);
   });

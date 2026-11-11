@@ -1208,16 +1208,73 @@ describe("ẩn và khôi phục người: rules", () => {
       },
       1,
     );
+    // Khớp đủ mọi điều kiện khác (id, nhật ký, truyền dòng): chỉ còn điều kiện "cha/mẹ chưa bị ẩn".
     const toDeleted = rel.writes.map((w) =>
       w.path === "relations/r-m-c"
         ? {
             ...w,
             path: "relations/r-b-c",
-            data: { ...w.data, parentId: "b", parentRole: "FATHER" },
+            data: {
+              ...w.data,
+              parentId: "b",
+              parentRole: "FATHER",
+              lineageTransmission: true,
+            },
           }
-        : w,
+        : w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, relationIds: ["r-b-c"] } }
+          : w,
     );
     await assertFails(commit(db, toDeleted));
+  });
+
+  it("ẩn và khôi phục vợ/chồng (có union): thành công; nhật ký sai union hoặc union của người khác bị chặn", async () => {
+    const db = admin();
+    // Clients không đọc được unions; đọc bằng quyền test.
+    const readUnion = async () => {
+      let data: Record<string, unknown> = {};
+      await env.withSecurityRulesDisabled(async (c) => {
+        data =
+          (
+            await getDoc(doc(c.firestore(), "unions", "u-b-p-newspouse"))
+          ).data() ?? {};
+      });
+      return data;
+    };
+    await assertSucceeds(
+      commit(db, (await planAdd(db, newSpouse(), 0)).writes),
+    );
+    const spouse = (): DeleteOp => ({
+      type: "deletePerson",
+      personId: "p-newspouse",
+      confirm: true,
+    });
+    const hide = await planDel(db, spouse(), 1);
+    await assertFails(
+      commit(
+        db,
+        hide.writes.map((w) =>
+          w.path.startsWith("auditLogs/")
+            ? { ...w, data: { ...w.data, unionId: "u-a-b" } }
+            : w,
+        ),
+      ),
+    );
+    await assertFails(
+      commit(db, without(hide.writes, "unions/u-b-p-newspouse")),
+    );
+    await assertSucceeds(commit(db, hide.writes));
+    expect((await readUnion()).deleted).toBe(true);
+    const restore = await planDel(
+      db,
+      { type: "restorePerson", personId: "p-newspouse", deleteVersion: 2 },
+      2,
+    );
+    await assertSucceeds(commit(db, restore.writes));
+    expect((await readUnion()).deleted).toBe(false);
+    expect(
+      (await getDoc(doc(db, "memberProfiles", "p-newspouse"))).exists(),
+    ).toBe(true);
   });
 
   it("khôi phục: không dùng được số phiên bản sai, không làm hai lần", async () => {
