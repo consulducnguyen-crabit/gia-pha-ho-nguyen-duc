@@ -63,3 +63,8 @@
 
 - `applyAdd`, `commitAdd`, biểu mẫu Thêm con / Thêm vợ/chồng; rules cho PERSON_ADDED và SPOUSE_ADDED.
   Chỉ thêm, không ghi đè quan hệ cũ. Xem IN_APP_EDIT_ADD.md. Chưa deploy rules lên prod.
+
+# Đổi cha/mẹ và loại con (PR C2a, 2026-11-11)
+
+- `applyRelation`, `commitRelation`, mục quản trị quan hệ cha mẹ; rules cho PARENT_CHANGED và
+  RELATION_TYPE_CHANGED. Quan hệ bị thay được ẩn (xóa mềm), không xóa cứng. Xem IN_APP_EDIT_RELATIONS.md.

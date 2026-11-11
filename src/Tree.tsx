@@ -4,6 +4,7 @@ import { doc, getDocFromServer } from "firebase/firestore";
 import { db } from "./firebase";
 import { PersonEdit } from "./PersonEdit";
 import { PersonAdd } from "./PersonAdd";
+import { PersonRelations } from "./PersonRelations";
 import {
   buildIndex,
   categoryLabel,
@@ -499,6 +500,23 @@ export function PersonPage({
       {canEdit && (
         <PersonAdd
           key={`add:${id}:${index.snapshot.editVersion}`}
+          index={index}
+          p={p}
+          uid={uid}
+          onReload={() => {
+            setSaved(null);
+            reload();
+          }}
+          onSaved={(message, focusId) => {
+            setSaved({ id: focusId, message });
+            reload();
+          }}
+        />
+      )}
+      {canEdit && (
+        <PersonRelations
+          key={`rel:${id}:${index.snapshot.editVersion}`}
+          onStart={() => setSaved(null)}
           index={index}
           p={p}
           uid={uid}
