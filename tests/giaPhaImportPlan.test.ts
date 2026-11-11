@@ -109,6 +109,26 @@ describe("kế hoạch nạp Firestore", () => {
     });
   });
 
+  it("ảnh chụp cây chỉ chứa tên, năm sinh/mất, đời, chi, quan hệ", () => {
+    const snap = byPath("treeSnapshots/main") as {
+      schemaVersion: number;
+      dataVersion: string;
+      data: string;
+    };
+    expect(snap).toMatchObject({
+      schemaVersion: 1,
+      dataVersion: "import-test",
+    });
+    const data = JSON.parse(snap.data);
+    expect(data.persons.a).toEqual(["Giả Văn A", 1927, 1973, 2, "C", "I"]);
+    expect(data.persons.va).toEqual(["Vợ Giả A", null, null, null, "S", null]);
+    expect(data.relations).toContainEqual(["ts", "a", "F", "B", 1]);
+    expect(data.relations).toContainEqual(["va", "c", "M", "B", 0]);
+    expect(snap.data).not.toContain("Ghi chú riêng giả");
+    expect(snap.data).not.toContain("14/7");
+    expect(snap.data.length).toBeLessThan(1_000_000);
+  });
+
   it("đếm đúng số tài liệu theo collection", () => {
     expect(plan.counts).toMatchObject({
       persons: 5,
@@ -118,6 +138,7 @@ describe("kế hoạch nạp Firestore", () => {
       unions: 1,
       branches: 1,
       graphState: 1,
+      treeSnapshots: 1,
     });
   });
 });

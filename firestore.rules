@@ -8,6 +8,9 @@ service cloud.firestore {
   match /users/{uid} { allow get: if request.auth != null && request.auth.uid == uid; }
   // Trusted backend publishes only allowlisted basic fields here.
   match /memberProfiles/{id} { allow read: if member(); }
+  // One versioned snapshot (names, birth/death years, generation, branch, relations) built by
+  // trusted code. get only: no listing, no client writes.
+  match /treeSnapshots/{id} { allow get: if member(); }
   match /changeRequests/{id} {
    allow read: if member() && resource.data.authorUid == request.auth.uid;
   }
