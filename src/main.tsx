@@ -22,11 +22,14 @@ import { auth, db, emulator } from "./firebase";
 import { normalizeName, type Person } from "./domain";
 import { latestRequest } from "./latestRequest";
 import { AcceptInvitation, MembershipAdmin } from "./Membership";
+import { Proposals } from "./Proposals";
 import "./style.css";
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [access, setAccess] = useState("loading");
   const [canManageMembership, setCanManageMembership] = useState(false);
+  const [canReviewChanges, setCanReviewChanges] = useState(false);
+  const [canReviewLineage, setCanReviewLineage] = useState(false);
   useEffect(() => {
     if (!auth || !db) {
       setAccess("setup");
@@ -36,6 +39,8 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       stop();
       setCanManageMembership(false);
+      setCanReviewChanges(false);
+      setCanReviewLineage(false);
       setUser(u);
       setAccess(u ? "loading" : "login");
       if (u)
@@ -43,6 +48,14 @@ function App() {
           doc(db!, "users", u.uid),
           { includeMetadataChanges: true },
           (s) => {
+            const confirmed =
+              !s.metadata.fromCache && s.data()?.enabled === true;
+            setCanReviewChanges(
+              confirmed && s.data()?.canReviewChanges === true,
+            );
+            setCanReviewLineage(
+              confirmed && s.data()?.canReviewLineage === true,
+            );
             setCanManageMembership(
               !s.metadata.fromCache &&
                 s.data()?.enabled === true &&
@@ -58,6 +71,8 @@ function App() {
           },
           () => {
             setCanManageMembership(false);
+            setCanReviewChanges(false);
+            setCanReviewLineage(false);
             setAccess("error");
           },
         );
@@ -84,6 +99,10 @@ function App() {
             ⌂ Tổng quan
           </NavLink>
           <NavLink to="/persons">♧ Tra cứu thành viên</NavLink>
+          {emulator && <NavLink to="/changes">Đề xuất thay đổi</NavLink>}
+          {emulator && canReviewChanges && (
+            <NavLink to="/review">Hộp duyệt</NavLink>
+          )}
           {emulator && canManageMembership && (
             <NavLink to="/accounts">Tài khoản và lời mời</NavLink>
           )}
@@ -107,6 +126,30 @@ function App() {
             <Route path="/" element={<Overview />} />
             <Route path="/persons" element={<People />} />
             <Route path="/roadmap" element={<Roadmap />} />
+            {emulator && (
+              <Route
+                path="/changes"
+                element={
+                  <Proposals
+                    key={`own:${user!.uid}`}
+                    mode="OWN"
+                    currentUid={user!.uid}
+                  />
+                }
+              />
+            )}
+            {emulator && canReviewChanges && (
+              <Route
+                path="/review"
+                element={
+                  <Proposals
+                    key={`review:${user!.uid}:${canReviewLineage}`}
+                    mode="REVIEW"
+                    currentUid={user!.uid}
+                  />
+                }
+              />
+            )}
             {emulator && canManageMembership && (
               <Route
                 path="/accounts"
@@ -281,7 +324,8 @@ function Overview() {
           <span>03 / ĐANG CHUẨN BỊ</span>
           <h3>Cây và đề xuất</h3>
           <p>
-            Chính sách đã chốt; đang chuẩn bị quy trình xác minh và phê duyệt.
+            Đề xuất và phê duyệt đã có bản thử nghiệm cục bộ; cây tương tác đang
+            chuẩn bị.
           </p>
         </article>
       </div>
@@ -389,7 +433,9 @@ function Roadmap() {
         </p>
         <p>
           Lời mời một lần, nhận quyền và thu hồi quyền tài khoản đã có bản thử
-          nghiệm trên emulator. Chưa mở trên production.
+          nghiệm trên emulator. Chưa mở trên production. Đề xuất họ tên và thêm
+          quan hệ có luồng duyệt thử nghiệm; quan hệ truyền dòng cần hai người
+          duyệt.
         </p>
         <h2>Chính sách đã được phê duyệt</h2>
         <p>
@@ -398,8 +444,8 @@ function Roadmap() {
         </p>
         <h2>Chưa mở</h2>
         <p>
-          Cây tương tác, gửi và duyệt đề xuất, nhập Excel, ảnh, tài liệu và quản
-          trị tài khoản production.
+          Cây tương tác, nhập Excel, ảnh, tài liệu và quản trị tài khoản
+          production.
         </p>
       </article>
     </>

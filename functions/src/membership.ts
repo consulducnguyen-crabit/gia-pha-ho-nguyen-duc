@@ -59,7 +59,11 @@ function ordinary(data?: DocumentData) {
       data.roleIds.length !== 1 ||
       data.roleIds[0] !== "member" ||
       (data.canManageMembership !== undefined &&
-        data.canManageMembership !== false))
+        data.canManageMembership !== false) ||
+      ["canReviewChanges", "canReviewLineage"].some(
+        (capability) =>
+          data[capability] !== undefined && data[capability] !== false,
+      ))
   )
     fail(
       "permission-denied",

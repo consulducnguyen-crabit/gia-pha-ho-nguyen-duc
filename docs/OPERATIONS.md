@@ -16,6 +16,10 @@ Luồng lời mời/cấp quyền có hướng dẫn riêng tại [INVITATIONS.m
 Functions emulator trên 127.0.0.1:5001; backend fail closed ngoài emulator.
 Kết quả mới nhất tại [INVITATIONS_VERIFICATION.md](INVITATIONS_VERIFICATION.md).
 
+Luồng đề xuất/phê duyệt thử nghiệm có hướng dẫn tại [PROPOSALS.md](PROPOSALS.md).
+Chỉ chạy graph integration/browser trên fixture cô lập; không chạy đồng thời bộ
+rules cố ý tạo graph sai cấu trúc. Không tự mở quyền canonical hoặc media.
+
 ## Kiểm thử
 `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:rules`, `npm run build`.
 Rules tests dùng dữ liệu giả với bypass chỉ bên trong emulator. Cài emulator có thể cần tải binary từ Firebase.

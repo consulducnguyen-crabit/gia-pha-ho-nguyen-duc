@@ -14,9 +14,12 @@
     "test:browser": "node scripts/browser-check.mjs",
     "test:backend": "npm run build:backend && firebase emulators:exec --project demo-gia-pha --only auth,firestore,functions 'vitest run functions/tests/backend.test.ts --testTimeout=30000'",
     "test:backend:unit": "vitest run functions/tests/environment.test.ts",
+    "test:proposals": "npm run build:backend && firebase emulators:exec --project demo-gia-pha --only auth,firestore,functions 'vitest run functions/tests/proposals.test.ts --testTimeout=30000'",
+    "test:proposals:unit": "vitest run functions/tests/proposalValidation.test.ts",
     "emulators": "npm run build:backend && firebase emulators:start --project demo-gia-pha",
     "seed": "node scripts/seed.mjs",
-    "seed:invitations": "node functions/scripts/seed.mjs"
+    "seed:invitations": "node functions/scripts/seed.mjs",
+    "seed:proposals": "node functions/scripts/seed-proposals.mjs"
   },
   "dependencies": {
     "firebase": "^12.0.0",

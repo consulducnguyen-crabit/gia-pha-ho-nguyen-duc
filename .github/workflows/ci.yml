@@ -25,7 +25,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:backend:unit
+      - run: npm run test:proposals:unit
       - run: npm run test:rules
       - run: npm run test:backend
+      - run: npm run test:proposals
       - run: npm run build
 # Production publishing requires a reviewed workflow and protected environment.

@@ -36,3 +36,13 @@
   32 integration chạy cùng suite đạt, ca cuối mới thêm chạy riêng đạt.
 - Cài/build/test backend trong CI; hướng dẫn fixtures, rollback và giới hạn Auth
   principal có sẵn. Chưa provisioning/gửi thư, production authority hoặc deploy.
+
+# Bước đề xuất/phê duyệt (thay đổi chưa commit)
+
+- Backend/UI hồ sơ cơ bản và thêm quan hệ; revision bất biến, kiểm tra phiên bản,
+  phiếu hiện hành và commit canonical/projection/quan hệ/audit nguyên tử.
+- Truyền dòng cần hai reviewer khác nhau, không tự duyệt; graph lock chặn cycle,
+  trùng/xung đột và nhiều đường truyền dòng chưa xử lý.
+- Sửa queue starvation và accessibility; 30 integration đề xuất, 34 integration
+  membership, unit tests và Chromium đạt. Xem PROPOSALS_VERIFICATION.md.
+- Chưa commit, thay đổi remote hoặc deploy production.

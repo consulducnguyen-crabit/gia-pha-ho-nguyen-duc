@@ -46,3 +46,21 @@ Paths like `private/persons/{personId}/{mediaId}`; Storage Rules must check memb
 
 Không migrate dữ liệu thật hoặc đổi schema version gốc. Xem INVITATIONS.md cho
 invariants transaction và các quyết định production chưa chốt.
+
+## Đề xuất — schema 1, chỉ emulator
+
+- changeRequests: authorUid, status, revision, operation, before (allowlist từ
+  projection), requiredApprovals (backend suy ra và đối chiếu), votes, reviewNote,
+  needsEdit và timestamps. Không dùng client-supplied role/status/approval.
+- proposalRevisions/{requestId}-r{revision}: snapshot bất biến operation/before và
+  danh tính tác giả. Apply kiểm tra snapshot tồn tại và khớp trước khi ghi canonical.
+- Phiếu gồm UID, revision, accessVersion và userUpdateTime. Quyền canReviewChanges
+  và canReviewLineage chỉ được cấp bởi fixture server-side trong bản thử nghiệm.
+- graphState/parentage: schemaVersion và version, khóa giao dịch chung cho mọi
+  lần thêm quan hệ. relations mới có parentRole, relationType, lineageTransmission,
+  verificationStatus=APPROVED, version, schemaVersion và sourceRefs trỏ revision.
+- Audit chỉ metadata ID/trạng thái/version; không ghi tên hoặc căn cứ đề xuất.
+
+Không có migration production; request/graph cũ thiếu cấu trúc bị chặn. Capability
+reviewer được bảo vệ khỏi luồng quản lý ordinary-member để không âm thầm xóa quyền.
+Xem PROPOSALS.md về workflow, giới hạn graph và rollback.

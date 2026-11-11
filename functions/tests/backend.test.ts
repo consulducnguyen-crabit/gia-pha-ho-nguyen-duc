@@ -145,6 +145,18 @@ afterAll(async () => {
 });
 
 describe("invitation callable backend on real emulators", () => {
+  it("keeps reviewer capabilities outside the ordinary membership management path", async () => {
+    for (const capability of ["canReviewChanges", "canReviewLineage"]) {
+      const target = await principal({
+        membership: { ...memberRecord, enabled: false, [capability]: true },
+      });
+      await denied(disable(target), "permission-denied");
+      await denied(invite(target), "permission-denied");
+      expect(
+        (await db.doc(`users/${target.uid}`).get()).data()?.[capability],
+      ).toBe(true);
+    }
+  });
   it("grants only member with consumed invitation and atomic audit; stores no raw token in documents", async () => {
     const target = await principal();
     const invitation = await invite(target);

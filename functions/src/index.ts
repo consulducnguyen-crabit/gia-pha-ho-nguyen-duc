@@ -8,6 +8,7 @@ import {
 } from "firebase-functions/v2/https";
 import { requireLocalEmulators } from "./environment.js";
 import { membershipService } from "./membership.js";
+import { proposalService } from "./proposals.js";
 
 function service() {
   // Before Admin initialization or any privileged operation. Production is closed.
@@ -20,9 +21,12 @@ function service() {
     );
   }
   const app = getApps()[0] ?? initializeApp({ projectId: "demo-gia-pha" });
-  return membershipService(getFirestore(app), getAuth(app));
+  return {
+    ...membershipService(getFirestore(app), getAuth(app)),
+    ...proposalService(getFirestore(app), getAuth(app)),
+  };
 }
-type Operation = keyof ReturnType<typeof membershipService>;
+type Operation = keyof ReturnType<typeof service>;
 function endpoint(operation: Operation) {
   return onCall(async (request: CallableRequest<unknown>) => {
     try {
@@ -41,3 +45,9 @@ export const createInvitation = endpoint("createInvitation");
 export const acceptInvitation = endpoint("acceptInvitation");
 export const revokeInvitation = endpoint("revokeInvitation");
 export const disableMembership = endpoint("disableMembership");
+export const createChangeDraft = endpoint("createChangeDraft");
+export const editChangeDraft = endpoint("editChangeDraft");
+export const submitChangeRequest = endpoint("submitChangeRequest");
+export const reviewChangeRequest = endpoint("reviewChangeRequest");
+export const getChangeRequest = endpoint("getChangeRequest");
+export const listChangeRequests = endpoint("listChangeRequests");

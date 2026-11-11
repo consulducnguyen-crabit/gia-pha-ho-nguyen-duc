@@ -45,3 +45,9 @@ Chưa phát hành production. Bảy chính sách đã chốt tại docs/APPROVED
 emulator. Cài thêm `npm ci --prefix functions` trước `npm run emulators`.
 Xem [hướng dẫn lời mời](docs/INVITATIONS.md). Chỉ dùng Auth principal giả có sẵn;
 chưa gửi thư, chưa provisioning hoặc quản trị production.
+
+## Đề xuất và phê duyệt thử nghiệm
+
+Đã thêm backend/UI đề xuất hồ sơ cơ bản và thêm quan hệ, với kiểm tra phiên bản,
+phiếu duyệt và giao dịch nguyên tử. Xem [PROPOSALS.md](docs/PROPOSALS.md).
+Chỉ chạy emulator; chưa hoàn tất toàn bộ P0 hoặc deploy production.

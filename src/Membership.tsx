@@ -227,7 +227,9 @@ export function MembershipAdmin() {
             />
           </label>
           <p>
-            <button disabled={task.busy}>Thu hồi lời mời</button>
+            <button className="danger" disabled={task.busy}>
+              Thu hồi lời mời
+            </button>
           </p>
         </form>
       </section>
@@ -275,7 +277,9 @@ export function MembershipAdmin() {
             />
           </label>
           <p>
-            <button disabled={task.busy}>Thu hồi quyền thành viên</button>
+            <button className="danger" disabled={task.busy}>
+              Thu hồi quyền thành viên
+            </button>
           </p>
         </form>
       </section>

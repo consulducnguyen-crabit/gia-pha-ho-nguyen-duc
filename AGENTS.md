@@ -2,6 +2,24 @@
 
 Ngôn ngữ sản phẩm: tiếng Việt chuẩn, ngày giờ Việt Nam; UI có cá tính, nền sáng, xanh lá nhạt tinh tế; không dùng giao diện AI mẫu rập khuôn. Giao diện responsive.
 
+## Luật giao diện bắt buộc
+
+Đọc UI_DESIGN_RULES.md trước mọi thay đổi UI. Người dùng duyệt áp dụng dần lên
+giao diện hiện có: tái sử dụng màu xanh lá/nền sáng và font hiện hữu; chuẩn hóa
+tokens, form, focus và responsive. Không tự thiết kế lại toàn bộ hoặc đổi nghiệp
+vụ/API/quyền vì thẩm mỹ. Kiểm tra 360/768/1280 px và chiều rộng thực tế; báo đúng
+phần đã kiểm chứng. Quyền commit/push/deploy theo ủy quyền mới bên dưới.
+
+## Ủy quyền cập nhật — 11/11/2026
+
+Người dùng cho phép tự triển khai trong phạm vi đã duyệt; sau mỗi phiên code đã
+kiểm thử và phản biện, tự commit và push lên GitHub, không hỏi lại quyền này.
+Repository đích: consulducnguyen-crabit/gia-pha-ho-nguyen-duc. Không force-push hoặc
+ghi đè lịch sử người khác. Phát hành GitHub Pages frontend chưa kết nối dữ liệu
+đã được chọn; không dùng sự cho phép này để tự bật billing hoặc deploy backend
+emulator-only thành production. Chỉ hỏi khi thiếu thông tin bắt buộc hoặc có quyết
+định vượt chính sách, luôn nêu ít nhất ba phương án và phương án đề xuất.
+
 Priorities: (1) bảo mật dữ liệu cá nhân, (2) đúng quan hệ phả hệ, (3) khả năng kiểm toán/khôi phục, (4) hiệu năng, (5) giao diện.
 
 Never:
