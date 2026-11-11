@@ -133,7 +133,13 @@ function App() {
             />
             <Route
               path="/person/:id"
-              element={<PersonPage key={user!.uid} uid={user!.uid} />}
+              element={
+                <PersonPage
+                  key={user!.uid}
+                  uid={user!.uid}
+                  canEdit={canManageMembership}
+                />
+              }
             />
             <Route
               path="/review-queue"

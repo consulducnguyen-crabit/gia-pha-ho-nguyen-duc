@@ -53,3 +53,8 @@
 - Rules: admin (`manager()`) ghi persons/memberProfiles/personPrivate/snapshot chỉ khi cùng lô có
   nhật ký `auditLogs/edit-{n}` và `editVersion` + 1; nhật ký chỉ thêm. Xem IN_APP_EDIT.md.
 - Chưa giao diện, chưa thao tác quan hệ, chưa deploy rules lên prod.
+
+# Sửa hồ sơ trong app — giao diện (PR B, 2026-11-11)
+
+- Nút "Sửa hồ sơ" và biểu mẫu trên trang hồ sơ, chỉ quản trị viên; xem IN_APP_EDIT_UI.md.
+- `parseSnapshot` đọc `editVersion`; thêm `editForm.ts`, `PersonEdit.tsx`, kiểm tra trình duyệt.
