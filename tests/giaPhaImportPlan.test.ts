@@ -120,8 +120,16 @@ describe("kế hoạch nạp Firestore", () => {
       dataVersion: "import-test",
     });
     const data = JSON.parse(snap.data);
-    expect(data.persons.a).toEqual(["Giả Văn A", 1927, 1973, 2, "C", "I"]);
-    expect(data.persons.va).toEqual(["Vợ Giả A", null, null, null, "S", null]);
+    expect(data.persons.a).toEqual(["Giả Văn A", 1927, 1973, 2, "C", "I", []]);
+    expect(data.persons.va).toEqual([
+      "Vợ Giả A",
+      null,
+      null,
+      null,
+      "S",
+      null,
+      ["BIRTH_CONFLICT"],
+    ]);
     expect(data.relations).toContainEqual(["ts", "a", "F", "B", 1]);
     expect(data.relations).toContainEqual(["va", "c", "M", "B", 0]);
     expect(snap.data).not.toContain("Ghi chú riêng giả");

@@ -22,7 +22,7 @@ Mỗi dòng một bản ghi, ngăn bởi `|`; dòng bắt đầu bằng `#` là 
 
 - `sx`: `M`/`F` khi văn bản nêu rõ hoặc tên có dấu hiệu chắc chắn ("Thị" → F, "Văn"/"Đức" → M); `m`/`f` khi suy từ tên kém chắc chắn (bị cảnh báo `SEX_FROM_NAME`); `?` chưa rõ (tên trung tính).
 - `loại`: `CLAN` (huyết thống dòng họ), `SPOUSE` (kết hôn vào), `EXTERNAL` (con của con gái, không thuộc dòng, ghi cơ bản).
-- Thuộc tính: `b=sinh;d=mất;ky=kỵ nhật âm lịch` (đều tùy chọn, giữ nguyên văn bản gốc, không tự đổi lịch).
+- Thuộc tính: `b=sinh;d=mất;ky=kỵ nhật âm lịch;fl=MÃ+MÃ` (đều tùy chọn, giữ nguyên văn bản gốc, không tự đổi lịch). `fl` là cờ cần kiểm tra thủ công (hiện dùng `VERIFY`).
 - `id` là mã ổn định (`external_ref`), chỉ gồm chữ, số, `_`, `-`; không đổi khi sửa tên.
 
 ## Quy tắc áp dụng khi dựng quan hệ
@@ -47,4 +47,17 @@ Theo `docs/APPROVED_DECISIONS.md` và `docs/BUSINESS_RULES.md`:
 ### Việc còn lại sau bước này
 - Luồng đề xuất (`PERSON_BASIC`) hiện ghi đè `memberProfiles` bằng projection 4 trường nên sẽ làm mất `birthYear`/`deathYear`; cần đổi sang merge trước khi dùng.
 - Giới hạn 200 quan hệ trong luồng đề xuất (`assertGraphCanAdd`) nhỏ hơn dữ liệu đã nạp (~620); cần nâng và đo chi phí đọc trước khi mở luồng đề xuất.
+
+## Cờ "Cần kiểm tra"
+Dữ liệu thật vẫn được nạp đầy đủ; người chưa chắc chắn **vẫn nằm trong cây** và được gắn cờ (không bị ẩn). Cờ tính trong `scripts/gia-pha/flags.ts`:
+
+| Mã | Nguồn | Ý nghĩa |
+|---|---|---|
+| `BIRTH_CONFLICT` | tự động (năm sinh/mất dạng `a/b`) | Tài liệu gốc ghi hai năm mâu thuẫn |
+| `UNCONNECTED` | tự động (người dòng họ không nối được tới thủy tổ) | Chưa xác định vị trí trong cây |
+| `DUP_NAME` | tự động (trùng họ tên đúng dấu, cùng đời) | Cần phân biệt |
+| `NAME_UNKNOWN` | tự động (tên có "chưa rõ") | Chưa rõ tên |
+| `VERIFY` | ghi chú chứa "CẦN XÁC MINH" hoặc `fl=VERIFY` | Tài liệu gốc chưa rõ |
+
+Cờ nằm ở `persons.reviewFlags` và trong ảnh chụp cây (phần tử thứ 7 của mỗi người; bản cũ 6 phần tử vẫn đọc được). Giao diện: nhãn "Cần kiểm tra" trong cây/hồ sơ, hộp lý do ở hồ sơ và trang `Cần kiểm tra` gom theo lý do (không lộ ghi chú riêng). Excel nháp có cột `can_kiem_tra`. Làm sạch: sửa file nguồn (bỏ cờ/ghi chú) rồi nạp lại có sao lưu.
 

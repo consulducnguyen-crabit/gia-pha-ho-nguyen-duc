@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { resolve, relative, sep } from "node:path";
 import ExcelJS from "exceljs";
 import { normalizeName, parseDsl } from "./dsl.ts";
+import { FLAG_LABELS, computeReviewFlags } from "./flags.ts";
 
 const root = resolve(import.meta.dirname, "..", "..");
 const privateDir = resolve(root, "private-data");
@@ -67,6 +68,7 @@ instructions.columns = [{ width: 110 }];
 instructions.getRow(1).font = { bold: true, color: { argb: "FFB00020" } };
 
 const byId = new Map(model.persons.map((p) => [p.id, p]));
+const reviewFlags = computeReviewFlags(model);
 sheet(
   "PERSONS",
   [
@@ -82,6 +84,7 @@ sheet(
     ["mat", 12],
     ["ky_nhat_am_lich", 16],
     ["loai", 11],
+    ["can_kiem_tra", 30],
     ["ghi_chu", 60],
   ],
   model.persons.map((p) => [
@@ -97,6 +100,7 @@ sheet(
     p.death,
     p.kyNhat,
     p.category,
+    (reviewFlags.get(p.id) ?? []).map((c) => FLAG_LABELS[c]).join("; "),
     p.note,
   ]),
 );

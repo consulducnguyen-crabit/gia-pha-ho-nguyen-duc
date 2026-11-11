@@ -24,3 +24,6 @@ backups/
 *.xls
 *.xlsx
 *.xlsm
+
+# Đầu ra của Playwright MCP (ảnh chụp/log có thể chứa dữ liệu)
+.playwright-mcp/

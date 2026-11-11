@@ -145,6 +145,9 @@ describe("bộ dữ liệu demo giả trong repo", () => {
     expect(model.persons.some((p) => p.category === "EXTERNAL")).toBe(true);
     expect(model.persons.some((p) => p.branch === "HN")).toBe(true);
     expect(model.branches.some((b) => b.mergedFrom)).toBe(true);
+    expect(model.issues.some((i) => i.code === "CLAN_NOT_CONNECTED")).toBe(
+      true,
+    );
     expect([...model.derivedGeneration.values()].some((g) => g >= 6)).toBe(
       true,
     );

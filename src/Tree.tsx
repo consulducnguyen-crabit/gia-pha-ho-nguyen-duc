@@ -5,6 +5,8 @@ import { db } from "./firebase";
 import {
   buildIndex,
   categoryLabel,
+  FLAG_LABELS,
+  FLAG_ORDER,
   parseSnapshot,
   yearsLabel,
   type SnapPerson,
@@ -117,6 +119,15 @@ function Badges({ index, p }: { index: TreeIndex; p: SnapPerson }) {
       {branch && <span className="tree-badge">{branch.name}</span>}
       {index.isAdoptedChild(p.id) && (
         <span className="tree-badge tree-badge-adopt">Con nuôi</span>
+      )}
+      {p.flags.length > 0 && (
+        <Link
+          to="/review-queue"
+          className="tree-badge tree-badge-flag"
+          title={p.flags.map((f) => FLAG_LABELS[f]).join("; ")}
+        >
+          Cần kiểm tra
+        </Link>
       )}
     </span>
   );
@@ -442,6 +453,20 @@ export function PersonPage({ uid }: { uid: string }) {
         {years(p)} <Badges index={index} p={p} />{" "}
         <span className="tree-meta">{categoryLabel(p.category)}</span>
       </p>
+      {p.flags.length > 0 && (
+        <section className="tree-flag-box">
+          <h2>Cần kiểm tra</h2>
+          <ul>
+            {p.flags.map((f) => (
+              <li key={f}>{FLAG_LABELS[f]}</li>
+            ))}
+          </ul>
+          <p className="tree-meta">
+            Thông tin này đang được đối chiếu với tài liệu gốc. Nếu bạn biết rõ,
+            hãy báo cho quản trị viên gia phả.
+          </p>
+        </section>
+      )}
       {path.length > 1 && (
         <section>
           <h2>Dòng tổ tiên</h2>
@@ -469,6 +494,56 @@ export function PersonPage({ uid }: { uid: string }) {
           Chưa có năm sinh hoặc năm mất trong gia phả.
         </p>
       )}
+    </>
+  );
+}
+
+export function ReviewQueuePage({ uid }: { uid: string }) {
+  const { state, reload } = useTree(uid);
+  if (state.status !== "ready")
+    return (
+      <>
+        <h1>Cần kiểm tra</h1>
+        <StateNotice state={state} reload={reload} />
+      </>
+    );
+  const index = state.index;
+  const everyone = [...index.snapshot.persons.values()];
+  const flagged = everyone.filter((p) => p.flags.length > 0);
+  return (
+    <>
+      <h1>Cần kiểm tra</h1>
+      <p className="tree-summary">
+        Tài liệu gia phả gốc được biên soạn qua nhiều giai đoạn nên còn một số
+        chỗ chưa chắc chắn. {flagged.length} người đang được gắn nhãn để đối
+        chiếu; họ vẫn có mặt trong cây. Nếu bạn biết rõ, hãy báo cho quản trị
+        viên.
+      </p>
+      {flagged.length === 0 && (
+        <p role="status" className="notice">
+          Hiện không có mục nào cần kiểm tra.
+        </p>
+      )}
+      {FLAG_ORDER.map((code) => {
+        const people = flagged.filter((p) => p.flags.includes(code));
+        if (!people.length) return null;
+        return (
+          <section key={code} aria-label={FLAG_LABELS[code]}>
+            <h2>
+              {FLAG_LABELS[code]}{" "}
+              <span className="tree-meta">({people.length})</span>
+            </h2>
+            <ul className="tree-links">
+              {people.map((p) => (
+                <li key={p.id}>
+                  <PersonLink p={p} /> {years(p)} <Badges index={index} p={p} />{" "}
+                  <span className="tree-meta">{categoryLabel(p.category)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
     </>
   );
 }

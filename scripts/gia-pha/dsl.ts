@@ -12,6 +12,15 @@
 
 export type Sex = "M" | "F" | "?";
 export type Category = "CLAN" | "SPOUSE" | "EXTERNAL";
+// Mã lý do cần kiểm tra (xem flags.ts). Cờ thủ công ghi trong thuộc tính "fl=MÃ+MÃ".
+export const FLAG_CODES = [
+  "BIRTH_CONFLICT",
+  "UNCONNECTED",
+  "DUP_NAME",
+  "NAME_UNKNOWN",
+  "VERIFY",
+] as const;
+export type FlagCode = (typeof FLAG_CODES)[number];
 export interface Person {
   id: string;
   name: string;
@@ -24,6 +33,7 @@ export interface Person {
   kyNhat: string;
   category: Category;
   note: string;
+  explicitFlags: FlagCode[];
   line: number;
 }
 export interface Relation {
@@ -138,13 +148,19 @@ export function parseDsl(text: string): Model {
         if (key.trim()) attrs.set(key.trim(), rest.join("=").trim());
       }
       for (const key of attrs.keys())
-        if (!["b", "d", "ky"].includes(key))
+        if (!["b", "d", "ky", "fl"].includes(key))
           add(
             "ERROR",
             "BAD_ATTR",
-            `Thuộc tính "${key}" không hợp lệ (b, d, ky).`,
+            `Thuộc tính "${key}" không hợp lệ (b, d, ky, fl).`,
             id,
           );
+      const explicitFlags: FlagCode[] = [];
+      for (const code of (attrs.get("fl") ?? "").split("+").filter(Boolean)) {
+        if ((FLAG_CODES as readonly string[]).includes(code))
+          explicitFlags.push(code as FlagCode);
+        else add("ERROR", "BAD_FLAG", `Mã cờ "${code}" không hợp lệ.`, id);
+      }
       const sexValue = sx.toUpperCase();
       const sex: Sex =
         sexValue === "M" || sexValue === "F" ? (sexValue as Sex) : "?";
@@ -168,6 +184,7 @@ export function parseDsl(text: string): Model {
         kyNhat: attrs.get("ky") ?? "",
         category,
         note,
+        explicitFlags,
         line,
       });
     } else if (kind === "K") {

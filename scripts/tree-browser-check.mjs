@@ -23,6 +23,7 @@ const source = [
   "P|c|Giả Văn Cường|M|CLAN|III|I|b=1955|",
   "P|d|Giả Văn Nuôi|M|CLAN|III|I|b=1960|",
   "P|e|Con Của Bình|M|EXTERNAL||||",
+  "P|z|Giả Văn Lạc|M|CLAN|IV|I|b=1950/1951|CẦN XÁC MINH (giả)",
   "K|ts|-|a,b",
   "K|a|va|c,d:A",
   "K|vb|b|e",
@@ -63,7 +64,7 @@ try {
   stage = "open tree";
   await page.getByRole("link", { name: "Cây gia phả", exact: true }).click();
   await expect(
-    page.getByText("5 thành viên thuộc dòng họ, 3 đời.", { exact: false }),
+    page.getByText("6 thành viên thuộc dòng họ, 3 đời.", { exact: false }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Cụ Giả Thủy Tổ" }),
@@ -97,6 +98,40 @@ try {
   stage = "search ignores diacritics";
   await page.getByLabel("Tìm theo tên").fill("gia van nuoi");
   await expect(page.getByRole("heading", { name: "1 kết quả" })).toBeVisible();
+
+  stage = "review flags on tree, profile and queue page";
+  await page.goto("http://127.0.0.1:5173/#/tree");
+  await page.getByLabel("Tìm theo tên").fill("giả văn lạc");
+  await expect(
+    page.getByRole("link", { name: "Cần kiểm tra", exact: true }).first(),
+  ).toBeVisible();
+  await page.getByLabel("Tìm theo tên").fill("");
+  await page
+    .getByRole("link", { name: "Cần kiểm tra", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Cần kiểm tra", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Chưa xác định vị trí trong cây/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: /Năm sinh\/mất trong tài liệu gốc mâu thuẫn/,
+    }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Giả Văn Lạc" }).first().click();
+  await expect(
+    page.getByRole("heading", { name: "Giả Văn Lạc", level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Cần kiểm tra", level: 2 }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Tài liệu gốc chưa rõ, cần xác minh"),
+  ).toBeVisible();
+  await page.goto("http://127.0.0.1:5173/#/tree");
 
   stage = "profile";
   await page.getByRole("link", { name: "Giả Văn Nuôi" }).first().click();

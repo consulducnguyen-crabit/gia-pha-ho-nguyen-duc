@@ -746,3 +746,29 @@ textarea {
   margin: var(--space-2) 0;
   font-size: 13px;
 }
+
+/* Nhãn và hộp "Cần kiểm tra" */
+.tree-badge-flag {
+  background: #fbf3dc;
+  color: var(--color-warning);
+  border-color: #d9bf78;
+  text-decoration: none;
+}
+.tree-badge-flag:hover {
+  text-decoration: underline;
+}
+.tree-flag-box {
+  border-left: 3px solid #d9bf78;
+  background: #fbf7ea;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  margin: var(--space-4) 0;
+}
+.tree-flag-box h2 {
+  font-size: 20px;
+  margin: 0 0 var(--space-2);
+}
+.tree-flag-box ul {
+  margin: 0;
+  padding-left: var(--space-5);
+}
