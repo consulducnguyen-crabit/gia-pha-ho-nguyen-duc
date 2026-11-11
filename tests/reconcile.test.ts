@@ -124,6 +124,51 @@ describe("đối soát snapshot", () => {
     setData(d, t3);
     expect(codes(d)).toContain("DUP_PARENT_ROLE");
   });
+  it("cha ruột ngoại tộc + cha nuôi là hợp lệ; hai cha cùng loại thì báo", () => {
+    const g = good();
+    const t = tree();
+    (t.persons as Record<string, unknown[]>).x = [
+      "Ngoại X",
+      null,
+      null,
+      null,
+      "E",
+      null,
+      [],
+    ];
+    t.relations.push(["x", "a", "F", "A", 0]);
+    setData(g, t);
+    g.persons.set("x", {
+      displayName: "Ngoại X",
+      category: "EXTERNAL",
+      branchCode: null,
+    });
+    g.memberProfiles.set("x", { displayName: "Ngoại X" });
+    g.relations.set("r-x-a", {
+      parentRole: "FATHER",
+      relationType: "ADOPTIVE",
+      lineageTransmission: false,
+    });
+    expect(codes(g)).toEqual([]);
+  });
+  it("bắt năm sinh/mất, cờ, đầu mút và đối tác vợ chồng lệch", () => {
+    const g = good();
+    g.memberProfiles.get("a")!.birthYear = 1900;
+    g.persons.get("a")!.reviewFlags = ["VERIFY"];
+    g.unions.get("u-a-b")!.partnerIds = ["a", "zz"];
+    expect(codes(g)).toEqual(
+      expect.arrayContaining([
+        "BIRTH_YEAR_MISMATCH",
+        "FLAGS_MISMATCH",
+        "UNION_PARTNERS_MISMATCH",
+      ]),
+    );
+    const h = good();
+    const t = tree();
+    t.unions.push(["a", "ghost", null as unknown as string]);
+    setData(h, t);
+    expect(codes(h)).toContain("UNION_ENDPOINT_MISSING");
+  });
   it("bắt phiên bản sửa lệch snapshot, hụt số, trùng số", () => {
     const g = good();
     g.snapshot!.editVersion = 3;

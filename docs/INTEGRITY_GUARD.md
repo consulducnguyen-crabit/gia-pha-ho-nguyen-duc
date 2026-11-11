@@ -24,11 +24,17 @@ Kết quả chỉ gồm **mã lỗi và mã tài liệu**, không in tên hay gh
 
 Kiểm tra: người trong snapshot ↔ `persons` chưa ẩn (hai chiều), tên/loại/chi khớp, `memberProfiles` tồn tại cho người
 chưa ẩn và không còn cho người đã ẩn; quan hệ cha/mẹ ↔ `relations` chưa ẩn (hai chiều, vai trò, nuôi/ruột,
-truyền dòng); mỗi người một cha và một mẹ; không tự làm cha mẹ; không vòng lặp; đúng một thủy tổ và đời khớp tính lại;
-vợ/chồng ↔ `unions`; `editVersion` của snapshot khớp số lớn nhất trong nhật ký, nhật ký liên tục từ 1, không trùng số.
+truyền dòng); không có hai cha/mẹ cùng vai trò và cùng loại (ruột/nuôi, như quy tắc nạp); không tự làm cha mẹ; không vòng lặp; đúng một thủy tổ và đời khớp tính lại;
+năm sinh/mất và cờ cần kiểm tra khớp `memberProfiles`/`persons`; vợ/chồng ↔ `unions` (đầu mút, `partnerIds`); `editVersion` của snapshot khớp số lớn nhất trong nhật ký, nhật ký liên tục từ 1, không trùng số.
 
 Kiểm thử: `tests/reconcile.test.ts`, `tests/replaceGuard.test.ts`, và `scripts/edit-browser-check.mjs` chạy đối soát
 sau một chuỗi sửa thật (thêm con/vợ chồng, đổi cha mẹ, ẩn, khôi phục): phải ĐẠT.
+
+## Lưu ý vận hành
+
+- Mã người trong dữ liệu thật có thể suy từ tên: không đưa output đối soát của prod vào log CI hay issue công khai.
+- Không sửa trong app khi đang chạy `--replace` (khe đua giữa lúc kiểm tra editVersion và lúc xóa).
+- `persons.generation` chỉ là giá trị lịch sử (đời tính trong snapshot) nên không được đối soát.
 
 ## Chưa làm trong PR này
 

@@ -58,7 +58,18 @@ export function reconcile(input: ReconcileInput): Issue[] {
     if ((t[5] ?? null) !== (p!.branchCode ?? null)) add("BRANCH_MISMATCH", id);
     const mp = input.memberProfiles.get(id);
     if (!mp) add("MEMBER_PROFILE_MISSING", id);
-    else if (mp.displayName !== p!.displayName) add("MEMBER_NAME_MISMATCH", id);
+    else {
+      if (mp.displayName !== p!.displayName) add("MEMBER_NAME_MISMATCH", id);
+      if ((t[1] ?? null) !== (mp.birthYear ?? null))
+        add("BIRTH_YEAR_MISMATCH", id);
+      if ((t[2] ?? null) !== (mp.deathYear ?? null))
+        add("DEATH_YEAR_MISMATCH", id);
+    }
+    const flags = (Array.isArray(t[6]) ? t[6] : []).map(String).sort();
+    const want = (Array.isArray(p!.reviewFlags) ? p!.reviewFlags : [])
+      .map(String)
+      .sort();
+    if (flags.join() !== want.join()) add("FLAGS_MISMATCH", id);
   }
   for (const [id, p] of input.persons)
     if (live(p) && !Object.hasOwn(persons, id))
@@ -80,7 +91,8 @@ export function reconcile(input: ReconcileInput): Issue[] {
     )
       add("RELATION_ENDPOINT_MISSING", id);
     if (r[0] === r[1]) add("SELF_PARENT", id);
-    const role = `${String(r[1])}:${String(r[2])}`;
+    // Khớp quy tắc nạp (dsl.ts): chỉ cấm hai cha/mẹ CÙNG vai trò VÀ CÙNG loại (ruột/nuôi).
+    const role = `${String(r[1])}:${String(r[2])}:${String(r[3])}`;
     if (roleSeen.has(role)) add("DUP_PARENT_ROLE", role);
     roleSeen.add(role);
     const d = input.relations.get(id);
@@ -159,6 +171,18 @@ export function reconcile(input: ReconcileInput): Issue[] {
   for (const u of unions) {
     const id = `u-${[String(u[0]), String(u[1])].sort().join("-")}`;
     unionIds.add(id);
+    if (
+      !Object.hasOwn(persons, String(u[0])) ||
+      !Object.hasOwn(persons, String(u[1]))
+    )
+      add("UNION_ENDPOINT_MISSING", id);
+    const pids = input.unions.get(id)?.partnerIds;
+    if (
+      Array.isArray(pids) &&
+      [...pids].map(String).sort().join() !==
+        [String(u[0]), String(u[1])].sort().join()
+    )
+      add("UNION_PARTNERS_MISMATCH", id);
     if (!live(input.unions.get(id))) add("SNAPSHOT_UNION_NOT_LIVE", id);
   }
   for (const [id, d] of input.unions)
