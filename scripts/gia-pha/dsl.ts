@@ -4,6 +4,7 @@
 // Định dạng: mỗi dòng một bản ghi, các trường ngăn bởi "|", dòng bắt đầu bằng "#" là chú thích.
 //   P|id|Họ tên|sx|loại|đời|chi|thuộc tính|ghi chú   (từ "đời" trở đi có thể bỏ trống/bỏ hẳn)
 //       thuộc tính: b=sinh;d=mất;ky=kỵ nhật (âm lịch), ngăn bởi ";", đều tùy chọn
+//       fl=MÃ+MÃ gắn cờ thủ công; ok=MÃ+MÃ đã xác minh, bỏ cờ tự động đó (vd ok=DUP_NAME)
 //   K|idCha|idMẹ|idCon1[:A],idCon2,...      (idCha hoặc idMẹ là "-" nếu không rõ; :A = con nuôi)
 //   U|id1|id2|thứ tự|tình trạng|ghi chú     (vợ chồng không có con ghi trong K)
 //   B|mã chi|tên chi|idNgườiKhaiChi|hợp nhất từ|ghi chú
@@ -34,6 +35,8 @@ export interface Person {
   category: Category;
   note: string;
   explicitFlags: FlagCode[];
+  /** Cờ đã được người rà soát xác minh là không áp dụng (thuộc tính "ok=MÃ+MÃ"). */
+  verifiedFlags: FlagCode[];
   line: number;
 }
 export interface Relation {
@@ -148,19 +151,24 @@ export function parseDsl(text: string): Model {
         if (key.trim()) attrs.set(key.trim(), rest.join("=").trim());
       }
       for (const key of attrs.keys())
-        if (!["b", "d", "ky", "fl"].includes(key))
+        if (!["b", "d", "ky", "fl", "ok"].includes(key))
           add(
             "ERROR",
             "BAD_ATTR",
-            `Thuộc tính "${key}" không hợp lệ (b, d, ky, fl).`,
+            `Thuộc tính "${key}" không hợp lệ (b, d, ky, fl, ok).`,
             id,
           );
-      const explicitFlags: FlagCode[] = [];
-      for (const code of (attrs.get("fl") ?? "").split("+").filter(Boolean)) {
-        if ((FLAG_CODES as readonly string[]).includes(code))
-          explicitFlags.push(code as FlagCode);
-        else add("ERROR", "BAD_FLAG", `Mã cờ "${code}" không hợp lệ.`, id);
-      }
+      const readCodes = (attr: string): FlagCode[] => {
+        const out: FlagCode[] = [];
+        for (const code of (attrs.get(attr) ?? "").split("+").filter(Boolean)) {
+          if ((FLAG_CODES as readonly string[]).includes(code))
+            out.push(code as FlagCode);
+          else add("ERROR", "BAD_FLAG", `Mã cờ "${code}" không hợp lệ.`, id);
+        }
+        return out;
+      };
+      const explicitFlags = readCodes("fl");
+      const verifiedFlags = readCodes("ok");
       const sexValue = sx.toUpperCase();
       const sex: Sex =
         sexValue === "M" || sexValue === "F" ? (sexValue as Sex) : "?";
@@ -185,6 +193,7 @@ export function parseDsl(text: string): Model {
         category,
         note,
         explicitFlags,
+        verifiedFlags,
         line,
       });
     } else if (kind === "K") {

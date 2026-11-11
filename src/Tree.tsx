@@ -443,6 +443,15 @@ export function PersonPage({ uid }: { uid: string }) {
   const parents = index.parents(id);
   const siblings = index.siblings(id);
   const childIds = index.children(id);
+  const sameName = p.flags.includes("DUP_NAME")
+    ? [...index.snapshot.persons.values()].filter(
+        (o) =>
+          o.id !== id &&
+          o.name === p.name &&
+          o.generation !== null &&
+          o.generation === p.generation,
+      )
+    : [];
   return (
     <>
       <p className="tree-back">
@@ -461,6 +470,37 @@ export function PersonPage({ uid }: { uid: string }) {
               <li key={f}>{FLAG_LABELS[f]}</li>
             ))}
           </ul>
+          {p.flags.includes("DUP_NAME") && sameName.length > 0 && (
+            <>
+              <p className="tree-meta">Người trùng họ tên, cùng đời:</p>
+              <ul className="tree-links">
+                {sameName.map((o) => (
+                  <li key={o.id}>
+                    <PersonLink p={o} /> {years(o)}
+                    {o.branch && (
+                      <span className="tree-meta">
+                        {" "}
+                        ·{" "}
+                        {index.snapshot.branches.find(
+                          (b) => b.code === o.branch,
+                        )?.name ?? o.branch}
+                      </span>
+                    )}
+                    {index.spouses(o.id).length > 0 && (
+                      <span className="tree-meta">
+                        {" "}
+                        · Vợ/chồng:{" "}
+                        {index
+                          .spouses(o.id)
+                          .map((s) => index.snapshot.persons.get(s)?.name)
+                          .join(", ")}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           <p className="tree-meta">
             Thông tin này đang được đối chiếu với tài liệu gốc. Nếu bạn biết rõ,
             hãy báo cho quản trị viên gia phả.

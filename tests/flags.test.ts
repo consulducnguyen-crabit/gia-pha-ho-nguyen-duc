@@ -44,6 +44,26 @@ describe("cờ cần kiểm tra", () => {
     expect(flags.has("ts")).toBe(false);
     expect(flags.has("f")).toBe(false);
   });
+  it("ok= bỏ cờ đã xác minh, chỉ cho người được đánh dấu", () => {
+    const m = parseDsl(
+      [
+        P("ts", "Cụ Giả Thủy Tổ", "CLAN", "I"),
+        P("a", "Giả Văn An", "CLAN", "II", "ok=DUP_NAME"),
+        P("c", "Giả Văn An", "CLAN", "II"),
+        P("g", "Giả Văn Gạo", "CLAN", "II", "b=1950/1951;ok=DUP_NAME"),
+        "K|ts|-|a,c,g",
+      ].join("\n"),
+    );
+    const f = computeReviewFlags(m);
+    expect(f.has("a")).toBe(false);
+    expect(f.get("c")).toEqual(["DUP_NAME"]);
+    expect(f.get("g")).toEqual(["BIRTH_CONFLICT"]);
+    expect(
+      parseDsl(P("x", "Giả", "CLAN", "I", "ok=SAI")).issues.some(
+        (i) => i.code === "BAD_FLAG",
+      ),
+    ).toBe(true);
+  });
   it("mã cờ lạ bị báo lỗi", () => {
     const bad = parseDsl(P("x", "Giả", "CLAN", "I", "fl=SAI"));
     expect(bad.issues.some((i) => i.code === "BAD_FLAG")).toBe(true);
