@@ -334,10 +334,63 @@ try {
   const audit7 = (await db.doc("auditLogs/edit-7").get()).data();
   if (audit7.event !== "RELATION_TYPE_CHANGED") throw Error("Nhật ký 7 sai");
 
+  stage = "hide a person (soft delete) then restore it";
+  await page.goto(`${URL}/#/person/z`);
+  await page.getByRole("button", { name: "Ẩn người này khỏi cây" }).click();
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "tích xác nhận" }),
+  ).toBeVisible();
+  await page.getByLabel(/Tôi xác nhận ẩn/).check();
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Giả Văn Mới", level: 1 }),
+  ).toBeVisible();
+  await expect(page.getByText(/Đã ẩn Giả Văn Lạc khỏi cây/)).toBeVisible();
+  if (!(await db.doc("persons/z").get()).data().deleted)
+    throw Error("persons/z phải bị đánh dấu ẩn");
+  if ((await db.doc("memberProfiles/z").get()).exists)
+    throw Error("memberProfiles/z phải bị xóa");
+  if (
+    (await db.doc("auditLogs/edit-8").get()).data().event !== "PERSON_DELETED"
+  )
+    throw Error("Nhật ký 8 sai");
+  await page.goto(`${URL}/#/person/z`);
+  await expect(page.getByText("Không tìm thấy").first()).toBeVisible();
+  await page.goto(`${URL}/#/person/${kid}`);
+  await page.getByRole("button", { name: "Khôi phục người đã ẩn" }).click();
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "mã người hợp lệ" }),
+  ).toBeVisible();
+  await page.getByLabel("Mã người cần khôi phục").fill("z");
+  await page.getByLabel("Số phiên bản nhật ký của lần ẩn").fill("8");
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Giả Văn Lạc", level: 1 }),
+  ).toBeVisible();
+  await expect(page.getByText("Đã khôi phục người đã ẩn")).toBeVisible();
+  if ((await db.doc("persons/z").get()).data().deleted !== false)
+    throw Error("persons/z phải được khôi phục");
+  if (!(await db.doc("memberProfiles/z").get()).exists)
+    throw Error("memberProfiles/z phải có lại");
+  const zBack = JSON.parse(
+    (await db.doc("treeSnapshots/main").get()).data().data,
+  ).persons.z;
+  if (!zBack || zBack[3] !== 4) throw Error("snapshot khôi phục sai");
+  for (const width of [360, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > globalThis.innerWidth,
+    );
+    if (overflow) throw Error(`Tràn ngang ở ${width}px`);
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+
   stage = "version conflict is reported, nothing written";
   await page.goto(`${URL}/#/person/b`);
   await page.getByRole("button", { name: "Sửa hồ sơ" }).click();
-  await db.doc("treeSnapshots/main").update({ editVersion: 9 });
+  await db.doc("treeSnapshots/main").update({ editVersion: 19 });
   await page.getByLabel("Họ tên (bắt buộc)").fill("Giả Thị Bình Mới");
   await page.getByRole("button", { name: "Lưu thay đổi" }).click();
   await expect(

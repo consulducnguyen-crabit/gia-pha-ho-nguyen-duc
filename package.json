@@ -9,7 +9,7 @@
     "build:backend": "npm --prefix functions run build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run tests/domain.test.ts tests/latestRequest.test.ts tests/giaPhaDsl.test.ts tests/giaPhaImportPlan.test.ts tests/treeModel.test.ts tests/accountsCore.test.ts tests/backupCore.test.ts tests/flags.test.ts tests/prodGate.test.ts tests/editCore.test.ts tests/editForm.test.ts tests/editAdd.test.ts tests/addForm.test.ts tests/editRelation.test.ts",
+    "test": "vitest run tests/domain.test.ts tests/latestRequest.test.ts tests/giaPhaDsl.test.ts tests/giaPhaImportPlan.test.ts tests/treeModel.test.ts tests/accountsCore.test.ts tests/backupCore.test.ts tests/flags.test.ts tests/prodGate.test.ts tests/editCore.test.ts tests/editForm.test.ts tests/editAdd.test.ts tests/addForm.test.ts tests/editRelation.test.ts tests/editDelete.test.ts",
     "gia-pha:excel": "node scripts/gia-pha/build-excel.ts",
     "gia-pha:import": "node scripts/gia-pha/import-firestore.ts",
     "gia-pha:accounts": "node scripts/gia-pha/accounts.ts",

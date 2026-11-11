@@ -14,6 +14,13 @@ import {
   type RelationResult,
 } from "./editRelation";
 import {
+  applyDelete,
+  deleteReads,
+  parseDeletedAudit,
+  type DeleteOp,
+  type DeleteResult,
+} from "./editDelete";
+import {
   applyEdit,
   EditError,
   SERVER_TIME,
@@ -25,6 +32,7 @@ import {
 /** Phần chung của Transaction và WriteBatch mà ta cần. */
 export interface SetTarget {
   set(ref: never, data: DocumentData, options?: { merge: boolean }): unknown;
+  delete(ref: never): unknown;
 }
 
 /** Đưa các lệnh ghi của applyEdit vào giao dịch hoặc lô ghi. */
@@ -35,6 +43,10 @@ export function stageWrites(
 ) {
   for (const w of writes) {
     const ref = doc(db, w.path) as never;
+    if (w.mode === "delete") {
+      target.delete(ref);
+      continue;
+    }
     const data = Object.fromEntries(
       Object.entries(w.data).map(([k, v]) => [
         k,
@@ -131,6 +143,54 @@ export async function commitRelation(
     }
     const result = applyRelation(
       { snapshot: snapshot.data(), docs, relations },
+      input,
+    );
+    stageWrites(db, tx as unknown as SetTarget, result.writes);
+    return result;
+  });
+}
+
+/** Ẩn (xóa mềm) hoặc khôi phục một người. Đọc và ghi trong CÙNG một giao dịch. */
+export async function commitDelete(
+  db: Firestore,
+  input: { op: DeleteOp; expectedVersion: number; actorUid: string },
+): Promise<DeleteResult> {
+  const op = input.op;
+  if (typeof op.personId !== "string" || !SAFE_ID.test(op.personId))
+    throw new EditError("INVALID", "Mã người không hợp lệ.");
+  if (
+    op.type === "restorePerson" &&
+    (!Number.isInteger(op.deleteVersion) || op.deleteVersion < 1)
+  )
+    throw new EditError("INVALID", "Số phiên bản nhật ký không hợp lệ.");
+  return runTransaction(db, async (tx) => {
+    const snapshot = await tx.get(doc(db, "treeSnapshots", "main"));
+    if (!snapshot.exists())
+      throw new EditError("BAD_STATE", "Chưa có ảnh chụp cây.");
+    const person = await tx.get(doc(db, "persons", op.personId));
+    let audit: DocumentData | null = null;
+    let relationIds: string[];
+    if (op.type === "restorePerson") {
+      const a = await tx.get(doc(db, "auditLogs", `edit-${op.deleteVersion}`));
+      audit = a.exists() ? a.data() : null;
+      relationIds = audit
+        ? parseDeletedAudit(audit, op.personId, op.deleteVersion).relations.map(
+            (r) => `r-${String(r[0])}-${op.personId}`,
+          )
+        : [];
+    } else relationIds = deleteReads(snapshot.data(), op.personId);
+    const relations: Record<string, DocumentData | null> = {};
+    for (const id of relationIds) {
+      const d = await tx.get(doc(db, "relations", id));
+      relations[id] = d.exists() ? d.data() : null;
+    }
+    const result = applyDelete(
+      {
+        snapshot: snapshot.data(),
+        person: person.exists() ? person.data() : null,
+        relations,
+        audit,
+      },
       input,
     );
     stageWrites(db, tx as unknown as SetTarget, result.writes);
