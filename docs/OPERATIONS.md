@@ -21,11 +21,12 @@ Chỉ chạy graph integration/browser trên fixture cô lập; không chạy đ
 rules cố ý tạo graph sai cấu trúc. Không tự mở quyền canonical hoặc media.
 
 ## Kiểm thử
-`npm run lint`, `npm run typecheck`, `npm test`, `npm run test:rules`, `npm run build`.
+`npm run lint`, `npm run typecheck`, `npm test`, `npm run test:rules`, `npm run build`. Các lệnh test emulator cần Java 21 (Temurin) và chạy được trên Windows lẫn Linux.
 Rules tests dùng dữ liệu giả với bypass chỉ bên trong emulator. Cài emulator có thể cần tải binary từ Firebase.
 
 ## Firebase thật và GitHub Pages
-Tạo hai project dev/prod tách biệt sau khi chốt region và ngân sách. Sao chép `.env.example` thành `.env.local`, điền web config; không dùng Admin SDK trong Vite. Bật Email/Password Auth và authorized domain. Tài khoản chỉ do backend đáng tin cậy cấp, chưa có công cụ provision production.
+Hai project đã tạo: `gia-pha-nguyen-duc-dev` và `gia-pha-nguyen-duc-prod` (alias `dev`/`prod` trong `.firebaserc`), gói Spark, Firestore asia-southeast1, đã bật Google và Email/Password. Chạy cục bộ với dev: sao chép `.env.example` thành `.env.local` và điền web config dev; với prod dùng `.env.production.local`. Không dùng Admin SDK trong Vite. Authorized domain phải có `consulducnguyen-crabit.github.io`.
+Pages build đọc web config từ GitHub Actions **Variables** (Settings → Secrets and variables → Actions → Variables): `VITE_FIREBASE_API_KEY`, `_AUTH_DOMAIN`, `_PROJECT_ID`, `_STORAGE_BUCKET`, `_APP_ID`. Để trống thì trang chỉ hiển thị "Sẵn sàng kết nối". Tài khoản chỉ do backend đáng tin cậy cấp, chưa có công cụ provision production.
 GitHub Pages chỉ phục vụ `dist/`, router dùng hash và Vite base tương đối cho đường dẫn repository. Chưa cấu hình remote, Pages hoặc deploy rules. Trước production phải kiểm chứng phân quyền riêng tư (đã tách memberProfiles khỏi canonical), các quyết định hạ tầng còn mở, hoàn thiện approval backend, chạy bộ kiểm thử và bảo vệ GitHub environment production với reviewer. Không triển khai frontend như sản phẩm hoàn chỉnh.
 
 ## Sao lưu và khôi phục

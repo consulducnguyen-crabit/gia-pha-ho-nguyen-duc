@@ -15,3 +15,12 @@ service-account*.json
 playwright-report/
 test-results/
 *.tsbuildinfo
+
+# Dữ liệu gia phả thật / tài liệu riêng tư — KHÔNG đưa lên GitHub
+private-data/
+backups/
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.xlsm
