@@ -435,8 +435,12 @@ export function parseDsl(text: string): Model {
   // Cảnh báo chất lượng dữ liệu.
   const nameKey = new Map<string, string[]>();
   for (const person of persons) {
-    const key = `${normalizeName(person.name)}|${person.declaredGeneration ?? ""}`;
-    nameKey.set(key, [...(nameKey.get(key) ?? []), person.id]);
+    // Chỉ so sánh người có đời đã biết; trùng đúng dấu mới coi là nghi trùng
+    // (Tuấn/Tuân là hai tên khác nhau dù khi tìm kiếm không dấu giống nhau).
+    if (person.declaredGeneration !== null) {
+      const key = `${person.name.normalize("NFC").toLocaleLowerCase("vi").replace(/\s+/g, " ").trim()}|${person.declaredGeneration}`;
+      nameKey.set(key, [...(nameKey.get(key) ?? []), person.id]);
+    }
     if (!referenced.has(person.id))
       add(
         "WARN",

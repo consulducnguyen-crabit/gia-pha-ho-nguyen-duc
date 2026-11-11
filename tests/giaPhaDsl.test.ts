@@ -106,6 +106,15 @@ describe("file trung gian gia phả", () => {
       m.issues.some((i) => i.code === "SEX_FROM_NAME" && i.ref === "a2"),
     ).toBe(true);
     expect(m.persons.filter((p) => p.name === "Giả Văn A")).toHaveLength(2);
+    const noise = parseDsl(
+      [
+        P("x1", "Giả Hoàng Tuấn", "M", "II", "CLAN"),
+        P("x2", "Giả Hoàng Tuân", "M", "II", "CLAN"),
+        P("x3", "Giả Thị Hằng", "F", "", "SPOUSE"),
+        P("x4", "Giả Thị Hằng", "F", "", "EXTERNAL"),
+      ].join("\n"),
+    );
+    expect(noise.issues.some((i) => i.code === "DUP_NAME")).toBe(false);
   });
 
   it("bản ghi sai trường hoặc giá trị bị báo lỗi", () => {
