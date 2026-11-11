@@ -5,7 +5,7 @@ export default ts.config(
   js.configs.recommended,
   ...ts.configs.recommended,
   {
-    files: ["**/scripts/*.mjs"],
+    files: ["**/scripts/**/*.mjs", "**/scripts/**/*.ts"],
     languageOptions: {
       globals: {
         process: "readonly",
