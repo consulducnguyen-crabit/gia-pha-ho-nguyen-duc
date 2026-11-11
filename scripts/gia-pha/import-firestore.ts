@@ -114,6 +114,26 @@ if (done.exists) {
   process.exit(0);
 }
 if (flag("--replace")) {
+  // Giữ editVersion: nhật ký auditLogs/edit-N không bị xóa, nếu quay về 0 thì mọi lần sửa trong app
+  // sau đó sẽ bị chặn vì edit-1 đã tồn tại. (Nạp lại vẫn GHI ĐÈ các sửa trong app; xem IN_APP_EDIT.md.)
+  const prior = await db.doc("treeSnapshots/main").get();
+  let priorVersion = prior.exists ? prior.data()?.editVersion : undefined;
+  if (typeof priorVersion !== "number") priorVersion = 0;
+  // Nếu lần --replace trước bị ngắt giữa chừng, lấy thêm số lớn nhất của auditLogs/edit-N còn lại.
+  const edits = await db
+    .collection("auditLogs")
+    .where("event", "==", "PERSON_EDITED")
+    .select("editVersion")
+    .get();
+  for (const d of edits.docs) {
+    const v = d.data().editVersion;
+    if (typeof v === "number" && v > priorVersion) priorVersion = v;
+  }
+  if (priorVersion > 0) {
+    const snap = plan.docs.find((d) => d.path === "treeSnapshots/main");
+    if (snap) snap.data.editVersion = priorVersion;
+    console.log(`Giữ editVersion = ${priorVersion} của ảnh chụp cũ.`);
+  }
   for (const name of IMPORT_COLLECTIONS)
     await db.recursiveDelete(db.collection(name));
   console.log("Đã xóa dữ liệu cũ của các collection nạp (--replace).");

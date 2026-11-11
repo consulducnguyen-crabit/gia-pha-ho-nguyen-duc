@@ -46,3 +46,10 @@
 - Sửa queue starvation và accessibility; 30 integration đề xuất, 34 integration
   membership, unit tests và Chromium đạt. Xem PROPOSALS_VERIFICATION.md.
 - Chưa commit, thay đổi remote hoặc deploy production.
+
+# Sửa trực tiếp trong app — lõi (PR A, 2026-11-11)
+
+- `applyEdit` (hàm thuần) và `commitEdit` (giao dịch Firestore) cho thao tác sửa người.
+- Rules: admin (`manager()`) ghi persons/memberProfiles/personPrivate/snapshot chỉ khi cùng lô có
+  nhật ký `auditLogs/edit-{n}` và `editVersion` + 1; nhật ký chỉ thêm. Xem IN_APP_EDIT.md.
+- Chưa giao diện, chưa thao tác quan hệ, chưa deploy rules lên prod.
