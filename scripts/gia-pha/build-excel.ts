@@ -9,18 +9,19 @@ import { normalizeName, parseDsl } from "./dsl.ts";
 
 const root = resolve(import.meta.dirname, "..", "..");
 const privateDir = resolve(root, "private-data");
-function inside(path: string) {
-  const rel = relative(privateDir, path);
+function inside(path: string, base = privateDir) {
+  const rel = relative(base, path);
   return rel !== "" && !rel.startsWith("..") && !rel.includes(`..${sep}`);
 }
+const demoDir = resolve(root, "scripts", "gia-pha", "demo");
 const input = resolve(root, process.argv[2] ?? "private-data/gia-pha.txt");
 const output = resolve(
   root,
   process.argv[3] ?? "private-data/gia-pha-ban-nhap.xlsx",
 );
-if (!inside(input) || !inside(output)) {
+if (!(inside(input) || inside(input, demoDir)) || !inside(output)) {
   console.error(
-    "Từ chối: đầu vào và đầu ra phải nằm trong private-data/ (dữ liệu thật không được ra ngoài).",
+    "Từ chối: đầu ra phải nằm trong private-data/ và đầu vào trong private-data/ hoặc scripts/gia-pha/demo/ (dữ liệu thật không được ra ngoài).",
   );
   process.exit(2);
 }

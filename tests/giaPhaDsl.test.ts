@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { normalizeName, parseDsl } from "../scripts/gia-pha/dsl";
 
@@ -127,5 +128,29 @@ describe("file trung gian gia phả", () => {
 
   it("chuẩn hóa tên không dấu", () => {
     expect(normalizeName("  Giả  Đức Hòa ")).toBe("gia duc hoa");
+  });
+});
+
+describe("bộ dữ liệu demo giả trong repo", () => {
+  const model = parseDsl(
+    readFileSync("scripts/gia-pha/demo/gia-pha-demo.txt", "utf8"),
+  );
+  it("hợp lệ: không lỗi, đúng một thủy tổ, đủ các trường hợp đặc biệt", () => {
+    expect(model.issues.filter((i) => i.severity === "ERROR")).toEqual([]);
+    expect(
+      model.relations.some(
+        (r) => r.relationType === "ADOPTIVE" && r.lineageTransmission,
+      ),
+    ).toBe(true);
+    expect(model.persons.some((p) => p.category === "EXTERNAL")).toBe(true);
+    expect(model.persons.some((p) => p.branch === "HN")).toBe(true);
+    expect(model.branches.some((b) => b.mergedFrom)).toBe(true);
+    expect([...model.derivedGeneration.values()].some((g) => g >= 6)).toBe(
+      true,
+    );
+  });
+  it("chỉ chứa họ giả 'Mẫu' cho người trong dòng", () => {
+    for (const p of model.persons.filter((p) => p.category === "CLAN"))
+      expect(p.name).toMatch(/Mẫu|Cụ Trưởng Chi 3/);
   });
 });

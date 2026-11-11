@@ -42,5 +42,11 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "treeSnapshots",
+      "fieldPath": "data",
+      "indexes": []
+    }
+  ]
 }
