@@ -4,7 +4,7 @@
 // Script tự khởi động Vite (VITE_USE_EMULATORS=true) và dừng khi xong.
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { chromium, expect } from "@playwright/test";
 import { parseDsl } from "./gia-pha/dsl.ts";
 import { buildImportPlan } from "./gia-pha/import-plan.ts";
@@ -386,6 +386,14 @@ try {
     if (overflow) throw Error(`Tràn ngang ở ${width}px`);
   }
   await page.setViewportSize({ width: 1280, height: 900 });
+
+  stage = "reconcile snapshot against canonical docs after in-app edits";
+  const rec = spawnSync("node scripts/gia-pha/reconcile.ts", {
+    shell: true,
+    encoding: "utf8",
+    env: { ...process.env, FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080" },
+  });
+  if (rec.status !== 0) throw Error("Đối soát lệch: " + rec.stdout + rec.stderr);
 
   stage = "version conflict is reported, nothing written";
   await page.goto(`${URL}/#/person/b`);

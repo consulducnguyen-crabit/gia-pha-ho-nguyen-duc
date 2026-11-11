@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import { relative, resolve, sep } from "node:path";
 import { parseDsl } from "./dsl.ts";
 import { enforceProdGate } from "./prod-guard.ts";
+import { EDIT_EVENTS, evaluateReplace } from "./replace-guard.ts";
 import {
   IMPORT_COLLECTIONS,
   buildImportPlan,
@@ -122,18 +123,21 @@ if (flag("--replace")) {
   // Nếu lần --replace trước bị ngắt giữa chừng, lấy thêm số lớn nhất của auditLogs/edit-N còn lại.
   const edits = await db
     .collection("auditLogs")
-    .where("event", "in", [
-      "PERSON_EDITED",
-      "PERSON_ADDED",
-      "SPOUSE_ADDED",
-      "PARENT_CHANGED",
-      "RELATION_TYPE_CHANGED",
-    ])
+    .where("event", "in", EDIT_EVENTS)
     .select("editVersion")
     .get();
   for (const d of edits.docs) {
     const v = d.data().editVersion;
     if (typeof v === "number" && v > priorVersion) priorVersion = v;
+  }
+  const verdict = evaluateReplace({
+    kind: decision.kind,
+    editVersion: priorVersion,
+    discardAppEdits: flag("--discard-app-edits"),
+  });
+  if (!verdict.ok) {
+    console.error(`Từ chối: ${verdict.reason}`);
+    process.exit(2);
   }
   if (priorVersion > 0) {
     const snap = plan.docs.find((d) => d.path === "treeSnapshots/main");
