@@ -291,6 +291,42 @@ export function Proposals({
     );
     await refresh();
   }
+  function confirmSubmit() {
+    if (!selected || running.current) return;
+    if (
+      !window.confirm(
+        `Gửi đề xuất ${selected.requestId}, bản sửa ${selected.revision}? Bản nháp sẽ chuyển sang chờ duyệt.`,
+      )
+    )
+      return;
+    void run(submit);
+  }
+  function confirmReview(decision: "APPROVE" | "REJECT" | "NEEDS_INFO") {
+    if (!selected || running.current) return;
+    if (decision !== "APPROVE" && !note.trim()) {
+      setError("Vui lòng ghi lý do hoặc nội dung cần bổ sung.");
+      return;
+    }
+    const action =
+      decision === "APPROVE"
+        ? "Ghi nhận phiếu đồng ý"
+        : decision === "REJECT"
+          ? "Từ chối"
+          : "Yêu cầu bổ sung";
+    const effect =
+      decision === "APPROVE"
+        ? "Dữ liệu chỉ được áp dụng khi đủ phiếu hợp lệ."
+        : decision === "REJECT"
+          ? "Đề xuất sẽ kết thúc ở trạng thái từ chối."
+          : "Các phiếu cũ sẽ mất hiệu lực; người đề xuất phải sửa và gửi lại.";
+    if (
+      !window.confirm(
+        `${action} cho đề xuất ${selected.requestId}, bản sửa ${selected.revision}? ${effect}`,
+      )
+    )
+      return;
+    void run(() => review(decision));
+  }
   async function submit() {
     if (!selected) return;
     const version = generation.current;
@@ -442,7 +478,7 @@ export function Proposals({
                       busy ||
                       (editing?.requestId === selected.requestId && dirty)
                     }
-                    onClick={() => void run(submit)}
+                    onClick={confirmSubmit}
                   >
                     Gửi đề xuất
                   </button>
@@ -481,7 +517,7 @@ export function Proposals({
                   <button
                     className="primary"
                     disabled={busy}
-                    onClick={() => void run(() => review("APPROVE"))}
+                    onClick={() => confirmReview("APPROVE")}
                   >
                     Đồng ý duyệt
                   </button>
@@ -489,7 +525,7 @@ export function Proposals({
                 <p>
                   <button
                     disabled={busy}
-                    onClick={() => void run(() => review("NEEDS_INFO"))}
+                    onClick={() => confirmReview("NEEDS_INFO")}
                   >
                     Yêu cầu bổ sung
                   </button>
@@ -497,7 +533,7 @@ export function Proposals({
                 <button
                   className="danger"
                   disabled={busy}
-                  onClick={() => void run(() => review("REJECT"))}
+                  onClick={() => confirmReview("REJECT")}
                 >
                   Từ chối đề xuất
                 </button>

@@ -199,6 +199,13 @@ export function MembershipAdmin() {
           onSubmit={(event) => {
             event.preventDefault();
             const submitted = invitationId.trim();
+            if (
+              task.busy ||
+              !window.confirm(
+                `Thu hồi lời mời ${submitted}? Người nhận sẽ không còn dùng được mã này.`,
+              )
+            )
+              return;
             void task.run(async () => {
               const result = await call<
                 { invitationId: string },
@@ -243,6 +250,13 @@ export function MembershipAdmin() {
           onSubmit={(event) => {
             event.preventDefault();
             const submitted = targetUid.trim();
+            if (
+              task.busy ||
+              !window.confirm(
+                `Thu hồi quyền thành viên của tài khoản ${submitted}? Tài khoản sẽ không đọc được dữ liệu gia phả; các lời mời cũ sẽ mất hiệu lực.`,
+              )
+            )
+              return;
             if (disableRequest.current?.targetUid !== submitted)
               disableRequest.current = {
                 targetUid: submitted,

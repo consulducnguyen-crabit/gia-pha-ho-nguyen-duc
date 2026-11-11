@@ -46,3 +46,15 @@ permission/loading có thể xảy ra. Không có bảng nhiều cột trong ph�
 Build còn cảnh báo JavaScript bundle lớn (khoảng846 kB trước gzip). Chưa commit,
 reset Git, thay remote, đồng bộ GitHub hoặc deploy production. HEAD vẫn cdb47c0;
 bao gồm các thay đổi đề xuất chưa commit từ bước trước.
+
+## Phiên tiếp theo — xác nhận thao tác
+
+Sau khi người dùng cho phép tự commit/push, đã thêm xác nhận native trước gửi,
+ghi nhận phiếu, yêu cầu bổ sung/từ chối và thu hồi lời mời/membership. Thông báo nêu
+ID và revision/tài khoản; không hứa áp dụng dữ liệu trước khi đủ phiếu hợp lệ.
+
+Agent độc lập review đạt; lint/typecheck/build và hai luồng Chromium đều đạt.
+Cancel review giữ ghi chú/trạng thái và không POST review; cancel disable giữ
+UID/quyền/trạng thái và không POST disable. UUID chỉ được tạo sau Confirm.
+Các nhánh cancel submit/revoke đã review mã, chưa có ca browser riêng.
+Không sửa backend, payload, ACL hoặc dữ liệu production.

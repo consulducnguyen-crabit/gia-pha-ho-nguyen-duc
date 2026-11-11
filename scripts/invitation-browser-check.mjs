@@ -8,6 +8,31 @@ let managerToken;
 let browser;
 let stage = "initialization";
 let pageErrors = 0;
+let dialogErrors = 0;
+let dialogCount = 0;
+let cancelNext = false;
+function confirmations(page) {
+  page.on("dialog", async (dialog) => {
+    const valid =
+      dialog.type() === "confirm" &&
+      (/^Thu hồi lời mời [a-f0-9]{64}\? Người nhận sẽ không còn dùng được mã này\.$/.test(
+        dialog.message(),
+      ) ||
+        dialog.message() ===
+          "Thu hồi quyền thành viên của tài khoản demo-invitee? Tài khoản sẽ không đọc được dữ liệu gia phả; các lời mời cũ sẽ mất hiệu lực.");
+    if (!valid) {
+      dialogErrors++;
+      await dialog.dismiss();
+      return;
+    }
+    dialogCount++;
+    if (cancelNext) {
+      cancelNext = false;
+      await dialog.dismiss();
+    } else await dialog.accept();
+  });
+}
+
 async function capability(enabled) {
   const response = await fetch(
     "http://127.0.0.1:8080/v1/projects/demo-gia-pha/databases/(default)/documents/users/demo-manager?updateMask.fieldPaths=canManageMembership",
@@ -135,6 +160,7 @@ try {
       pageErrors++;
     });
 
+  confirmations(manager);
   stage = "manager login and account screen";
   await login(manager, "quanly@example.test");
   await manager
@@ -167,6 +193,35 @@ try {
   await expect(
     invitee.getByRole("link", { name: "Tài khoản và lời mời", exact: true }),
   ).toHaveCount(0);
+
+  stage = "cancel revocation keeps account access and sends no mutation";
+  let disableRequests = 0;
+  manager.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      request.url().endsWith("/disableMembership")
+    )
+      disableRequests++;
+  });
+  await manager
+    .getByLabel("UID tài khoản cần thu hồi", { exact: true })
+    .fill("demo-invitee");
+  const dialogsBeforeCancel = dialogCount;
+  const statusBeforeCancel = await manager.getByRole("status").textContent();
+  cancelNext = true;
+  await manager
+    .getByRole("button", { name: "Thu hồi quyền thành viên", exact: true })
+    .click();
+  await expect.poll(() => dialogCount).toBe(dialogsBeforeCancel + 1);
+  await expect(
+    manager.getByLabel("UID tài khoản cần thu hồi", { exact: true }),
+  ).toHaveValue("demo-invitee");
+  await expect(manager.getByRole("status")).toHaveText(statusBeforeCancel);
+  await expect(
+    invitee.getByRole("heading", { name: "Nhân vật giả 1", exact: true }),
+  ).toBeVisible();
+  if (disableRequests !== 0)
+    throw Error("Canceled disable made a mutation request");
 
   stage = "no-op retry reports accurately and renews request ID";
   let handledRequestId;
@@ -260,7 +315,8 @@ try {
     manager.getByLabel("Email người được mời", { exact: true }),
   ).toHaveCount(0);
   await mobile(manager);
-  if (pageErrors) throw Error("Unexpected browser page error");
+  if (pageErrors || dialogErrors || dialogCount < 5)
+    throw Error("Unexpected browser page error or confirmation coverage");
 } catch {
   // Suppress Playwright input call logs so a failed fill cannot expose a token.
   failed = true;
@@ -284,5 +340,5 @@ try {
 if (failed)
   throw Error(`Invitation browser verification failed at stage: ${stage}`);
 console.log(
-  "Browser: invitation create/accept/replay/revoke, re-invite, no-op retry status and new request ID, membership revoke, manager capability removal, mobile and cleanup passed.",
+  "Browser: invitation create/accept/replay/revoke, re-invite, no-op retry status and new request ID, membership revoke, confirmation/cancel guards, manager capability removal, mobile and cleanup passed.",
 );
