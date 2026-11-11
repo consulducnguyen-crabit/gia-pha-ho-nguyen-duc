@@ -5,7 +5,15 @@ service cloud.firestore {
    return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid))
     && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.enabled == true;
   }
-  match /users/{uid} { allow get: if request.auth != null && request.auth.uid == uid; }
+  // Account managers (users/{uid}.canManageMembership == true) may read the account list; writes stay
+  // closed to every client (accounts are provisioned by a trusted local script or backend).
+  function manager() {
+   return member() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.canManageMembership == true;
+  }
+  match /users/{uid} {
+   allow get: if request.auth != null && (request.auth.uid == uid || manager());
+   allow list: if manager();
+  }
   // Trusted backend publishes only allowlisted basic fields here.
   match /memberProfiles/{id} { allow read: if member(); }
   // One versioned snapshot (names, birth/death years, generation, branch, relations) built by

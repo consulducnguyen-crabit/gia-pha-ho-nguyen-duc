@@ -3,7 +3,9 @@ import { createRoot } from "react-dom/client";
 import { HashRouter, NavLink, Route, Routes } from "react-router-dom";
 import {
   onAuthStateChanged,
+  GoogleAuthProvider,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   type User,
 } from "firebase/auth";
@@ -24,6 +26,7 @@ import { latestRequest } from "./latestRequest";
 import { AcceptInvitation, MembershipAdmin } from "./Membership";
 import { Proposals } from "./Proposals";
 import { PersonPage, TreePage } from "./Tree";
+import { UsersPage } from "./Users";
 import "./style.css";
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -99,6 +102,9 @@ function App() {
           {emulator && canReviewChanges && (
             <NavLink to="/review">Hộp duyệt</NavLink>
           )}
+          {canManageMembership && (
+            <NavLink to="/users">Quản lý tài khoản</NavLink>
+          )}
           {emulator && canManageMembership && (
             <NavLink to="/accounts">Tài khoản và lời mời</NavLink>
           )}
@@ -153,6 +159,9 @@ function App() {
                   />
                 }
               />
+            )}
+            {canManageMembership && (
+              <Route path="/users" element={<UsersPage key={user!.uid} />} />
             )}
             {emulator && canManageMembership && (
               <Route
@@ -274,6 +283,36 @@ function Gate({ state, user }: { state: string; user: User | null }) {
                 {busy ? "Đang đăng nhập…" : "Đăng nhập →"}
               </button>
             </form>
+            <p className="login-or">
+              hoặc dùng tài khoản Gmail đã được cấp quyền
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  await signInWithPopup(auth!, new GoogleAuthProvider());
+                } catch (cause) {
+                  const code =
+                    cause && typeof cause === "object" && "code" in cause
+                      ? String(cause.code)
+                      : "";
+                  if (
+                    code !== "auth/popup-closed-by-user" &&
+                    code !== "auth/cancelled-popup-request"
+                  )
+                    setError(
+                      "Không thể đăng nhập bằng Google. Cho phép cửa sổ bật lên rồi thử lại.",
+                    );
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Đăng nhập bằng Google
+            </button>
           </>
         )}
         <div className="privacy">
