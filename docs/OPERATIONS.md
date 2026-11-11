@@ -30,6 +30,7 @@ Pages build đọc web config từ GitHub Actions **Variables** (Settings → Se
 GitHub Pages chỉ phục vụ `dist/`, router dùng hash và Vite base tương đối cho đường dẫn repository. Chưa cấu hình remote, Pages hoặc deploy rules. Trước production phải kiểm chứng phân quyền riêng tư (đã tách memberProfiles khỏi canonical), các quyết định hạ tầng còn mở, hoàn thiện approval backend, chạy bộ kiểm thử và bảo vệ GitHub environment production với reviewer. Không triển khai frontend như sản phẩm hoàn chỉnh.
 
 ## Sao lưu và khôi phục
+Công cụ sao lưu/khôi phục cục bộ và kết quả diễn tập: xem [BACKUP.md](BACKUP.md).
 Chưa có dữ liệu thật. Emulator có thể export bằng `npx firebase emulators:export /tmp/gia-pha-backup --project demo-gia-pha`; import bằng `npm run emulators -- --import /tmp/gia-pha-backup`. Không commit export.
 Trước migration thật: người phụ trách được chỉ định tạo Firestore export và bản sao Storage vào kho riêng có ACL, ghi checksum/phiên bản schema và thời điểm; dry-run trên project cô lập; đối chiếu số lượng, quan hệ, quyền và tài liệu mẫu sau restore. Chưa tuyên bố khả năng restore production khi chưa diễn tập. Thay đổi production cần phê duyệt rõ ràng.
 
