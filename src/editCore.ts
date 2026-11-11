@@ -61,8 +61,8 @@ export interface EditInput {
 }
 export interface EditWrite {
   path: string;
-  /** "set" ghi cả tài liệu; "merge" chỉ ghi các trường đưa vào. */
-  mode: "set" | "merge" | "create";
+  /** "set" ghi cả tài liệu; "merge" chỉ ghi các trường đưa vào; "delete" xóa tài liệu (chỉ memberProfiles). */
+  mode: "set" | "merge" | "create" | "delete";
   data: Doc;
 }
 export interface EditResult {

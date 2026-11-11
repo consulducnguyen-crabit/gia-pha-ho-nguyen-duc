@@ -21,6 +21,8 @@ service cloud.firestore {
   //  - PERSON_EDITED: persons/{id} + memberProfiles/{id} (profileVersion + 1) [+ personPrivate].
   //  - PERSON_ADDED : new persons/memberProfiles [+ personPrivate] + relations (listed in the audit).
   //  - SPOUSE_ADDED : unions/{unionId} [+ a new person listed in the audit's createdPersonIds].
+  //  - PERSON_DELETED / PERSON_RESTORED: soft delete (persons.deleted, its parent relations and at most one
+  //    union listed in the audit); memberProfiles is deleted (hidden from members) and recreated on restore.
   // Rules cannot parse the snapshot JSON, so its content stays the trusted client's (applyEdit/applyAdd)
   // job; the snapshot rule only proves that the matching canonical docs are created/bumped in the batch.
   function snapshotPath() { return /databases/$(database)/documents/treeSnapshots/main; }
@@ -69,7 +71,28 @@ service cloud.firestore {
              || (get(relationDoc(a.removedRelationIds[0])).data.get('deleted', false) == false
                  && getAfter(relationDoc(a.removedRelationIds[0])).data.get('deleted', false) == true)))
      || (a.event == 'RELATION_TYPE_CHANGED'
-         && getAfter(relationDoc(a.relationIds[0])).data.version == get(relationDoc(a.relationIds[0])).data.version + 1));
+         && getAfter(relationDoc(a.relationIds[0])).data.version == get(relationDoc(a.relationIds[0])).data.version + 1)
+     || (a.event == 'PERSON_DELETED'
+         && get(personDoc(a.personId)).data.get('deleted', false) == false
+         && getAfter(personDoc(a.personId)).data.deleted == true
+         && exists(profileDoc(a.personId)) && !existsAfter(profileDoc(a.personId))
+         && (a.relationIds.size() == 0 || getAfter(relationDoc(a.relationIds[0])).data.get('deleted', false) == true)
+         && (a.get('unionId', null) == null || getAfter(unionDoc(a.unionId)).data.get('deleted', false) == true))
+     || (a.event == 'PERSON_RESTORED'
+         && get(personDoc(a.personId)).data.get('deleted', false) == true
+         && getAfter(personDoc(a.personId)).data.deleted == false
+         && !exists(profileDoc(a.personId)) && existsAfter(profileDoc(a.personId))
+         && (a.relationIds.size() == 0 || getAfter(relationDoc(a.relationIds[0])).data.get('deleted', false) == false)
+         && (a.get('unionId', null) == null || getAfter(unionDoc(a.unionId)).data.get('deleted', false) == false)));
+  }
+  function lifecycleGate(personId, ev) {
+   let n = nextEditVersion();
+   let a = auditData(n);
+   return manager()
+    && getAfter(snapshotPath()).data.editVersion == n
+    && a.actorUid == request.auth.uid
+    && a.event == ev
+    && a.personId == personId;
   }
   function profileShapeOk() {
    let d = request.resource.data;
@@ -92,7 +115,7 @@ service cloud.firestore {
         'verificationStatus', 'version', 'schemaVersion', 'sourceRefs', 'createdAt'])
     && d.parentId is string && d.parentId != d.childId && d.childId == a.personId && id in a.relationIds
     && id == 'r-' + d.parentId + '-' + d.childId
-    && exists(personDoc(d.parentId))
+    && exists(personDoc(d.parentId)) && get(personDoc(d.parentId)).data.get('deleted', false) == false
     && d.parentRole in ['FATHER', 'MOTHER'] && d.relationType in ['BIOLOGICAL', 'ADOPTIVE']
     && d.lineageTransmission == (d.parentRole == 'FATHER'
         && getAfter(personDoc(d.childId)).data.category == 'CLAN')
@@ -126,6 +149,12 @@ service cloud.firestore {
     && request.resource.data.profileVersion == resource.data.profileVersion + 1 && profileShapeOk();
    allow create: if createGate(id) && !exists(personDoc(id))
     && request.resource.data.profileVersion == 1 && profileShapeOk();
+   // Restore: recreate the member copy; its version continues the person's (persons is bumped in the same batch).
+   allow create: if lifecycleGate(id, 'PERSON_RESTORED') && exists(personDoc(id))
+    && request.resource.data.profileVersion == getAfter(personDoc(id)).data.profileVersion
+    && request.resource.data.displayName == get(personDoc(id)).data.displayName
+    && profileShapeOk();
+   allow delete: if lifecycleGate(id, 'PERSON_DELETED');
   }
   // One versioned snapshot (names, birth/death years, generation, branch, relations). get only:
   // no listing. Clients may only update data + editVersion, one version at a time, with an audit.
@@ -141,14 +170,15 @@ service cloud.firestore {
   match /auditLogs/{id} {
    // Account/invitation audits stay closed to every client; managers read only edit audits, by id.
    allow get: if manager()
-    && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'RELATION_TYPE_CHANGED'];
+    && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED'];
    allow create: if manager() && auditCreateOk(id);
   }
   function auditCreateOk(id) {
    let d = request.resource.data;
    return d.keys().hasOnly(['event', 'actorUid', 'target', 'personId', 'createdPersonIds', 'relationIds',
         'removedRelationIds', 'unionId', 'editVersion', 'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
-    && d.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'RELATION_TYPE_CHANGED']
+    && d.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'RELATION_TYPE_CHANGED',
+        'PERSON_DELETED', 'PERSON_RESTORED']
     && (d.event == 'PARENT_CHANGED' || d.get('removedRelationIds', []).size() == 0)
     && d.schemaVersion == 1
     && d.fields is list && d.before is map && d.after is map
@@ -172,11 +202,30 @@ service cloud.firestore {
          && d.get('unionId', null) == null)
      || (d.event == 'RELATION_TYPE_CHANGED' && d.createdPersonIds == []
          && d.relationIds is list && d.relationIds.size() == 1
-         && d.get('unionId', null) == null));
+         && d.get('unionId', null) == null)
+     || (d.event in ['PERSON_DELETED', 'PERSON_RESTORED'] && d.createdPersonIds == []
+         && d.relationIds is list && d.relationIds.size() <= 2
+         && (d.get('unionId', null) == null || d.unionId is string)));
   }
   match /persons/{id} {
    allow read: if manager();
-   allow update: if editGate(id) && request.resource.data.profileVersion is int
+   allow update: if lifecycleGate(id, 'PERSON_DELETED')
+    && resource.data.get('deleted', false) == false
+    && request.resource.data.profileVersion == resource.data.profileVersion + 1
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy',
+        'deletedAtVersion', 'profileVersion', 'updatedAt', 'updatedBy'])
+    && request.resource.data.deleted == true && request.resource.data.deletedAt == request.time
+    && request.resource.data.deletedBy == request.auth.uid
+    && request.resource.data.deletedAtVersion == nextEditVersion()
+    && request.resource.data.updatedAt == request.time && request.resource.data.updatedBy == request.auth.uid;
+   allow update: if lifecycleGate(id, 'PERSON_RESTORED')
+    && resource.data.get('deleted', false) == true
+    && request.resource.data.profileVersion == resource.data.profileVersion + 1
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'profileVersion', 'updatedAt', 'updatedBy'])
+    && request.resource.data.deleted == false
+    && request.resource.data.updatedAt == request.time && request.resource.data.updatedBy == request.auth.uid;
+   allow update: if editGate(id) && resource.data.get('deleted', false) == false
+    && request.resource.data.profileVersion is int
     && request.resource.data.profileVersion == resource.data.profileVersion + 1
     && (request.resource.data.get('sex', null) == null || request.resource.data.sex in ['M', 'F']) && request.resource.data.get('reviewFlags', []) is list
     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'normalizedName',
@@ -218,21 +267,46 @@ service cloud.firestore {
    let n = nextEditVersion();
    let a = auditData(n);
    let d = request.resource.data;
+   let live = resource.data.get('deleted', false) == false;
    return manager()
     && getAfter(snapshotPath()).data.editVersion == n
     && a.actorUid == request.auth.uid
     && d.version == resource.data.version + 1
     && resource.data.childId == a.personId
-    && resource.data.get('deleted', false) == false
-    && ((a.event == 'RELATION_TYPE_CHANGED' && id in a.relationIds
+    && ((live && a.event == 'RELATION_TYPE_CHANGED' && id in a.relationIds
          && d.diff(resource.data).affectedKeys().hasOnly(['relationType', 'version', 'updatedAt', 'updatedBy'])
          && d.relationType in ['BIOLOGICAL', 'ADOPTIVE']
          && d.updatedAt == request.time && d.updatedBy == request.auth.uid)
-     || (a.event == 'PARENT_CHANGED' && id in a.removedRelationIds
+     || (live && a.event == 'PARENT_CHANGED' && id in a.removedRelationIds
          && resource.data.parentRole == getAfter(relationDoc(a.relationIds[0])).data.parentRole
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'replacedBy', 'version'])
          && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
-         && d.replacedBy == a.relationIds[0]));
+         && d.replacedBy == a.relationIds[0])
+     || (live && a.event == 'PERSON_DELETED' && id in a.relationIds
+         && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'deletedWith', 'version'])
+         && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
+         && d.deletedWith == a.personId)
+     || (!live && a.event == 'PERSON_RESTORED' && id in a.relationIds
+         && resource.data.get('deletedWith', '') == a.personId
+         && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'version', 'restoredAt', 'restoredBy'])
+         && d.deleted == false && d.restoredAt == request.time && d.restoredBy == request.auth.uid));
+  }
+  function unionLifecycleOk(id) {
+   let n = nextEditVersion();
+   let a = auditData(n);
+   let d = request.resource.data;
+   let live = resource.data.get('deleted', false) == false;
+   return manager()
+    && getAfter(snapshotPath()).data.editVersion == n
+    && a.actorUid == request.auth.uid
+    && id == a.unionId && a.personId in resource.data.partnerIds
+    && ((live && a.event == 'PERSON_DELETED'
+         && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'deletedWith'])
+         && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
+         && d.deletedWith == a.personId)
+     || (!live && a.event == 'PERSON_RESTORED' && resource.data.get('deletedWith', '') == a.personId
+         && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'restoredAt', 'restoredBy'])
+         && d.deleted == false && d.restoredAt == request.time && d.restoredBy == request.auth.uid));
   }
   match /relations/{id} {
    // Managers read a relation by id (to read its version inside the edit transaction); no listing.
@@ -240,7 +314,10 @@ service cloud.firestore {
    allow create: if relationCreateOk(id);
    allow update: if relationUpdateOk(id);
   }
-  match /unions/{id} { allow create: if unionCreateOk(id); }
+  match /unions/{id} {
+   allow create: if unionCreateOk(id);
+   allow update: if unionLifecycleOk(id);
+  }
   match /changeRequests/{id} {
    allow read: if member() && resource.data.authorUid == request.auth.uid;
   }

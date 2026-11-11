@@ -23,6 +23,12 @@ import { commitEdit, stageWrites, type SetTarget } from "../src/editClient";
 import { addTargets, applyAdd, type AddOp } from "../src/editAdd";
 import { SERVER_TIME } from "../src/editCore";
 import {
+  applyDelete,
+  deleteReads,
+  parseDeletedAudit,
+  type DeleteOp,
+} from "../src/editDelete";
+import {
   applyRelation,
   relationReads,
   type RelationOp,
@@ -90,6 +96,7 @@ beforeEach(async () => {
     for (const id of ["a", "b", "c", "m"]) {
       await setDoc(doc(db, "persons", id), {
         displayName: id,
+        normalizedName: id,
         sex: id === "m" ? "F" : "M",
         category: id === "m" ? "SPOUSE" : "CLAN",
         profileVersion: 1,
@@ -1043,5 +1050,182 @@ describe("đổi cha/mẹ và loại con: rules", () => {
       .authenticatedContext("member")
       .firestore() as unknown as Firestore;
     await assertFails(getDoc(doc(member, "relations", "r-a-b")));
+  });
+});
+
+async function planDel(db: Firestore, op: DeleteOp, expectedVersion: number) {
+  const snap = await getDoc(doc(db, "treeSnapshots", "main"));
+  const person = await getDoc(doc(db, "persons", op.personId));
+  let audit: Record<string, unknown> | null = null;
+  let ids: string[];
+  if (op.type === "restorePerson") {
+    const a = await getDoc(doc(db, "auditLogs", `edit-${op.deleteVersion}`));
+    audit = a.exists() ? a.data() : null;
+    ids = parseDeletedAudit(
+      audit!,
+      op.personId,
+      op.deleteVersion,
+    ).relations.map((r) => `r-${String(r[0])}-${op.personId}`);
+  } else ids = deleteReads(snap.data()!, op.personId);
+  const relations: Record<string, Record<string, unknown> | null> = {};
+  for (const id of ids) {
+    const d = await getDoc(doc(db, "relations", id));
+    relations[id] = d.exists() ? d.data() : null;
+  }
+  return applyDelete(
+    {
+      snapshot: snap.data()!,
+      person: person.exists() ? person.data() : null,
+      relations,
+      audit,
+    },
+    { op, expectedVersion, actorUid: "admin" },
+  );
+}
+const delB = (): DeleteOp => ({
+  type: "deletePerson",
+  personId: "b",
+  confirm: true,
+});
+const restoreB = (v: number): DeleteOp => ({
+  type: "restorePerson",
+  personId: "b",
+  deleteVersion: v,
+});
+
+describe("ẩn và khôi phục người: rules", () => {
+  it("ẩn rồi khôi phục: thành công, bản thành viên mất rồi có lại", async () => {
+    const db = admin();
+    await assertSucceeds(commit(db, (await planDel(db, delB(), 0)).writes));
+    expect((await getDoc(doc(db, "persons", "b"))).data()!.deleted).toBe(true);
+    expect((await getDoc(doc(db, "memberProfiles", "b"))).exists()).toBe(false);
+    expect((await getDoc(doc(db, "relations", "r-a-b"))).data()!.deleted).toBe(
+      true,
+    );
+    await assertSucceeds(
+      commit(db, (await planDel(db, restoreB(1), 1)).writes),
+    );
+    expect((await getDoc(doc(db, "persons", "b"))).data()!.deleted).toBe(false);
+    expect((await getDoc(doc(db, "memberProfiles", "b"))).exists()).toBe(true);
+    expect((await getDoc(doc(db, "relations", "r-a-b"))).data()!.deleted).toBe(
+      false,
+    );
+    const snap = JSON.parse(
+      (await getDoc(doc(db, "treeSnapshots", "main"))).data()!.data,
+    );
+    expect(snap.persons.b).toBeDefined();
+  });
+
+  it("thành viên thường không ẩn được; thiếu phần nào của lô thì bị chặn", async () => {
+    const db = admin();
+    const r = await planDel(db, delB(), 0);
+    const member = env
+      .authenticatedContext("member")
+      .firestore() as unknown as Firestore;
+    await assertFails(commit(member, r.writes));
+    for (const skip of [
+      "persons/b",
+      "memberProfiles/b",
+      "relations/r-a-b",
+      "treeSnapshots/main",
+      "auditLogs/edit-1",
+    ])
+      await assertFails(commit(db, without(r.writes, skip)));
+  });
+
+  it("không ẩn quan hệ của người khác, không thêm trường lạ, không đổi nhãn sự kiện", async () => {
+    const db = admin();
+    const r = await planDel(db, delB(), 0);
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "persons/b", { displayName: "X" })),
+    );
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "relations/r-a-b", { parentId: "c" })),
+    );
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "persons/b", { deletedAtVersion: 9 })),
+    );
+    await assertFails(
+      commit(
+        db,
+        r.writes.map((w) =>
+          w.path.startsWith("auditLogs/")
+            ? { ...w, data: { ...w.data, relationIds: ["r-a-c"] } }
+            : w,
+        ),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        r.writes.map((w) =>
+          w.path.startsWith("auditLogs/")
+            ? { ...w, data: { ...w.data, event: "PERSON_EDITED" } }
+            : w,
+        ),
+      ),
+    );
+    await assertSucceeds(commit(db, r.writes));
+  });
+
+  it("người đã ẩn không sửa được và không làm cha/mẹ; lô ẩn không phát lại được", async () => {
+    const db = admin();
+    const edit = applyEdit(await snapshotState(db, "b"), {
+      op: {
+        type: "updatePerson",
+        personId: "b",
+        changes: { name: "Tên Mới" },
+      },
+      expectedVersion: 0,
+      actorUid: "admin",
+    });
+    const first = await planDel(db, delB(), 0);
+    await assertSucceeds(commit(db, first.writes));
+    // Lô sửa hợp lệ về hình thức nhưng nhắm người đã ẩn (đổi sang phiên bản 2).
+    const bumped = edit.writes.map((w) =>
+      w.path === "auditLogs/edit-1"
+        ? {
+            ...w,
+            path: "auditLogs/edit-2",
+            data: { ...w.data, editVersion: 2 },
+          }
+        : w.path === "treeSnapshots/main"
+          ? { ...w, data: { ...w.data, editVersion: 2 } }
+          : w,
+    );
+    await assertFails(commit(db, bumped));
+    await assertFails(commit(db, first.writes));
+    // Chọn người đã ẩn làm cha: quan hệ mới bị chặn dù lô đúng hình thức.
+    const rel = await planRel(
+      db,
+      {
+        type: "setParent",
+        childId: "c",
+        role: "MOTHER",
+        parentId: "m",
+        adoptive: false,
+        confirmReplace: false,
+      },
+      1,
+    );
+    const toDeleted = rel.writes.map((w) =>
+      w.path === "relations/r-m-c"
+        ? {
+            ...w,
+            path: "relations/r-b-c",
+            data: { ...w.data, parentId: "b", parentRole: "FATHER" },
+          }
+        : w,
+    );
+    await assertFails(commit(db, toDeleted));
+  });
+
+  it("khôi phục: không dùng được số phiên bản sai, không làm hai lần", async () => {
+    const db = admin();
+    await assertSucceeds(commit(db, (await planDel(db, delB(), 0)).writes));
+    await assertSucceeds(
+      commit(db, (await planDel(db, restoreB(1), 1)).writes),
+    );
+    await expect(planDel(db, restoreB(1), 2)).rejects.toBeInstanceOf(EditError);
   });
 });

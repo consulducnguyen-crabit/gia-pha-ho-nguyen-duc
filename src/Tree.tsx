@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { doc, getDocFromServer } from "firebase/firestore";
 import { db } from "./firebase";
 import { PersonEdit } from "./PersonEdit";
+import { PersonDelete } from "./PersonDelete";
 import { PersonAdd } from "./PersonAdd";
 import { PersonRelations } from "./PersonRelations";
 import {
@@ -516,6 +517,23 @@ export function PersonPage({
       {canEdit && (
         <PersonRelations
           key={`rel:${id}:${index.snapshot.editVersion}`}
+          onStart={() => setSaved(null)}
+          index={index}
+          p={p}
+          uid={uid}
+          onReload={() => {
+            setSaved(null);
+            reload();
+          }}
+          onSaved={(message, focusId) => {
+            setSaved({ id: focusId, message });
+            reload();
+          }}
+        />
+      )}
+      {canEdit && (
+        <PersonDelete
+          key={`del:${id}:${index.snapshot.editVersion}`}
           onStart={() => setSaved(null)}
           index={index}
           p={p}
