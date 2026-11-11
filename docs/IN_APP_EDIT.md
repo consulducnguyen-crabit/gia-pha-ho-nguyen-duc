@@ -57,7 +57,7 @@ nhật ký. Admin đọc được `persons`, `personPrivate` và `get` từng nh
   ghi chú chỉ khôi phục từ sao lưu. Tên/năm/chi/giới tính/cờ lưu trước-sau.
 - Đổi tên chưa tính lại cờ `DUP_NAME` của người đó và người trùng tên (admin tự gắn/gỡ cờ).
 - `--replace` của script nạp giữ `editVersion` cũ (tránh khóa chết vì `edit-N` còn) nhưng vẫn GHI ĐÈ các sửa
-  trong app; sẽ bị chặn trên prod ở PR D. Trước đó không chạy `--replace` trên prod sau khi có sửa trong app.
+  trong app; bị chặn trên prod và cần --discard-app-edits ở dev (xem INTEGRITY_GUARD.md). Không chạy `--replace` trên prod sau khi có sửa trong app.
   Khôi phục từ sao lưu cũ cũng cần giữ `editVersion` lớn nhất của `auditLogs/edit-*`.
 - Chưa có giao diện; chưa sửa quan hệ/hôn nhân/xóa mềm (PR B, C).
 
