@@ -381,7 +381,7 @@ try {
   for (const width of [360, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth > window.innerWidth,
+      () => document.documentElement.scrollWidth > globalThis.innerWidth,
     );
     if (overflow) throw Error(`Tràn ngang ở ${width}px`);
   }
