@@ -40,7 +40,7 @@ Allowlist trường: `memberProfiles` chỉ tên + năm sinh/mất (đúng quy�
 `persons` chỉ displayName, normalizedName, birth, death, branchCode, sex, sexBasis, reviewFlags,
 profileVersion, updatedAt (= `request.time`), updatedBy (= người gọi); `personPrivate` chỉ `note` ≤ 2000
 ký tự và chỉ cho người đã tồn tại; nhật ký chỉ các khóa cố định. Không tạo/xóa `persons`, không sửa/xóa
-nhật ký. Admin đọc được `persons`, `personPrivate`, `auditLogs` (gồm cả sự kiện tài khoản do script ghi).
+nhật ký. Admin đọc được `persons`, `personPrivate` và `get` từng nhật ký `PERSON_EDITED`; nhật ký tài khoản/lời mời vẫn đóng với mọi client, không liệt kê được.
 
 ## Giới hạn đã biết
 

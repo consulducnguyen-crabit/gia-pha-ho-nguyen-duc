@@ -65,7 +65,8 @@ service cloud.firestore {
     && bumps(profileDoc(auditAfter().data.personId));
   }
   match /auditLogs/{id} {
-   allow read: if manager();
+   // Account/invitation audits stay closed to every client; managers read only edit audits, by id.
+   allow get: if manager() && resource.data.event == 'PERSON_EDITED';
    allow create: if manager()
     && request.resource.data.keys().hasOnly(['event', 'actorUid', 'target', 'personId', 'editVersion',
         'fields', 'before', 'after', 'timestamp', 'schemaVersion'])

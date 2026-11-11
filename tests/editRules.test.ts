@@ -10,6 +10,8 @@ import {
 import {
   doc,
   getDoc,
+  getDocs,
+  collection,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -160,6 +162,17 @@ describe("ghi trực tiếp trong app: rules", () => {
     const db = admin();
     await assertSucceeds(getDoc(doc(db, "persons", "a")));
     await assertSucceeds(getDoc(doc(db, "personPrivate", "a")));
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), "auditLogs", "other-event"), {
+        event: "INVITATION_CREATED",
+      });
+      await setDoc(doc(c.firestore(), "auditLogs", "edit-9"), {
+        event: "PERSON_EDITED",
+      });
+    });
+    await assertFails(getDoc(doc(db, "auditLogs", "other-event")));
+    await assertSucceeds(getDoc(doc(db, "auditLogs", "edit-9")));
+    await assertFails(getDocs(collection(db, "auditLogs")));
     const r = await plan(db, { name: "Tên khác" });
     // Thiếu nhật ký hoặc thiếu ảnh chụp thì cả lô bị chặn.
     for (const skip of ["auditLogs/edit-1", "treeSnapshots/main"])
