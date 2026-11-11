@@ -82,6 +82,12 @@ describe("từ chối ảnh chụp sai cấu trúc", () => {
       branches: {},
     }),
   };
+  it("đọc editVersion (thiếu hoặc sai kiểu = 0)", () => {
+    expect(parseSnapshot(ok).editVersion).toBe(0);
+    expect(parseSnapshot({ ...ok, editVersion: 3 }).editVersion).toBe(3);
+    expect(parseSnapshot({ ...ok, editVersion: 1.5 }).editVersion).toBe(0);
+    expect(parseSnapshot({ ...ok, editVersion: "3" }).editVersion).toBe(0);
+  });
   it("chấp nhận bản hợp lệ rỗng", () => {
     expect(parseSnapshot(ok).persons.size).toBe(0);
   });

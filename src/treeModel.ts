@@ -52,6 +52,8 @@ export interface SnapBranch {
 }
 export interface Snapshot {
   dataVersion: string;
+  /** Phiên bản sửa trong app (thiếu = 0); dùng làm khóa chống ghi đè. */
+  editVersion: number;
   persons: Map<string, SnapPerson>;
   relations: SnapRelation[];
   unions: SnapUnion[];
@@ -153,6 +155,10 @@ export function parseSnapshot(doc: unknown): Snapshot {
   }
   return {
     dataVersion: typeof raw.dataVersion === "string" ? raw.dataVersion : "",
+    editVersion:
+      typeof raw.editVersion === "number" && Number.isInteger(raw.editVersion)
+        ? raw.editVersion
+        : 0,
     persons,
     relations,
     unions,

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { doc, getDocFromServer } from "firebase/firestore";
 import { db } from "./firebase";
+import { PersonEdit } from "./PersonEdit";
 import {
   buildIndex,
   categoryLabel,
@@ -417,9 +418,24 @@ function Relatives({
   );
 }
 
-export function PersonPage({ uid }: { uid: string }) {
+export function PersonPage({
+  uid,
+  canEdit = false,
+}: {
+  uid: string;
+  canEdit?: boolean;
+}) {
   const { id = "" } = useParams();
   const { state, reload } = useTree(uid);
+  const [saved, setSaved] = useState<{ id: string; message: string } | null>(
+    null,
+  );
+  const savedRef = useRef<HTMLParagraphElement | null>(null);
+  const ready = state.status === "ready";
+  // Đưa focus tới thông báo đã lưu (vừa công bố cho trình đọc màn hình, vừa không mất focus).
+  useEffect(() => {
+    if (ready && saved?.id === id) savedRef.current?.focus();
+  }, [ready, saved, id]);
   if (state.status !== "ready")
     return (
       <>
@@ -458,6 +474,27 @@ export function PersonPage({ uid }: { uid: string }) {
         <Link to="/tree">← Cây gia phả</Link>
       </p>
       <h1>{p.name}</h1>
+      {saved?.id === id && (
+        <p role="status" className="notice" tabIndex={-1} ref={savedRef}>
+          {saved.message}
+        </p>
+      )}
+      {canEdit && (
+        <PersonEdit
+          key={`${id}:${index.snapshot.editVersion}`}
+          index={index}
+          p={p}
+          uid={uid}
+          onReload={() => {
+            setSaved(null);
+            reload();
+          }}
+          onSaved={(message) => {
+            setSaved({ id, message });
+            reload();
+          }}
+        />
+      )}
       <p className="tree-profile-meta">
         {years(p)} <Badges index={index} p={p} />{" "}
         <span className="tree-meta">{categoryLabel(p.category)}</span>
