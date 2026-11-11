@@ -6,6 +6,7 @@ import {
   type Firestore,
   type DocumentData,
 } from "firebase/firestore";
+import { addTargets, applyAdd, type AddOp, type AddResult } from "./editAdd";
 import {
   applyEdit,
   EditError,
@@ -65,6 +66,31 @@ export async function commitEdit(
       },
       input,
     );
+    stageWrites(db, tx as unknown as SetTarget, result.writes);
+    return result;
+  });
+}
+
+const SAFE_ID = /^[A-Za-z0-9_-]{1,100}$/;
+
+/** Thêm con / thêm vợ chồng. Đọc và ghi trong CÙNG một giao dịch như commitEdit. */
+export async function commitAdd(
+  db: Firestore,
+  input: { op: AddOp; expectedVersion: number; actorUid: string },
+): Promise<AddResult> {
+  const ids = addTargets(input.op);
+  if (ids.some((id) => !SAFE_ID.test(id)))
+    throw new EditError("INVALID", "Mã người không hợp lệ.");
+  return runTransaction(db, async (tx) => {
+    const snapshot = await tx.get(doc(db, "treeSnapshots", "main"));
+    if (!snapshot.exists())
+      throw new EditError("BAD_STATE", "Chưa có ảnh chụp cây.");
+    const docs: Record<string, DocumentData | null> = {};
+    for (const id of ids) {
+      const d = await tx.get(doc(db, "persons", id));
+      docs[id] = d.exists() ? d.data() : null;
+    }
+    const result = applyAdd({ snapshot: snapshot.data(), docs }, input);
     stageWrites(db, tx as unknown as SetTarget, result.writes);
     return result;
   });

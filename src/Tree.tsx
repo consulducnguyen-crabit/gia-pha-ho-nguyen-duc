@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { doc, getDocFromServer } from "firebase/firestore";
 import { db } from "./firebase";
 import { PersonEdit } from "./PersonEdit";
+import { PersonAdd } from "./PersonAdd";
 import {
   buildIndex,
   categoryLabel,
@@ -491,6 +492,22 @@ export function PersonPage({
           }}
           onSaved={(message) => {
             setSaved({ id, message });
+            reload();
+          }}
+        />
+      )}
+      {canEdit && (
+        <PersonAdd
+          key={`add:${id}:${index.snapshot.editVersion}`}
+          index={index}
+          p={p}
+          uid={uid}
+          onReload={() => {
+            setSaved(null);
+            reload();
+          }}
+          onSaved={(message, focusId) => {
+            setSaved({ id: focusId, message });
             reload();
           }}
         />

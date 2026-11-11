@@ -20,6 +20,7 @@ import {
 } from "firebase/firestore";
 import { applyEdit, EditError, type EditState } from "../src/editCore";
 import { commitEdit, stageWrites, type SetTarget } from "../src/editClient";
+import { addTargets, applyAdd, type AddOp } from "../src/editAdd";
 
 let env: RulesTestEnvironment;
 
@@ -438,5 +439,357 @@ describe("ghi trực tiếp trong app: rules", () => {
     const profileDoc = (await getDoc(doc(db, "memberProfiles", "a"))).data()!;
     expect(profileDoc.birthYear).toBe(1901);
     expect(profileDoc.profileVersion).toBe(2);
+  });
+});
+
+async function planAdd(db: Firestore, op: AddOp, expectedVersion = 0) {
+  const docs: Record<string, Record<string, unknown> | null> = {};
+  for (const id of addTargets(op)) {
+    const d = await getDoc(doc(db, "persons", id));
+    docs[id] = d.exists() ? d.data() : null;
+  }
+  const snap = await getDoc(doc(db, "treeSnapshots", "main"));
+  return applyAdd(
+    { snapshot: snap.data()!, docs },
+    { op, expectedVersion, actorUid: "admin" },
+  );
+}
+const newChild = (
+  over: Partial<Extract<AddOp, { type: "addChild" }>> = {},
+): AddOp => ({
+  type: "addChild",
+  newId: "p-newkid",
+  fatherId: "a",
+  motherId: null,
+  adoptive: false,
+  category: "CLAN",
+  branch: "c1",
+  child: {
+    name: "Giả Con",
+    sex: "M",
+    birthYear: 1960,
+    deathYear: null,
+    note: "ghi chú con",
+  },
+  ...over,
+});
+const newSpouse = (): AddOp => ({
+  type: "addSpouse",
+  personId: "b",
+  order: "1",
+  spouse: {
+    kind: "new",
+    newId: "p-newspouse",
+    category: "SPOUSE",
+    person: {
+      name: "Vợ Giả",
+      sex: "F",
+      birthYear: null,
+      deathYear: null,
+      note: "",
+    },
+  },
+});
+type Writes = Awaited<ReturnType<typeof planAdd>>["writes"];
+const without = (w: Writes, ...paths: string[]) =>
+  w.filter((x) => !paths.includes(x.path));
+const tweakWrite = (
+  w: Writes,
+  path: string,
+  extra: Record<string, unknown>,
+): Writes =>
+  w.map((x) => (x.path === path ? { ...x, data: { ...x.data, ...extra } } : x));
+
+describe("thêm con / vợ chồng: rules", () => {
+  it("admin thêm con hợp lệ: tạo người, quan hệ, snapshot, nhật ký", async () => {
+    const db = admin();
+    const r = await planAdd(db, newChild());
+    await assertSucceeds(commit(db, r.writes));
+    expect((await getDoc(doc(db, "persons", "p-newkid"))).exists()).toBe(true);
+    expect((await getDoc(doc(db, "memberProfiles", "p-newkid"))).exists()).toBe(
+      true,
+    );
+    expect(
+      (await getDoc(doc(db, "personPrivate", "p-newkid"))).data()!.note,
+    ).toBe("ghi chú con");
+    const snap = (await getDoc(doc(db, "treeSnapshots", "main"))).data()!;
+    expect(snap.editVersion).toBe(1);
+    expect(snap.data).toContain("p-newkid");
+    expect((await getDoc(doc(db, "auditLogs", "edit-1"))).data()!.event).toBe(
+      "PERSON_ADDED",
+    );
+  });
+
+  it("thành viên thường không thêm được", async () => {
+    const r = await planAdd(admin(), newChild());
+    const member = env
+      .authenticatedContext("member")
+      .firestore() as unknown as Firestore;
+    await assertFails(commit(member, r.writes));
+  });
+
+  it("thiếu một phần của lô thì bị chặn (snapshot, nhật ký, quan hệ, người)", async () => {
+    const db = admin();
+    const r = await planAdd(db, newChild());
+    for (const skip of [
+      "treeSnapshots/main",
+      "auditLogs/edit-1",
+      "relations/r-a-p-newkid",
+      "persons/p-newkid",
+    ])
+      await assertFails(commit(db, without(r.writes, skip)));
+  });
+
+  it("snapshot không thể 'thêm' người đã tồn tại hoặc dùng quan hệ có sẵn", async () => {
+    const db = admin();
+    const r = await planAdd(db, newChild());
+    // Nhật ký PERSON_ADDED trỏ vào người đã có (b) cùng quan hệ có sẵn: chỉ snapshot + nhật ký.
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), "relations", "r-a-b"), { x: 1 });
+    });
+    const lie = r.writes
+      .filter(
+        (w) =>
+          w.path === "treeSnapshots/main" || w.path.startsWith("auditLogs/"),
+      )
+      .map((w) =>
+        w.path.startsWith("auditLogs/")
+          ? {
+              ...w,
+              data: {
+                ...w.data,
+                personId: "b",
+                target: "persons/b",
+                createdPersonIds: ["b"],
+                relationIds: ["r-a-b"],
+              },
+            }
+          : w,
+      );
+    await assertFails(commit(db, lie));
+  });
+
+  it("trường lạ, sai người, sai nguồn trong tài liệu mới bị chặn", async () => {
+    const db = admin();
+    const r = await planAdd(db, newChild());
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "persons/p-newkid", { role: "admin" })),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "persons/p-newkid", { category: "ADMIN" }),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "persons/p-newkid", { profileVersion: 5 }),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "memberProfiles/p-newkid", { note: "lộ" }),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-a-p-newkid", { childId: "b" }),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-a-p-newkid", { parentRole: "BOSS" }),
+      ),
+    );
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "relations/r-a-p-newkid", { extra: 1 })),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-a-p-newkid", { sourceRefs: ["x"] }),
+      ),
+    );
+    // Tạo thêm một người không có trong nhật ký.
+    await assertFails(
+      commit(db, [...r.writes, { ...r.writes[0], path: "persons/p-intruder" }]),
+    );
+  });
+
+  it("phát lại cùng phiên bản bị chặn", async () => {
+    const db = admin();
+    const first = await planAdd(db, newChild());
+    const second = await planAdd(db, newChild({ newId: "p-other" }));
+    await assertSucceeds(commit(db, first.writes));
+    await assertFails(commit(db, second.writes));
+  });
+
+  it("thêm vợ/chồng mới: người, union, snapshot, nhật ký", async () => {
+    const db = admin();
+    const r = await planAdd(db, newSpouse());
+    await assertSucceeds(commit(db, r.writes));
+    expect((await getDoc(doc(db, "persons", "p-newspouse"))).exists()).toBe(
+      true,
+    );
+    const snap = (await getDoc(doc(db, "treeSnapshots", "main"))).data()!;
+    expect(snap.data).toContain("p-newspouse");
+    expect((await getDoc(doc(db, "auditLogs", "edit-1"))).data()!.event).toBe(
+      "SPOUSE_ADDED",
+    );
+  });
+
+  it("mã người chứa ký tự regex không vượt được kiểm tra quan hệ của snapshot", async () => {
+    const db = admin();
+    const r = await planAdd(db, newChild());
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), "relations", "r-a-b"), {
+        childId: "b",
+      });
+    });
+    const person = r.writes.find((w) => w.path === "persons/p-newkid")!;
+    const snapshot = r.writes.find((w) => w.path === "treeSnapshots/main")!;
+    const audit = r.writes.find((w) => w.path.startsWith("auditLogs/"))!;
+    const id = "x|.*";
+    await assertFails(
+      commit(db, [
+        { ...person, path: `persons/${id}` },
+        snapshot,
+        {
+          ...audit,
+          data: {
+            ...audit.data,
+            personId: id,
+            target: `persons/${id}`,
+            createdPersonIds: [id],
+            relationIds: ["r-a-b"],
+          },
+        },
+      ]),
+    );
+  });
+
+  it("SPOUSE_ADDED không ghi đè hồ sơ riêng của người đã có", async () => {
+    const db = admin();
+    const r = await planAdd(db, {
+      type: "addSpouse",
+      personId: "b",
+      order: null,
+      spouse: { kind: "existing", id: "a" },
+    });
+    await assertSucceeds(commit(db, r.writes));
+    await env.clearFirestore();
+    // Thiết lập lại dữ liệu nền rồi thử đường tấn công.
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), "users", "admin"), {
+        enabled: true,
+        roleIds: ["member"],
+        canManageMembership: true,
+        accessVersion: 1,
+        schemaVersion: 1,
+      });
+      await setDoc(doc(c.firestore(), "treeSnapshots", "main"), {
+        schemaVersion: 1,
+        dataVersion: "fake",
+        data: JSON.stringify(tree),
+      });
+      for (const id of ["a", "b"]) {
+        await setDoc(doc(c.firestore(), "persons", id), {
+          displayName: id,
+          sex: "M",
+          profileVersion: 1,
+        });
+        await setDoc(doc(c.firestore(), "memberProfiles", id), { ...profile });
+      }
+      await setDoc(doc(c.firestore(), "personPrivate", "a"), { note: "cũ" });
+    });
+    const again = await planAdd(db, {
+      type: "addSpouse",
+      personId: "b",
+      order: null,
+      spouse: { kind: "existing", id: "a" },
+    });
+    const evil = [
+      ...again.writes.map((w) =>
+        w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, createdPersonIds: ["a"] } }
+          : w,
+      ),
+      {
+        path: "personPrivate/a",
+        mode: "set" as const,
+        data: { note: "ghi đè", schemaVersion: 1 },
+      },
+    ];
+    await assertFails(commit(db, evil));
+    expect((await getDoc(doc(db, "personPrivate", "a"))).data()!.note).toBe(
+      "cũ",
+    );
+  });
+
+  it("union phải đúng cặp, đúng id, hai người khác nhau và đã tồn tại", async () => {
+    const db = admin();
+    const r = await planAdd(db, {
+      type: "addSpouse",
+      personId: "b",
+      order: null,
+      spouse: { kind: "existing", id: "a" },
+    });
+    const setUnion = (extra: Record<string, unknown>) =>
+      tweakWrite(r.writes, "unions/u-a-b", extra);
+    await assertFails(commit(db, setUnion({ partnerIds: ["b", "b"] })));
+    await assertFails(commit(db, setUnion({ partnerIds: ["b", "ghost"] })));
+    const renamed = r.writes.map((w) =>
+      w.path === "unions/u-a-b"
+        ? { ...w, path: "unions/u-zzz" }
+        : w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, unionId: "u-zzz" } }
+          : w,
+    );
+    await assertFails(commit(db, renamed));
+    await assertSucceeds(commit(db, r.writes));
+  });
+
+  it("lineageTransmission phải đúng chính sách (cha + con dòng họ)", async () => {
+    const db = admin();
+    const r = await planAdd(db, newChild());
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-a-p-newkid", {
+          lineageTransmission: false,
+        }),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-a-p-newkid", {
+          parentRole: "MOTHER",
+          lineageTransmission: true,
+        }),
+      ),
+    );
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "persons/p-newkid", { generation: "3" })),
+    );
+    await assertSucceeds(commit(db, r.writes));
+  });
+
+  it("union có sẵn không bị ghi đè; thiếu union hoặc nhật ký thì bị chặn", async () => {
+    const db = admin();
+    const r = await planAdd(db, newSpouse());
+    await assertFails(commit(db, without(r.writes, "unions/u-b-p-newspouse")));
+    await assertFails(commit(db, without(r.writes, "auditLogs/edit-1")));
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "unions/u-b-p-newspouse", { extra: 1 })),
+    );
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), "unions", "u-b-p-newspouse"), { old: 1 });
+    });
+    await assertFails(commit(db, r.writes));
   });
 });

@@ -27,7 +27,7 @@ export function normalizeNameInput(value: string): string {
   return value.normalize("NFC").trim().replace(/\s+/g, " ");
 }
 
-function parseYear(text: string, label: string): number | null | string {
+export function parseYear(text: string, label: string): number | null | string {
   const t = text.trim();
   if (!t) return null;
   if (!/^\d{1,4}$/.test(t)) return `${label}: nhập số năm, ví dụ 1950.`;
