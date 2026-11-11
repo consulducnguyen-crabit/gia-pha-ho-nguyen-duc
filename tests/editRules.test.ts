@@ -21,6 +21,12 @@ import {
 import { applyEdit, EditError, type EditState } from "../src/editCore";
 import { commitEdit, stageWrites, type SetTarget } from "../src/editClient";
 import { addTargets, applyAdd, type AddOp } from "../src/editAdd";
+import { SERVER_TIME } from "../src/editCore";
+import {
+  applyRelation,
+  relationReads,
+  type RelationOp,
+} from "../src/editRelation";
 
 let env: RulesTestEnvironment;
 
@@ -43,8 +49,13 @@ const tree = {
   persons: {
     a: ["Nguyễn Văn A", 1900, 1970, 1, "C", "c1", ["VERIFY"]],
     b: ["Nguyễn Văn B", null, null, 2, "C", null, []],
+    c: ["Nguyễn Văn C", null, null, 2, "C", null, []],
+    m: ["Mẹ M", null, null, null, "S", null, []],
   },
-  relations: [["a", "b", "F", "B", 1]],
+  relations: [
+    ["a", "b", "F", "B", 1],
+    ["a", "c", "F", "B", 1],
+  ],
   unions: [],
   branches: { c1: ["Chi 1", "a", null, null] },
 };
@@ -76,14 +87,26 @@ beforeEach(async () => {
       dataVersion: "fake",
       data: JSON.stringify(tree),
     });
-    for (const id of ["a", "b"]) {
+    for (const id of ["a", "b", "c", "m"]) {
       await setDoc(doc(db, "persons", id), {
         displayName: id,
-        sex: "M",
+        sex: id === "m" ? "F" : "M",
+        category: id === "m" ? "SPOUSE" : "CLAN",
         profileVersion: 1,
       });
       await setDoc(doc(db, "memberProfiles", id), { ...profile });
     }
+    for (const child of ["b", "c"])
+      await setDoc(doc(db, "relations", `r-a-${child}`), {
+        parentId: "a",
+        childId: child,
+        parentRole: "FATHER",
+        relationType: "BIOLOGICAL",
+        lineageTransmission: true,
+        verificationStatus: "APPROVED",
+        version: 1,
+        schemaVersion: 1,
+      });
     await setDoc(doc(db, "personPrivate", "a"), { note: "ghi chú giả" });
   });
 });
@@ -791,5 +814,234 @@ describe("thêm con / vợ chồng: rules", () => {
       await setDoc(doc(c.firestore(), "unions", "u-b-p-newspouse"), { old: 1 });
     });
     await assertFails(commit(db, r.writes));
+  });
+});
+
+async function planRel(db: Firestore, op: RelationOp, expectedVersion = 0) {
+  const snap = await getDoc(doc(db, "treeSnapshots", "main"));
+  const reads = relationReads(snap.data()!, op);
+  const docs: Record<string, Record<string, unknown> | null> = {};
+  for (const id of reads.persons) {
+    const d = await getDoc(doc(db, "persons", id));
+    docs[id] = d.exists() ? d.data() : null;
+  }
+  const relations: Record<string, Record<string, unknown> | null> = {};
+  for (const id of reads.relations) {
+    const d = await getDoc(doc(db, "relations", id));
+    relations[id] = d.exists() ? d.data() : null;
+  }
+  return applyRelation(
+    { snapshot: snap.data()!, docs, relations },
+    { op, expectedVersion, actorUid: "admin" },
+  );
+}
+const replaceFather = (): RelationOp => ({
+  type: "setParent",
+  childId: "b",
+  role: "FATHER",
+  parentId: "c",
+  adoptive: false,
+  confirmReplace: true,
+});
+const addMother = (): RelationOp => ({
+  type: "setParent",
+  childId: "b",
+  role: "MOTHER",
+  parentId: "m",
+  adoptive: false,
+  confirmReplace: false,
+});
+const typeOp = (): RelationOp => ({
+  type: "setRelationType",
+  parentId: "a",
+  childId: "b",
+  adoptive: true,
+});
+
+describe("đổi cha/mẹ và loại con: rules", () => {
+  it("thêm mẹ; thay cha (ẩn quan hệ cũ); đổi loại con nuôi: thành công", async () => {
+    const db = admin();
+    await assertSucceeds(commit(db, (await planRel(db, addMother())).writes));
+    expect((await getDoc(doc(db, "relations", "r-m-b"))).exists()).toBe(true);
+    await assertSucceeds(
+      commit(db, (await planRel(db, replaceFather(), 1)).writes),
+    );
+    const old = (await getDoc(doc(db, "relations", "r-a-b"))).data()!;
+    expect(old.deleted).toBe(true);
+    expect(old.replacedBy).toBe("r-c-b");
+    expect((await getDoc(doc(db, "relations", "r-c-b"))).exists()).toBe(true);
+    await assertSucceeds(
+      commit(
+        db,
+        (
+          await planRel(
+            db,
+            {
+              type: "setRelationType",
+              parentId: "c",
+              childId: "b",
+              adoptive: true,
+            },
+            2,
+          )
+        ).writes,
+      ),
+    );
+    expect(
+      (await getDoc(doc(db, "relations", "r-c-b"))).data()!.relationType,
+    ).toBe("ADOPTIVE");
+    expect(
+      (await getDoc(doc(db, "treeSnapshots", "main"))).data()!.editVersion,
+    ).toBe(3);
+  });
+
+  it("thành viên thường không đổi được; thiếu phần nào của lô thì bị chặn", async () => {
+    const db = admin();
+    const r = await planRel(db, replaceFather());
+    const member = env
+      .authenticatedContext("member")
+      .firestore() as unknown as Firestore;
+    await assertFails(commit(member, r.writes));
+    for (const skip of [
+      "relations/r-a-b",
+      "relations/r-c-b",
+      "treeSnapshots/main",
+      "auditLogs/edit-1",
+    ])
+      await assertFails(commit(db, without(r.writes, skip)));
+    const t = await planRel(db, typeOp());
+    await assertFails(commit(db, without(t.writes, "relations/r-a-b")));
+  });
+
+  it("không ẩn quan hệ của người khác, không thêm trường lạ, không xóa cứng", async () => {
+    const db = admin();
+    const r = await planRel(db, replaceFather());
+    // Nhật ký nói ẩn quan hệ của c nhưng lô ẩn quan hệ của b.
+    await assertFails(
+      commit(
+        db,
+        r.writes.map((w) =>
+          w.path.startsWith("auditLogs/")
+            ? { ...w, data: { ...w.data, removedRelationIds: ["r-a-c"] } }
+            : w,
+        ),
+      ),
+    );
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "relations/r-a-b", { parentId: "c" })),
+    );
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "relations/r-a-b", { deleted: false })),
+    );
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "relations/r-a-b", { version: 9 })),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-c-b", { lineageTransmission: false }),
+      ),
+    );
+    await assertFails(deleteDoc(doc(db, "relations", "r-a-b")));
+    const t = await planRel(db, typeOp());
+    await assertFails(
+      commit(db, tweakWrite(t.writes, "relations/r-a-b", { parentId: "c" })),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(t.writes, "relations/r-a-b", { relationType: "OTHER" }),
+      ),
+    );
+  });
+
+  it("không ghi đè dấu vết quan hệ đã ẩn, không sửa quan hệ đã ẩn, không ẩn sai vai trò", async () => {
+    const db = admin();
+    await assertSucceeds(
+      commit(db, (await planRel(db, replaceFather())).writes),
+    );
+    // 1. Ẩn LẠI quan hệ đã ẩn (r-a-b) trong một lô PARENT_CHANGED khác (thêm mẹ m).
+    const mother = await planRel(db, addMother(), 1);
+    const hideAgain = [
+      ...mother.writes.map((w) =>
+        w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, removedRelationIds: ["r-a-b"] } }
+          : w,
+      ),
+      {
+        path: "relations/r-a-b",
+        mode: "merge" as const,
+        data: {
+          deleted: true,
+          deletedAt: SERVER_TIME,
+          deletedBy: "admin",
+          replacedBy: "r-m-b",
+          version: 3,
+        },
+      },
+    ];
+    await assertFails(commit(db, hideAgain));
+    // 2. Đổi loại con trên quan hệ đã ẩn: dùng lô của r-a-c nhưng trỏ sang r-a-b.
+    const type = await planRel(
+      db,
+      { type: "setRelationType", parentId: "a", childId: "c", adoptive: true },
+      1,
+    );
+    const onHidden = type.writes.map((w) =>
+      w.path === "relations/r-a-c"
+        ? { ...w, path: "relations/r-a-b", data: { ...w.data, version: 3 } }
+        : w.path.startsWith("auditLogs/")
+          ? {
+              ...w,
+              data: {
+                ...w.data,
+                personId: "b",
+                target: "persons/b",
+                relationIds: ["r-a-b"],
+              },
+            }
+          : w,
+    );
+    await assertFails(commit(db, onHidden));
+    expect(
+      (await getDoc(doc(db, "relations", "r-a-b"))).data()!.replacedBy,
+    ).toBe("r-c-b");
+  });
+
+  it("đặt CHA mới nhưng ẩn quan hệ MẸ bị chặn (vai trò phải khớp)", async () => {
+    const db = admin();
+    await assertSucceeds(commit(db, (await planRel(db, addMother())).writes));
+    const r = await planRel(db, replaceFather(), 1);
+    const wrongRole = r.writes.map((w) =>
+      w.path === "relations/r-a-b"
+        ? {
+            ...w,
+            path: "relations/r-m-b",
+            data: { ...w.data, replacedBy: "r-c-b" },
+          }
+        : w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, removedRelationIds: ["r-m-b"] } }
+          : w,
+    );
+    await assertFails(commit(db, wrongRole));
+    await assertSucceeds(commit(db, r.writes));
+  });
+
+  it("phát lại cùng phiên bản bị chặn; quan hệ không được tạo lại sau khi ẩn", async () => {
+    const db = admin();
+    const first = await planRel(db, replaceFather());
+    const second = await planRel(db, addMother());
+    await assertSucceeds(commit(db, first.writes));
+    await assertFails(commit(db, second.writes));
+  });
+
+  it("thành viên thường không đọc được quan hệ; admin đọc theo mã nhưng không liệt kê", async () => {
+    const db = admin();
+    await assertSucceeds(getDoc(doc(db, "relations", "r-a-b")));
+    await assertFails(getDocs(collection(db, "relations")));
+    const member = env
+      .authenticatedContext("member")
+      .firestore() as unknown as Firestore;
+    await assertFails(getDoc(doc(member, "relations", "r-a-b")));
   });
 });

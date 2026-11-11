@@ -277,6 +277,63 @@ try {
   if ((await db.doc("treeSnapshots/main").get()).data().editVersion !== 4)
     throw Error("editVersion phải là 4");
 
+  stage =
+    "set parent for an unconnected person, replace it, then change child type";
+  await page.goto(`${URL}/#/person/z`);
+  await page.getByRole("button", { name: "Đặt hoặc đổi cha/mẹ" }).click();
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Chọn đặt cha hay mẹ" }),
+  ).toBeVisible();
+  await page.getByLabel("Cha", { exact: true }).check();
+  await page.getByLabel("Tìm theo tên").fill("giả văn ân");
+  await page.getByLabel("Chọn người").selectOption("a");
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByText("Đã cập nhật quan hệ cha/mẹ và ghi nhật ký."),
+  ).toBeVisible();
+  const r1 = (await db.doc("relations/r-a-z").get()).data();
+  if (!r1 || r1.lineageTransmission !== true) throw Error("r-a-z sai");
+  await page.getByRole("button", { name: "Đặt hoặc đổi cha/mẹ" }).click();
+  await page.getByLabel("Cha", { exact: true }).check();
+  await page.getByLabel("Tìm theo tên").fill("giả văn mới");
+  await page.getByLabel("Chọn người").selectOption(kid);
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "tích xác nhận" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Đã cập nhật quan hệ cha/mẹ và ghi nhật ký."),
+  ).toHaveCount(0);
+  await page.getByLabel(/Tôi xác nhận thay Cha hiện có/).check();
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByText("Đã cập nhật quan hệ cha/mẹ và ghi nhật ký."),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await db.doc("relations/r-a-z").get()).data()?.deleted)
+    .toBe(true);
+  const old = (await db.doc("relations/r-a-z").get()).data();
+  if (old.replacedBy !== `r-${kid}-z`) throw Error("Quan hệ cũ chưa được ẩn");
+  if (!(await db.doc(`relations/r-${kid}-z`).get()).exists)
+    throw Error("Chưa có quan hệ mới");
+  const zSnap = JSON.parse(
+    (await db.doc("treeSnapshots/main").get()).data().data,
+  ).persons.z;
+  if (zSnap[3] !== 4) throw Error(`Đời của z phải là 4, thực tế ${zSnap[3]}`);
+  await page.getByRole("button", { name: "Đổi thành con nuôi" }).click();
+  await page
+    .getByRole("button", { name: "Xác nhận đổi thành con nuôi" })
+    .click();
+  await expect(page.getByText("Đã đổi loại con và ghi nhật ký.")).toBeVisible();
+  if (
+    (await db.doc(`relations/r-${kid}-z`).get()).data().relationType !==
+    "ADOPTIVE"
+  )
+    throw Error("Loại con chưa đổi");
+  const audit7 = (await db.doc("auditLogs/edit-7").get()).data();
+  if (audit7.event !== "RELATION_TYPE_CHANGED") throw Error("Nhật ký 7 sai");
+
   stage = "version conflict is reported, nothing written";
   await page.goto(`${URL}/#/person/b`);
   await page.getByRole("button", { name: "Sửa hồ sơ" }).click();

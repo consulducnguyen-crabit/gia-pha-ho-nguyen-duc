@@ -122,7 +122,13 @@ if (flag("--replace")) {
   // Nếu lần --replace trước bị ngắt giữa chừng, lấy thêm số lớn nhất của auditLogs/edit-N còn lại.
   const edits = await db
     .collection("auditLogs")
-    .where("event", "==", "PERSON_EDITED")
+    .where("event", "in", [
+      "PERSON_EDITED",
+      "PERSON_ADDED",
+      "SPOUSE_ADDED",
+      "PARENT_CHANGED",
+      "RELATION_TYPE_CHANGED",
+    ])
     .select("editVersion")
     .get();
   for (const d of edits.docs) {

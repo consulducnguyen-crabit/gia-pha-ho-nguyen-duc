@@ -61,7 +61,15 @@ service cloud.firestore {
          && !exists(relationDoc(a.relationIds[0]))
          && getAfter(relationDoc(a.relationIds[0])).data.childId == a.personId)
      || (a.event == 'SPOUSE_ADDED'
-         && !exists(unionDoc(a.unionId)) && existsAfter(unionDoc(a.unionId))));
+         && !exists(unionDoc(a.unionId)) && existsAfter(unionDoc(a.unionId)))
+     || (a.event == 'PARENT_CHANGED'
+         && !exists(relationDoc(a.relationIds[0]))
+         && getAfter(relationDoc(a.relationIds[0])).data.childId == a.personId
+         && (a.removedRelationIds.size() == 0
+             || (get(relationDoc(a.removedRelationIds[0])).data.get('deleted', false) == false
+                 && getAfter(relationDoc(a.removedRelationIds[0])).data.get('deleted', false) == true)))
+     || (a.event == 'RELATION_TYPE_CHANGED'
+         && getAfter(relationDoc(a.relationIds[0])).data.version == get(relationDoc(a.relationIds[0])).data.version + 1));
   }
   function profileShapeOk() {
    let d = request.resource.data;
@@ -79,10 +87,10 @@ service cloud.firestore {
    let d = request.resource.data;
    return manager()
     && getAfter(snapshotPath()).data.editVersion == n
-    && a.actorUid == request.auth.uid && a.event == 'PERSON_ADDED'
+    && a.actorUid == request.auth.uid && a.event in ['PERSON_ADDED', 'PARENT_CHANGED']
     && d.keys().hasOnly(['parentId', 'childId', 'parentRole', 'relationType', 'lineageTransmission',
         'verificationStatus', 'version', 'schemaVersion', 'sourceRefs', 'createdAt'])
-    && d.parentId is string && d.childId == a.personId && id in a.relationIds
+    && d.parentId is string && d.parentId != d.childId && d.childId == a.personId && id in a.relationIds
     && id == 'r-' + d.parentId + '-' + d.childId
     && exists(personDoc(d.parentId))
     && d.parentRole in ['FATHER', 'MOTHER'] && d.relationType in ['BIOLOGICAL', 'ADOPTIVE']
@@ -132,14 +140,16 @@ service cloud.firestore {
   }
   match /auditLogs/{id} {
    // Account/invitation audits stay closed to every client; managers read only edit audits, by id.
-   allow get: if manager() && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED'];
+   allow get: if manager()
+    && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'RELATION_TYPE_CHANGED'];
    allow create: if manager() && auditCreateOk(id);
   }
   function auditCreateOk(id) {
    let d = request.resource.data;
    return d.keys().hasOnly(['event', 'actorUid', 'target', 'personId', 'createdPersonIds', 'relationIds',
-        'unionId', 'editVersion', 'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
-    && d.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED']
+        'removedRelationIds', 'unionId', 'editVersion', 'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
+    && d.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'RELATION_TYPE_CHANGED']
+    && (d.event == 'PARENT_CHANGED' || d.get('removedRelationIds', []).size() == 0)
     && d.schemaVersion == 1
     && d.fields is list && d.before is map && d.after is map
     && d.editVersion is int
@@ -155,7 +165,14 @@ service cloud.firestore {
          && d.relationIds is list && d.relationIds.size() >= 1 && d.relationIds.size() <= 2
          && d.get('unionId', null) == null)
      || (d.event == 'SPOUSE_ADDED' && d.unionId is string
-         && d.createdPersonIds is list && d.createdPersonIds.size() <= 1));
+         && d.createdPersonIds is list && d.createdPersonIds.size() <= 1)
+     || (d.event == 'PARENT_CHANGED' && d.createdPersonIds == []
+         && d.relationIds is list && d.relationIds.size() == 1
+         && d.removedRelationIds is list && d.removedRelationIds.size() <= 1
+         && d.get('unionId', null) == null)
+     || (d.event == 'RELATION_TYPE_CHANGED' && d.createdPersonIds == []
+         && d.relationIds is list && d.relationIds.size() == 1
+         && d.get('unionId', null) == null));
   }
   match /persons/{id} {
    allow read: if manager();
@@ -197,7 +214,32 @@ service cloud.firestore {
    allow create: if ((editGate(id) && exists(personDoc(id))) || (createGate(id) && !exists(personDoc(id))))
     && privateShapeOk();
   }
-  match /relations/{id} { allow create: if relationCreateOk(id); }
+  function relationUpdateOk(id) {
+   let n = nextEditVersion();
+   let a = auditData(n);
+   let d = request.resource.data;
+   return manager()
+    && getAfter(snapshotPath()).data.editVersion == n
+    && a.actorUid == request.auth.uid
+    && d.version == resource.data.version + 1
+    && resource.data.childId == a.personId
+    && resource.data.get('deleted', false) == false
+    && ((a.event == 'RELATION_TYPE_CHANGED' && id in a.relationIds
+         && d.diff(resource.data).affectedKeys().hasOnly(['relationType', 'version', 'updatedAt', 'updatedBy'])
+         && d.relationType in ['BIOLOGICAL', 'ADOPTIVE']
+         && d.updatedAt == request.time && d.updatedBy == request.auth.uid)
+     || (a.event == 'PARENT_CHANGED' && id in a.removedRelationIds
+         && resource.data.parentRole == getAfter(relationDoc(a.relationIds[0])).data.parentRole
+         && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'replacedBy', 'version'])
+         && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
+         && d.replacedBy == a.relationIds[0]));
+  }
+  match /relations/{id} {
+   // Managers read a relation by id (to read its version inside the edit transaction); no listing.
+   allow get: if manager();
+   allow create: if relationCreateOk(id);
+   allow update: if relationUpdateOk(id);
+  }
   match /unions/{id} { allow create: if unionCreateOk(id); }
   match /changeRequests/{id} {
    allow read: if member() && resource.data.authorUid == request.auth.uid;

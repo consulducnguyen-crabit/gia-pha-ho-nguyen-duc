@@ -112,7 +112,7 @@ function PersonFieldsInputs({
   );
 }
 
-function AddPanel({
+export function AddPanel({
   title,
   hint,
   busy,

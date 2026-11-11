@@ -7,7 +7,12 @@ import { normalizeName } from "./domain";
 export class EditError extends Error {
   constructor(
     public code:
-      "NO_CHANGE" | "INVALID" | "NOT_FOUND" | "VERSION_CONFLICT" | "BAD_STATE",
+      | "NO_CHANGE"
+      | "INVALID"
+      | "NOT_FOUND"
+      | "VERSION_CONFLICT"
+      | "BAD_STATE"
+      | "CONFIRM_REQUIRED",
     message: string,
   ) {
     super(message);

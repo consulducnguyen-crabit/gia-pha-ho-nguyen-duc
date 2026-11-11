@@ -8,6 +8,12 @@ import {
 } from "firebase/firestore";
 import { addTargets, applyAdd, type AddOp, type AddResult } from "./editAdd";
 import {
+  applyRelation,
+  relationReads,
+  type RelationOp,
+  type RelationResult,
+} from "./editRelation";
+import {
   applyEdit,
   EditError,
   SERVER_TIME,
@@ -91,6 +97,42 @@ export async function commitAdd(
       docs[id] = d.exists() ? d.data() : null;
     }
     const result = applyAdd({ snapshot: snapshot.data(), docs }, input);
+    stageWrites(db, tx as unknown as SetTarget, result.writes);
+    return result;
+  });
+}
+
+/** Đổi cha/mẹ hoặc loại con nuôi/ruột. Đọc và ghi trong CÙNG một giao dịch. */
+export async function commitRelation(
+  db: Firestore,
+  input: { op: RelationOp; expectedVersion: number; actorUid: string },
+): Promise<RelationResult> {
+  const op = input.op;
+  if (
+    [op.childId, op.parentId].some(
+      (id) => typeof id !== "string" || !SAFE_ID.test(id),
+    )
+  )
+    throw new EditError("INVALID", "Mã người không hợp lệ.");
+  return runTransaction(db, async (tx) => {
+    const snapshot = await tx.get(doc(db, "treeSnapshots", "main"));
+    if (!snapshot.exists())
+      throw new EditError("BAD_STATE", "Chưa có ảnh chụp cây.");
+    const reads = relationReads(snapshot.data(), op);
+    const docs: Record<string, DocumentData | null> = {};
+    for (const id of reads.persons) {
+      const d = await tx.get(doc(db, "persons", id));
+      docs[id] = d.exists() ? d.data() : null;
+    }
+    const relations: Record<string, DocumentData | null> = {};
+    for (const id of reads.relations) {
+      const d = await tx.get(doc(db, "relations", id));
+      relations[id] = d.exists() ? d.data() : null;
+    }
+    const result = applyRelation(
+      { snapshot: snapshot.data(), docs, relations },
+      input,
+    );
     stageWrites(db, tx as unknown as SetTarget, result.writes);
     return result;
   });
