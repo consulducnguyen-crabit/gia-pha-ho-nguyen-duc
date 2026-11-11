@@ -15,10 +15,90 @@ service cloud.firestore {
    allow list: if manager();
   }
   // Trusted backend publishes only allowlisted basic fields here.
-  match /memberProfiles/{id} { allow read: if member(); }
-  // One versioned snapshot (names, birth/death years, generation, branch, relations) built by
-  // trusted code. get only: no listing, no client writes.
-  match /treeSnapshots/{id} { allow get: if member(); }
+  match /memberProfiles/{id} {
+   allow read: if member();
+   // Members see only name and birth/death years (decision 2026-11-11): strict allowlist.
+   allow update: if editGate(id) && request.resource.data.profileVersion is int
+    && request.resource.data.profileVersion == resource.data.profileVersion + 1
+    && request.resource.data.keys().hasOnly(['displayName', 'normalizedName', 'profileVersion', 'schemaVersion',
+        'birthYear', 'deathYear'])
+    && request.resource.data.displayName is string && request.resource.data.displayName.size() > 0
+    && request.resource.data.displayName.size() <= 120
+    && request.resource.data.normalizedName is string && request.resource.data.normalizedName.size() <= 240
+    && request.resource.data.schemaVersion == 1
+    && request.resource.data.get('birthYear', 1000) is int && request.resource.data.get('deathYear', 1000) is int
+    && request.resource.data.get('birthYear', 1000) >= 1000 && request.resource.data.get('birthYear', 1000) <= 2200
+    && request.resource.data.get('deathYear', 1000) >= 1000 && request.resource.data.get('deathYear', 1000) <= 2200;
+  }
+  // --- In-app edits (admin = manager) ---------------------------------------------------------
+  // Every edit is ONE atomic batch of FOUR+ writes that must all be present: persons/{id},
+  // memberProfiles/{id} (each profileVersion + 1), treeSnapshots/main (editVersion + 1) and an
+  // append-only auditLogs/edit-{editVersion}. The audit id is derived from the version, so a second
+  // writer racing on the same version fails (the audit doc already exists) and no edit is unlogged.
+  // Rules cannot parse the snapshot JSON, so its content stays the trusted client's (applyEdit) job.
+  function snapshotPath() { return /databases/$(database)/documents/treeSnapshots/main; }
+  function nextEditVersion() { return get(snapshotPath()).data.get('editVersion', 0) + 1; }
+  function auditAfter() {
+   return getAfter(/databases/$(database)/documents/auditLogs/$('edit-' + string(nextEditVersion())));
+  }
+  function editGate(personId) {
+   return manager()
+    && getAfter(snapshotPath()).data.editVersion == nextEditVersion()
+    && auditAfter().data.actorUid == request.auth.uid
+    && auditAfter().data.personId == personId;
+  }
+  function bumps(path) { return getAfter(path).data.profileVersion == get(path).data.profileVersion + 1; }
+  function personDoc(id) { return /databases/$(database)/documents/persons/$(id); }
+  function profileDoc(id) { return /databases/$(database)/documents/memberProfiles/$(id); }
+  // One versioned snapshot (names, birth/death years, generation, branch, relations). get only:
+  // no listing. Clients may only update data + editVersion, one version at a time, together with
+  // an audit and the version bump of the person it names.
+  match /treeSnapshots/{id} {
+   allow get: if member();
+   allow update: if id == 'main' && manager()
+    && request.resource.data.editVersion is int
+    && request.resource.data.editVersion == nextEditVersion()
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['data', 'editVersion'])
+    && request.resource.data.data is string && request.resource.data.data.size() < 900000
+    && auditAfter().data.actorUid == request.auth.uid
+    && bumps(personDoc(auditAfter().data.personId))
+    && bumps(profileDoc(auditAfter().data.personId));
+  }
+  match /auditLogs/{id} {
+   // Account/invitation audits stay closed to every client; managers read only edit audits, by id.
+   allow get: if manager() && resource.data.event == 'PERSON_EDITED';
+   allow create: if manager()
+    && request.resource.data.keys().hasOnly(['event', 'actorUid', 'target', 'personId', 'editVersion',
+        'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
+    && request.resource.data.event == 'PERSON_EDITED'
+    && request.resource.data.schemaVersion == 1
+    && request.resource.data.fields is list && request.resource.data.before is map
+    && request.resource.data.after is map
+    && request.resource.data.editVersion is int
+    && request.resource.data.actorUid == request.auth.uid
+    && request.resource.data.timestamp == request.time
+    && request.resource.data.personId is string
+    && request.resource.data.target == 'persons/' + request.resource.data.personId
+    && request.resource.data.editVersion == nextEditVersion()
+    && id == 'edit-' + string(request.resource.data.editVersion)
+    && getAfter(snapshotPath()).data.editVersion == request.resource.data.editVersion;
+  }
+  match /persons/{id} {
+   allow read: if manager();
+   allow update: if editGate(id) && request.resource.data.profileVersion is int
+    && request.resource.data.profileVersion == resource.data.profileVersion + 1
+    && (request.resource.data.get('sex', null) == null || request.resource.data.sex in ['M', 'F']) && request.resource.data.get('reviewFlags', []) is list
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'normalizedName',
+        'birth', 'death', 'branchCode', 'sex', 'sexBasis', 'reviewFlags', 'profileVersion', 'updatedAt', 'updatedBy'])
+    && request.resource.data.updatedAt == request.time
+    && request.resource.data.updatedBy == request.auth.uid;
+  }
+  match /personPrivate/{id} {
+   allow read: if manager();
+   allow create, update: if editGate(id) && exists(personDoc(id))
+    && request.resource.data.keys().hasOnly(['note', 'schemaVersion', 'importBatchId'])
+    && request.resource.data.note is string && request.resource.data.note.size() <= 2000;
+  }
   match /changeRequests/{id} {
    allow read: if member() && resource.data.authorUid == request.auth.uid;
   }
