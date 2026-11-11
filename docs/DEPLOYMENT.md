@@ -32,3 +32,7 @@ workflow pages.yml trên main. Cần URL/kết quả deployment thực trước 
 
 Các báo cáo UI/proposals cũ ghi trạng thái chưa commit ở thời điểm kiểm thử; trạng
 thái commit/push hiện tại theo mục này và lịch sử Git, không suy ra deploy đã đạt.
+
+## Cập nhật 2026-11-11
+Pages đã đổi nguồn sang **GitHub Actions** (trước đó là "Deploy from a branch: main /", nên trang phục vụ `index.html` gốc của mã nguồn và ứng dụng không chạy). Workflow `pages.yml` đã chạy thành công và trang phục vụ bản build. Quy trình đưa lên Firebase dev: xem DEPLOY_DEV.md.
+

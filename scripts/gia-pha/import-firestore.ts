@@ -22,9 +22,18 @@ const option = (name: string) => {
 };
 
 const input = resolve(root, option("--input") ?? "private-data/gia-pha.txt");
-const rel = relative(resolve(root, "private-data"), input);
-if (rel === "" || rel.startsWith("..") || rel.includes(`..${sep}`)) {
-  console.error("Từ chối: dữ liệu đầu vào phải nằm trong private-data/.");
+// Dữ liệu thật chỉ ở private-data/; bộ demo giả được phép ở scripts/gia-pha/demo/.
+const allowedRoots = ["private-data", "scripts/gia-pha/demo"].map((dir) =>
+  resolve(root, dir),
+);
+const allowed = allowedRoots.some((dir) => {
+  const rel = relative(dir, input);
+  return rel !== "" && !rel.startsWith("..") && !rel.includes(`..${sep}`);
+});
+if (!allowed) {
+  console.error(
+    "Từ chối: dữ liệu đầu vào phải nằm trong private-data/ hoặc scripts/gia-pha/demo/.",
+  );
   process.exit(2);
 }
 const source = readFileSync(input, "utf8");

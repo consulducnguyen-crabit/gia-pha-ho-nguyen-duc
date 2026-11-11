@@ -1,0 +1,80 @@
+# DỮ LIỆU DEMO HOÀN TOÀN GIẢ (họ "Mẫu"), dùng để thử trên emulator/dev. Không phải dữ liệu gia phả thật.
+# Định dạng xem docs/DATA_IMPORT.md.
+
+# ===== Thủy tổ và ba chi =====
+P|m-tt|Cụ Mẫu Thủy Tổ (demo)|M|CLAN|I||ky=01/9|Thủy tổ giả dùng để thử cây. Chưa rõ tên thật.
+P|m-c1|Mẫu Đức Nhất|M|CLAN|II|1|ky=03/2|Trưởng Chi 1 (demo).
+P|m-c1-v|Lê Thị Nhất|F|SPOUSE|||ky=05/6|Vợ cụ Nhất (demo).
+P|m-c2|Mẫu Đức Nhị|M|CLAN|II|2|ky=12/7|Trưởng Chi 2 (demo).
+P|m-c2-v|Phạm Thị Nhị|F|SPOUSE||||Vợ cụ Nhị (demo).
+P|m-c3|Cụ Trưởng Chi 3 (chưa rõ tên)|M|CLAN|II|3||Không còn nhớ tên (demo).
+K|m-tt|-|m-c1,m-c2,m-c3
+
+# ===== Chi 1 =====
+P|m-a|Mẫu Đức An|M|CLAN|III|1|b=1920;d=1985;ky=14/7|Trưởng nam (demo).
+P|m-a-v1|Trần Thị Hoa|F|SPOUSE|||b=1925;d=2001|Vợ cả (demo).
+P|m-a-v2|Vũ Thị Lan|F|SPOUSE||||Vợ hai (demo).
+K|m-c1|m-c1-v|m-a,m-b
+P|m-b|Mẫu Thị Bình|F|CLAN|III|1|b=1923|Con gái (demo), lấy chồng ngoài họ.
+P|m-b-ch|Hoàng Văn Chính|M|SPOUSE||||Chồng bà Bình (demo).
+P|m-b1|Hoàng Văn Một|M|EXTERNAL|||b=1950|Con bà Bình (demo, họ ngoại).
+P|m-b2|Hoàng Thị Hai|F|EXTERNAL|||b=1953|Con bà Bình (demo, họ ngoại).
+K|m-b-ch|m-b|m-b1,m-b2
+K|m-a|m-a-v1|m-d,m-e,m-f
+K|m-a|m-a-v2|m-g
+P|m-d|Mẫu Đức Dũng|M|CLAN|IV|1|b=1945|Trưởng nam (demo).
+P|m-d-v|Đỗ Thị Dung|F|SPOUSE|||b=1948|Vợ ông Dũng (demo).
+P|m-e|Mẫu Thị Em|F|CLAN|IV|1|b=1948|Thứ nữ (demo).
+P|m-f|Mẫu Đức Phát|M|CLAN|IV|1|b=1950;d=1972|Thứ nam, hy sinh năm 1972 (demo).
+P|m-g|Mẫu Đức Giang|M|CLAN|IV|1|b=1955|Con bà hai (demo).
+K|m-d|m-d-v|m-h,m-i:A
+P|m-h|Mẫu Đức Hải|M|CLAN|V|1|b=1972|Con ông Dũng (demo).
+P|m-i|Mẫu Đức Ích|M|CLAN|V|1|b=1975|Con nuôi ông Dũng, vẫn tính đời theo dòng (demo).
+P|m-h-v|Ngô Thị Hạnh|F|SPOUSE|||b=1974|Vợ ông Hải (demo).
+K|m-h|m-h-v|m-k,m-l
+P|m-k|Mẫu Đức Khoa|M|CLAN|VI|1|b=1998|Con ông Hải (demo).
+P|m-l|Mẫu Thị Lan Anh|F|CLAN|VI|1|b=2001|Con bà Hạnh (demo).
+
+# ===== Chi 2 =====
+P|m-n|Mẫu Đức Nam|M|CLAN|III|2|b=1925;d=1990;ky=20/10|Trưởng nam (demo).
+P|m-n-v|Bùi Thị Nga|F|SPOUSE||||Vợ ông Nam (demo).
+K|m-c2|m-c2-v|m-n,m-o
+P|m-o|Mẫu Thị Oanh|F|CLAN|III|2|b=1930|Thứ nữ (demo), lấy chồng ngoài họ.
+P|m-o-ch|Đinh Văn Phúc|M|SPOUSE||||Chồng bà Oanh (demo).
+P|m-o1|Đinh Văn Quân|M|EXTERNAL|||b=1955|Con bà Oanh (demo, họ ngoại).
+K|m-o-ch|m-o|m-o1
+K|m-n|m-n-v|m-p,m-q
+P|m-p|Mẫu Đức Phong|M|CLAN|IV|2|b=1950|Trưởng nam (demo).
+P|m-p-v|Cao Thị Phượng|F|SPOUSE||||Vợ ông Phong (demo).
+P|m-q|Mẫu Thị Quế|F|CLAN|IV|2|b=1953|Thứ nữ (demo).
+K|m-p|m-p-v|m-r,m-s
+P|m-r|Mẫu Đức Rạng|M|CLAN|V|2|b=1975|Con ông Phong (demo).
+P|m-s|Mẫu Thị Sương|F|CLAN|V|2|b=1978|Con ông Phong (demo).
+P|m-s-ch|Lý Văn Tâm|M|SPOUSE||||Chồng bà Sương (demo).
+U|m-s|m-s-ch|1||Chưa có con (demo)
+
+# ===== Chi 3 =====
+P|m-t|Mẫu Đức Tuấn|M|CLAN|III|3|b=1928|Con trưởng Chi 3 (demo).
+P|m-t-v|Mai Thị Thu|F|SPOUSE||||Vợ ông Tuấn (demo).
+K|m-c3|-|m-t
+K|m-t|m-t-v|m-u,m-v
+P|m-u|Mẫu Đức Uy|M|CLAN|IV|3|b=1955|Con ông Tuấn (demo).
+P|m-v|Mẫu Thị Vân|F|CLAN|IV|3|b=1958|Con bà Thu (demo).
+P|m-u-v|Hà Thị Uyên|F|SPOUSE||||Vợ ông Uy (demo).
+K|m-u|m-u-v|m-w
+P|m-w|Mẫu Đức Vinh|M|CLAN|V|3|b=1982|Con ông Uy (demo).
+
+# ===== Nhánh hợp nhất (demo) =====
+P|m-hn|Mẫu Đức Hợp|M|CLAN|II|HN|ky=15/3|Gốc nhánh hợp nhất từ một dòng họ cùng làng (demo); tạm nối dưới Thủy tổ theo chính sách một thủy tổ.
+P|m-hn-v|Tạ Thị Hòa|F|SPOUSE||||Vợ cụ Hợp (demo).
+K|m-tt|-|m-hn
+K|m-hn|m-hn-v|m-x
+P|m-x|Mẫu Đức Xuân|M|CLAN|III|HN|b=1930|Con cụ Hợp (demo).
+P|m-x-v|Dương Thị Xoan|F|SPOUSE||||Vợ ông Xuân (demo).
+K|m-x|m-x-v|m-y
+P|m-y|Mẫu Đức Yên|M|CLAN|IV|HN|b=1958|Con ông Xuân (demo).
+
+B|1|Chi 1 (demo)|m-c1||Chi thử nghiệm.
+B|2|Chi 2 (demo)|m-c2||Chi thử nghiệm.
+B|3|Chi 3 (demo)|m-c3||Trưởng chi chưa rõ tên.
+B|HN|Nhánh hợp nhất (demo)|m-hn|Một dòng họ cùng làng (demo)|Nhánh hợp nhất thử nghiệm.
