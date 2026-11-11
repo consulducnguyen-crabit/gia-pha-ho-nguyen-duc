@@ -1,7 +1,14 @@
+/* Georgia thiếu một số chữ Việt có hai dấu (ví dụ "ồ"), trình duyệt ghép dấu rời. Dùng phông hệ thống
+   có đủ glyph chỉ cho dải Latin mở rộng tiếng Việt (U+1EA0–1EF9) làm dự phòng cho tiêu đề. */
+@font-face {
+  font-family: "Heading Việt";
+  src: local("Cambria"), local("Times New Roman"), local("Noto Serif");
+  unicode-range: U+1EA0-1EF9;
+}
 /* Current palette and font families, centralized for every screen. */
 :root {
   --font-body: system-ui, -apple-system, sans-serif;
-  --font-heading: Georgia, "Times New Roman", serif;
+  --font-heading: "Heading Việt", Georgia, "Times New Roman", serif;
   --color-bg: #f8f9f5;
   --color-surface: #ffffff;
   --color-text: #273f33;
@@ -562,5 +569,136 @@ textarea {
   *::after {
     animation: none;
     transition: none;
+  }
+}
+
+/* Cây gia phả và hồ sơ thành viên */
+.tree-summary {
+  color: var(--color-text-muted);
+  max-width: 62ch;
+}
+.tree-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  align-items: end;
+  margin: var(--space-5) 0;
+}
+.tree-toolbar label {
+  display: grid;
+  gap: var(--space-1);
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+.tree-check {
+  display: flex !important;
+  align-items: center;
+  gap: var(--space-2);
+}
+.tree-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.tree-list {
+  list-style: none;
+  margin: 0;
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--color-border);
+}
+.tree-root {
+  padding-left: 0;
+  border-left: 0;
+}
+.tree-node {
+  margin: var(--space-2) 0;
+}
+.tree-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.tree-toggle {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-soft);
+  line-height: 1;
+}
+.tree-leaf {
+  background: transparent;
+  border: 0;
+}
+.tree-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding-top: var(--space-1);
+}
+.tree-name {
+  font-weight: 600;
+  text-decoration-color: var(--color-mark);
+  text-underline-offset: 3px;
+}
+.tree-years,
+.tree-meta {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+.tree-years {
+  font-variant-numeric: tabular-nums;
+}
+.tree-badges {
+  display: inline-flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  margin-left: var(--space-1);
+}
+.tree-badge {
+  font-size: 12px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-soft);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+.tree-badge-adopt {
+  background: var(--color-story);
+  color: var(--color-primary);
+  border-color: var(--color-mark);
+}
+.tree-external .tree-name {
+  font-weight: 400;
+}
+.tree-results ul,
+.tree-links {
+  padding-left: var(--space-5);
+}
+.tree-results li,
+.tree-links li {
+  margin: var(--space-2) 0;
+}
+.tree-path {
+  padding-left: var(--space-5);
+}
+.tree-profile-meta {
+  margin-top: 0;
+}
+.tree-back {
+  margin: 0;
+}
+.link-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  text-decoration: underline;
+  color: var(--color-primary);
+}
+@media (max-width: 600px) {
+  .tree-list {
+    padding-left: var(--space-3);
   }
 }

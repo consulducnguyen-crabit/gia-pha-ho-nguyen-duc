@@ -43,6 +43,11 @@ beforeAll(async () => {
     await setDoc(doc(c.firestore(), "memberProfiles", "fake"), {
       displayName: "Nhân vật giả",
     });
+    await setDoc(doc(c.firestore(), "treeSnapshots", "main"), {
+      schemaVersion: 1,
+      dataVersion: "fake",
+      data: "{}",
+    });
     await setDoc(doc(c.firestore(), "changeRequests", "own"), {
       authorUid: "member",
       status: "DRAFT",
@@ -255,6 +260,31 @@ describe("default-deny access", () => {
             roleIds: ["admin"],
           }),
         );
+    });
+  for (const role of ["anonymous", "pending", "disabled"])
+    it(`${role} cannot read the tree snapshot`, async () => {
+      const c =
+        role === "anonymous"
+          ? env.unauthenticatedContext()
+          : env.authenticatedContext(role);
+      await assertFails(getDoc(doc(c.firestore(), "treeSnapshots", "main")));
+      await assertFails(getDocs(collection(c.firestore(), "treeSnapshots")));
+    });
+  for (const role of ["member", "editor", "approver"])
+    it(`${role} can get the tree snapshot but cannot list or change it`, async () => {
+      const db = env.authenticatedContext(role).firestore();
+      await assertSucceeds(getDoc(doc(db, "treeSnapshots", "main")));
+      await assertFails(getDocs(collection(db, "treeSnapshots")));
+      await assertFails(
+        setDoc(doc(db, "treeSnapshots", "main"), { data: "attack" }),
+      );
+      await assertFails(
+        updateDoc(doc(db, "treeSnapshots", "main"), { data: "attack" }),
+      );
+      await assertFails(deleteDoc(doc(db, "treeSnapshots", "main")));
+      await assertFails(
+        setDoc(doc(db, "treeSnapshots", "other"), { data: "x" }),
+      );
     });
   it("ignores claimed roles without membership", async () => {
     await assertFails(

@@ -42,6 +42,7 @@ Theo `docs/APPROVED_DECISIONS.md` và `docs/BUSINESS_RULES.md`:
 - Từ chối khi dữ liệu còn ERROR.
 - Phân tách riêng tư (quyết định 2026-11-11): `memberProfiles` chỉ có tên và năm sinh/mất; `persons` giữ giới tính, loại, chi, đời, ngày gốc, kỵ nhật; `personPrivate` giữ ghi chú. Rules hiện chỉ cho thành viên đọc `memberProfiles`. Ngày mâu thuẫn trong văn bản (ví dụ "1954/1955") giữ nguyên bản gốc, không tự chọn năm.
 - Quan hệ dùng đúng mô hình của backend đề xuất (`relations`, `graphState/parentage`).
+- `treeSnapshots/main`: một tài liệu (một lượt đọc) cho màn hình cây, chỉ chứa tên, năm sinh/mất, đời, chi và quan hệ (`data` là chuỗi JSON). Rules cho thành viên `get` đúng tài liệu này (không `list`, không ghi). Mỗi lần nạp lại phải dựng lại ảnh chụp; sau này backend phải cập nhật khi duyệt thay đổi.
 
 ### Việc còn lại sau bước này
 - Luồng đề xuất (`PERSON_BASIC`) hiện ghi đè `memberProfiles` bằng projection 4 trường nên sẽ làm mất `birthYear`/`deathYear`; cần đổi sang merge trước khi dùng.

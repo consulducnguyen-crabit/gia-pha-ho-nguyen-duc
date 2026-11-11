@@ -90,6 +90,59 @@ function year(date: ReturnType<typeof solarDate>): number | null {
   return date && date.year !== null ? date.year : null;
 }
 
+// Ảnh chụp cây (một tài liệu, một lượt đọc) cho thành viên: chỉ tên, năm sinh/mất, đời, chi và quan hệ.
+// Dữ liệu nhạy cảm (ghi chú, ngày đầy đủ, kỵ nhật, giới tính) không đưa vào đây.
+export function buildTreeSnapshot(
+  model: Model,
+  batchId: string,
+  planDocs: PlanDoc[],
+) {
+  const profile = new Map(
+    planDocs
+      .filter((d) => d.path.startsWith("memberProfiles/"))
+      .map((d) => [d.path.slice("memberProfiles/".length), d.data]),
+  );
+  const persons: Record<string, unknown[]> = {};
+  for (const p of model.persons) {
+    const mp = profile.get(p.id) as Record<string, unknown> | undefined;
+    persons[p.id] = [
+      p.name,
+      (mp?.birthYear as number | undefined) ?? null,
+      (mp?.deathYear as number | undefined) ?? null,
+      model.derivedGeneration.get(p.id) ?? null,
+      p.category === "CLAN" ? "C" : p.category === "SPOUSE" ? "S" : "E",
+      p.branch || null,
+    ];
+  }
+  const data = {
+    v: 1,
+    persons,
+    relations: model.relations.map((r) => [
+      r.parentId,
+      r.childId,
+      r.parentRole === "FATHER" ? "F" : "M",
+      r.relationType === "ADOPTIVE" ? "A" : "B",
+      r.lineageTransmission ? 1 : 0,
+    ]),
+    unions: model.unions.map((u) => [u.partnerA, u.partnerB, u.order || null]),
+    branches: Object.fromEntries(
+      model.branches.map((b) => [
+        b.code,
+        [b.name, b.founderId || null, b.mergedFrom || null, b.note || null],
+      ]),
+    ),
+  };
+  return {
+    schemaVersion: 1,
+    dataVersion: batchId,
+    counts: {
+      persons: model.persons.length,
+      relations: model.relations.length,
+    },
+    data: JSON.stringify(data),
+  };
+}
+
 export function buildImportPlan(model: Model, batchId: string): ImportPlan {
   const docs: PlanDoc[] = [];
   const base = { schemaVersion: 1, importBatchId: batchId };
@@ -177,6 +230,10 @@ export function buildImportPlan(model: Model, batchId: string): ImportPlan {
     path: "graphState/parentage",
     data: { version: 1, schemaVersion: 1 },
   });
+  docs.push({
+    path: "treeSnapshots/main",
+    data: buildTreeSnapshot(model, batchId, docs),
+  });
   const counts: Record<string, number> = {};
   for (const d of docs) {
     const collection = d.path.split("/")[0];
@@ -194,6 +251,7 @@ export const IMPORT_COLLECTIONS = [
   "unions",
   "branches",
   "graphState",
+  "treeSnapshots",
   "importBatches",
 ];
 
