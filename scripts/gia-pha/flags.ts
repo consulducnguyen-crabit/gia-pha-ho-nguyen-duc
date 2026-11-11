@@ -32,13 +32,14 @@ export function computeReviewFlags(model: Model): Map<string, FlagCode[]> {
     if (issue.code === "DUP_NAME")
       for (const id of issue.ref.split(",").map((x) => x.trim()))
         if (id) add(id, "DUP_NAME");
-  const known = new Set(model.persons.map((p) => p.id));
+  const verified = new Map(model.persons.map((p) => [p.id, p.verifiedFlags]));
   const result = new Map<string, FlagCode[]>();
-  for (const [id, codes] of found)
-    if (known.has(id))
-      result.set(
-        id,
-        FLAG_CODES.filter((c) => codes.has(c)),
-      );
+  for (const [id, codes] of found) {
+    if (!verified.has(id)) continue;
+    const kept = FLAG_CODES.filter(
+      (c) => codes.has(c) && !verified.get(id)!.includes(c),
+    );
+    if (kept.length) result.set(id, kept);
+  }
   return result;
 }
