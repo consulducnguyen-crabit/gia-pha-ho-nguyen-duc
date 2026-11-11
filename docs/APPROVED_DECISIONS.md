@@ -30,3 +30,5 @@ Người dùng phê duyệt trực tiếp. Mục nào mâu thuẫn với danh s�
 - **Hồ sơ người kết hôn vào: mức cơ bản** (mục 6) được xác nhận.
 - **Hạ tầng:** giai đoạn đầu dùng gói Spark, chỉ tra cứu, chỉ quản trị viên ghi, chưa upload file. Nâng Blaze khi cần Functions production, upload ảnh hoặc export tự động. Repo public.
 - **Nhập dữ liệu ban đầu:** từ file gia phả Word (nằm ở `private-data/`, không đưa lên GitHub), chuyển sang Excel, tài khoản quản trị rà soát trước khi nạp.
+- **Quyền riêng tư người còn sống (mục 7):** thành viên chỉ thấy tên và năm sinh/mất (`memberProfiles`); nơi ở, nơi làm việc, nghề nghiệp và ghi chú nằm ở `personPrivate`, chỉ quản trị viên xem. Không nhập thông tin sức khỏe. Có thể mở dần sau.
+
