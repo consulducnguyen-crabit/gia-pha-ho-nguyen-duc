@@ -29,7 +29,7 @@
 - `AGENTS.md`: hướng dẫn cho Codex
 
 ## Trạng thái
-Chưa tạo Firebase project, chưa kết nối repo, chưa deploy, chưa đưa dữ liệu thật vào hệ thống.
+Đã tạo hai Firebase project tách biệt (`gia-pha-nguyen-duc-dev`, `gia-pha-nguyen-duc-prod`, gói Spark, Firestore asia-southeast1) và kết nối repo GitHub. Chưa deploy rules/backend, chưa đưa dữ liệu thật vào hệ thống. Các chính sách mới nhất xem cuối `docs/APPROVED_DECISIONS.md`.
 
 ## Bản triển khai nền 0.1
 

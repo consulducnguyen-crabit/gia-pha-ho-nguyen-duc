@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "gia-pha-nguyen-duc-dev",
+    "dev": "gia-pha-nguyen-duc-dev",
+    "prod": "gia-pha-nguyen-duc-prod"
+  }
+}
