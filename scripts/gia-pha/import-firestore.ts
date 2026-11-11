@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { relative, resolve, sep } from "node:path";
 import { parseDsl } from "./dsl.ts";
+import { enforceProdGate } from "./prod-guard.ts";
 import {
   IMPORT_COLLECTIONS,
   buildImportPlan,
@@ -61,12 +62,14 @@ if (!apply) {
   process.exit(0);
 }
 
-const decision = decideTarget(process.env, option("--project"));
+const decision = decideTarget(process.env, option("--project"), {
+  allowProd: true,
+});
 if (!decision.ok) {
   console.error(`Từ chối: ${decision.reason}`);
   process.exit(2);
 }
-if (decision.kind === "dev" && option("--confirm") !== decision.project) {
+if (decision.kind !== "emulator" && option("--confirm") !== decision.project) {
   console.error(
     `Từ chối: nạp vào project thật cần --confirm ${decision.project}.`,
   );
@@ -92,6 +95,18 @@ const app = initializeApp(
 );
 const db = getFirestore(app);
 console.log(`Đích: ${decision.kind} / ${decision.project}`);
+if (decision.kind === "prod")
+  await enforceProdGate({
+    root,
+    action: "NAP DU LIEU THAT",
+    project: decision.project,
+    confirm: option("--confirm"),
+    ack: option("--ack"),
+    needsBackup: true,
+    backupDir: option("--backup-dir"),
+    passphrase: process.env.GIA_PHA_BACKUP_PASSPHRASE,
+    db,
+  });
 
 const done = await db.doc(`importBatches/${batchId}`).get();
 if (done.exists) {
