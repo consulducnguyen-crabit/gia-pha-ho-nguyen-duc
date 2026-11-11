@@ -118,6 +118,10 @@ export function parseOperation(raw: unknown): Operation {
       childId = safeId(d.childId);
     if (parentId === childId)
       return bad("Một người không thể là cha/mẹ của chính mình.");
+    // Chính sách 2026-11-11: dòng họ nội truyền theo nam (vai trò cha được chỉ
+    // định rõ, không suy từ họ hay giới tính). Con nuôi cũng tính đời theo dòng.
+    if (d.lineageTransmission && d.parentRole !== "FATHER")
+      return bad("Chỉ quan hệ với người cha mới truyền dòng họ nội.");
     return {
       kind,
       relationId: safeId(d.relationId),
@@ -126,7 +130,7 @@ export function parseOperation(raw: unknown): Operation {
       parentRole: d.parentRole as RelationOperation["parentRole"],
       relationType: d.relationType as RelationOperation["relationType"],
       lineageTransmission: d.lineageTransmission,
-      lineageReason: text(d.lineageReason, 1000, !d.lineageTransmission),
+      lineageReason: text(d.lineageReason, 1000, true),
       evidence: text(d.evidence, 1000),
     };
   }
@@ -209,6 +213,23 @@ export function assertGraphCanAdd(
       edge.childId,
     ]);
   }
+  // Chính sách 2026-11-11: một thủy tổ duy nhất. Gốc truyền dòng = người có con
+  // theo dòng nhưng không có cha truyền dòng. Người kết hôn vào (không có cạnh
+  // truyền dòng) không được tính. Chỉ kiểm tra trạng thái sau khi thêm, nên
+  // việc nối hai gốc thành một vẫn hợp lệ.
+  const lineageEdges = [...edges, op].filter(
+    (edge) => edge.lineageTransmission,
+  );
+  const lineageChildren = new Set(lineageEdges.map((edge) => edge.childId));
+  const lineageRoots = new Set(
+    lineageEdges
+      .map((edge) => edge.parentId)
+      .filter((id) => !lineageChildren.has(id)),
+  );
+  if (lineageRoots.size > 1)
+    conflict(
+      "Dòng họ chỉ có một thủy tổ: quan hệ này tạo thêm một gốc chưa nối. Hãy nối từ thủy tổ xuống hoặc nối gốc hiện có lên.",
+    );
   const visiting = new Set<string>(),
     done = new Set<string>();
   function visit(id: string) {

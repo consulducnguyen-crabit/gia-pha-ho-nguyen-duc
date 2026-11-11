@@ -22,6 +22,7 @@ Người dùng xác nhận “Ok chọn theo đề xuất của codex” sau b�
 Người dùng phê duyệt trực tiếp. Mục nào mâu thuẫn với danh sách trên thì **theo mục này**.
 
 - **(thay mục 2) Con nuôi có tính đời theo dòng.** Ghi chú con nuôi bằng badge/màu nhẹ, không tạo sự phân biệt trong giao diện.
+- **Đã thực thi ở backend:** chỉ cha truyền dòng, con nuôi tính đời, và từ chối quan hệ tạo gốc thứ hai (xem BUSINESS_RULES.md).
 - **(thay mục 3) Một thủy tổ duy nhất.** Nhánh có nguồn gốc hợp nhất từ dòng khác thì ghi chú nguồn gốc để phân biệt, không tách thành gốc riêng.
 - **(thay mục 4) Một người duyệt** cho mọi thay đổi, kể cả quan hệ truyền dòng. Người đề xuất vẫn không tự duyệt. Đã chỉnh mã và test theo mục này.
 - **(thay mục 5) Cấp tài khoản:** có trang quản lý người dùng do quản trị viên vận hành. Đăng nhập bằng Gmail (Google) **hoặc** tài khoản do quản trị tạo sẵn (cho thành viên không có Gmail). Đăng nhập chưa đồng nghĩa được cấp quyền; không tự đăng ký, không tự nâng quyền.

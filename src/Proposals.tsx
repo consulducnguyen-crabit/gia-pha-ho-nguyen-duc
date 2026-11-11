@@ -112,7 +112,7 @@ function BeforeAfter({ proposal }: { proposal: Proposal }) {
         {operation.relationType === "BIOLOGICAL" ? "Sinh học" : "Nuôi"}
       </p>
       <p>Truyền dòng họ: {operation.lineageTransmission ? "Có" : "Không"}</p>
-      {operation.lineageTransmission && (
+      {operation.lineageTransmission && operation.lineageReason && (
         <p>Lý do truyền dòng: {operation.lineageReason}</p>
       )}
       <p>Mã quan hệ: {operation.relationId}</p>
@@ -644,11 +644,12 @@ export function Proposals({
                     <select
                       aria-label="Vai trò cha/mẹ"
                       value={parentRole}
-                      onChange={(event) =>
-                        setParentRole(
-                          event.target.value as RelationOperation["parentRole"],
-                        )
-                      }
+                      onChange={(event) => {
+                        const role = event.target
+                          .value as RelationOperation["parentRole"];
+                        setParentRole(role);
+                        if (role === "MOTHER") setLineageTransmission(false);
+                      }}
                       className="form-field"
                     >
                       <option value="FATHER">Cha</option>
@@ -676,6 +677,7 @@ export function Proposals({
                     <input
                       type="checkbox"
                       checked={lineageTransmission}
+                      disabled={parentRole !== "FATHER"}
                       onChange={(event) =>
                         setLineageTransmission(event.target.checked)
                       }
@@ -684,9 +686,10 @@ export function Proposals({
                     Truyền dòng họ
                   </label>
                   <p>
-                    Không tự suy từ họ hoặc giới tính. Quan hệ truyền dòng, kể
-                    cả con nuôi hay ngoại lệ, phải được người duyệt xác nhận rõ
-                    ràng.
+                    Dòng họ nội truyền theo nam: chỉ quan hệ với cha mới truyền
+                    dòng. Con nuôi cũng tính đời theo dòng và được ghi chú loại
+                    quan hệ, không phân biệt đối xử. Người duyệt xác nhận rõ
+                    ràng từng quan hệ.
                   </p>
                   {lineageTransmission && (
                     <label>
@@ -697,7 +700,6 @@ export function Proposals({
                         onChange={(event) =>
                           setLineageReason(event.target.value)
                         }
-                        required
                         maxLength={1000}
                         className="form-field form-note-field"
                       />

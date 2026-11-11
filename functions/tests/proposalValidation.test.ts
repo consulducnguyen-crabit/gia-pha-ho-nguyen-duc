@@ -100,19 +100,30 @@ describe("proposal input privacy and identity boundary", () => {
     for (const lineageTransmission of ["true", 1, null])
       invalid(() => parseOperation({ ...relation(), lineageTransmission }));
   });
-  it("requires explicit lineage justification including adoption, with one approval", () => {
-    invalid(() => parseOperation(relation({ lineageTransmission: true })));
+  it("lets biological and adoptive children carry the paternal lineage without a mandatory reason", () => {
     for (const relationType of ["BIOLOGICAL", "ADOPTIVE"] as const) {
       const parsed = parseOperation(
-        relation({
-          relationType,
-          lineageTransmission: true,
-          lineageReason: "Ngoại lệ giả cần lý do rõ ràng",
-        }),
+        relation({ relationType, lineageTransmission: true }),
       );
-      expect(parsed.kind).toBe("RELATION_CREATE");
-      expect(requiredApprovals()).toBe(1);
+      expect(parsed).toMatchObject({
+        relationType,
+        lineageTransmission: true,
+        lineageReason: "",
+      });
     }
+    expect(requiredApprovals()).toBe(1);
+  });
+  it("only the explicitly designated father transmits the paternal lineage", () => {
+    for (const relationType of ["BIOLOGICAL", "ADOPTIVE"] as const)
+      invalid(() =>
+        parseOperation(
+          relation({
+            relationType,
+            parentRole: "MOTHER",
+            lineageTransmission: true,
+          }),
+        ),
+      );
   });
   it("rejects self-parenting before any graph lookup", () => {
     invalid(() =>
@@ -207,6 +218,63 @@ describe("bounded parentage graph correctness", () => {
     conflict(() =>
       assertGraphCanAdd([edge(), edge({ parentId: "other" })], relation()),
     );
+  });
+  it("allows a single lineage founder and chains below it, including adoption", () => {
+    const lineage = (overrides: Record<string, unknown>) =>
+      edge({ lineageTransmission: true, ...overrides });
+    expect(() =>
+      assertGraphCanAdd(
+        [lineage({ parentId: "root", childId: "a" })],
+        relation({
+          parentId: "a",
+          childId: "b",
+          relationType: "ADOPTIVE",
+          lineageTransmission: true,
+        }),
+      ),
+    ).not.toThrow();
+  });
+  it("rejects a second unconnected lineage root", () => {
+    conflict(() =>
+      assertGraphCanAdd(
+        [edge({ parentId: "root", childId: "a", lineageTransmission: true })],
+        relation({
+          parentId: "other",
+          childId: "x",
+          lineageTransmission: true,
+        }),
+      ),
+    );
+  });
+  it("allows joining two roots into one by linking a root under another person", () => {
+    // root2 -> y exists beside root1 -> x only if legacy data had two roots;
+    // linking root1 under a node of the other tree leaves exactly one root.
+    expect(() =>
+      assertGraphCanAdd(
+        [
+          edge({ parentId: "root1", childId: "x", lineageTransmission: true }),
+          edge({ parentId: "root2", childId: "y", lineageTransmission: true }),
+        ],
+        relation({
+          parentId: "y",
+          childId: "root1",
+          lineageTransmission: true,
+        }),
+      ),
+    ).not.toThrow();
+  });
+  it("ignores non-lineage relations and in-married spouses when counting roots", () => {
+    expect(() =>
+      assertGraphCanAdd(
+        [edge({ parentId: "root", childId: "a", lineageTransmission: true })],
+        relation({
+          parentId: "mother-line",
+          childId: "a2",
+          parentRole: "MOTHER",
+          lineageTransmission: false,
+        }),
+      ),
+    ).not.toThrow();
   });
   it("caps growth at 200 edges while allowing a bounded 200th edge", () => {
     const chain = Array.from({ length: 200 }, (_, index) =>
