@@ -29,7 +29,6 @@ function App() {
   const [access, setAccess] = useState("loading");
   const [canManageMembership, setCanManageMembership] = useState(false);
   const [canReviewChanges, setCanReviewChanges] = useState(false);
-  const [canReviewLineage, setCanReviewLineage] = useState(false);
   useEffect(() => {
     if (!auth || !db) {
       setAccess("setup");
@@ -40,7 +39,6 @@ function App() {
       stop();
       setCanManageMembership(false);
       setCanReviewChanges(false);
-      setCanReviewLineage(false);
       setUser(u);
       setAccess(u ? "loading" : "login");
       if (u)
@@ -52,9 +50,6 @@ function App() {
               !s.metadata.fromCache && s.data()?.enabled === true;
             setCanReviewChanges(
               confirmed && s.data()?.canReviewChanges === true,
-            );
-            setCanReviewLineage(
-              confirmed && s.data()?.canReviewLineage === true,
             );
             setCanManageMembership(
               !s.metadata.fromCache &&
@@ -72,7 +67,6 @@ function App() {
           () => {
             setCanManageMembership(false);
             setCanReviewChanges(false);
-            setCanReviewLineage(false);
             setAccess("error");
           },
         );
@@ -143,7 +137,7 @@ function App() {
                 path="/review"
                 element={
                   <Proposals
-                    key={`review:${user!.uid}:${canReviewLineage}`}
+                    key={`review:${user!.uid}`}
                     mode="REVIEW"
                     currentUid={user!.uid}
                   />
@@ -434,8 +428,8 @@ function Roadmap() {
         <p>
           Lời mời một lần, nhận quyền và thu hồi quyền tài khoản đã có bản thử
           nghiệm trên emulator. Chưa mở trên production. Đề xuất họ tên và thêm
-          quan hệ có luồng duyệt thử nghiệm; quan hệ truyền dòng cần hai người
-          duyệt.
+          quan hệ có luồng duyệt thử nghiệm; quan hệ truyền dòng cũng do một
+          người duyệt (khác người đề xuất).
         </p>
         <h2>Chính sách đã được phê duyệt</h2>
         <p>

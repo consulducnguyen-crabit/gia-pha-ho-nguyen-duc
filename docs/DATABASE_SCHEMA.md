@@ -55,7 +55,7 @@ invariants transaction và các quyết định production chưa chốt.
 - proposalRevisions/{requestId}-r{revision}: snapshot bất biến operation/before và
   danh tính tác giả. Apply kiểm tra snapshot tồn tại và khớp trước khi ghi canonical.
 - Phiếu gồm UID, revision, accessVersion và userUpdateTime. Quyền canReviewChanges
-  và canReviewLineage chỉ được cấp bởi fixture server-side trong bản thử nghiệm.
+  (canReviewLineage cũ không còn dùng) chỉ được cấp bởi fixture server-side trong bản thử nghiệm.
 - graphState/parentage: schemaVersion và version, khóa giao dịch chung cho mọi
   lần thêm quan hệ. relations mới có parentRole, relationType, lineageTransmission,
   verificationStatus=APPROVED, version, schemaVersion và sourceRefs trỏ revision.

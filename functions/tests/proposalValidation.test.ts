@@ -100,20 +100,19 @@ describe("proposal input privacy and identity boundary", () => {
     for (const lineageTransmission of ["true", 1, null])
       invalid(() => parseOperation({ ...relation(), lineageTransmission }));
   });
-  it("requires explicit lineage justification including adoption and two votes", () => {
+  it("requires explicit lineage justification including adoption, with one approval", () => {
     invalid(() => parseOperation(relation({ lineageTransmission: true })));
     for (const relationType of ["BIOLOGICAL", "ADOPTIVE"] as const) {
       const parsed = parseOperation(
         relation({
           relationType,
           lineageTransmission: true,
-          lineageReason: "Ngoại lệ giả cần hai người duyệt",
+          lineageReason: "Ngoại lệ giả cần lý do rõ ràng",
         }),
       );
-      expect(requiredApprovals(parsed)).toBe(2);
+      expect(parsed.kind).toBe("RELATION_CREATE");
+      expect(requiredApprovals()).toBe(1);
     }
-    expect(requiredApprovals(parseOperation(person))).toBe(1);
-    expect(requiredApprovals(relation({ relationType: "ADOPTIVE" }))).toBe(1);
   });
   it("rejects self-parenting before any graph lookup", () => {
     invalid(() =>

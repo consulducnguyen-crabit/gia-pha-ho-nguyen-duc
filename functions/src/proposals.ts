@@ -76,17 +76,14 @@ function member(data?: DocumentData) {
     fail("permission-denied", "Tài khoản chưa được cấp quyền.");
   epoch(data);
 }
-function reviewer(data: DocumentData | undefined, operation: Operation) {
+function reviewer(data: DocumentData | undefined) {
   member(data);
-  if (
-    data?.canReviewChanges !== true ||
-    (requiredApprovals(operation) === 2 && data?.canReviewLineage !== true)
-  )
+  if (data?.canReviewChanges !== true)
     fail("permission-denied", "Bạn không có quyền duyệt đề xuất này.");
 }
-function isReviewer(data: DocumentData | undefined, operation: Operation) {
+function isReviewer(data: DocumentData | undefined) {
   try {
-    reviewer(data, operation);
+    reviewer(data);
     return true;
   } catch {
     return false;
@@ -150,7 +147,7 @@ function stored(raw?: DocumentData): Proposal {
       "Nội dung đề xuất lưu trữ không hợp lệ.",
     );
   }
-  if (raw.requiredApprovals !== requiredApprovals(operation))
+  if (raw.requiredApprovals !== requiredApprovals())
     fail(
       "failed-precondition",
       "Số phiếu yêu cầu không khớp nội dung đề xuất.",
@@ -221,7 +218,7 @@ function stored(raw?: DocumentData): Proposal {
     votes,
     reviewNote: raw.reviewNote,
     needsEdit: raw.needsEdit,
-    requiredApprovals: requiredApprovals(operation),
+    requiredApprovals: requiredApprovals(),
   };
 }
 function publicRecord(
@@ -236,7 +233,7 @@ function publicRecord(
     revision: record.revision,
     operation: record.operation,
     before: record.before,
-    requiredApprovals: requiredApprovals(record.operation),
+    requiredApprovals: requiredApprovals(),
     approvalCount,
     reviewNote: record.reviewNote,
   };
@@ -359,7 +356,7 @@ export function proposalService(db: Firestore, auth: Auth) {
         continue;
       const user = await tx.get(db.doc(`users/${vote.uid}`));
       if (
-        isReviewer(user.data(), record.operation) &&
+        isReviewer(user.data()) &&
         epoch(user.data()) === vote.accessVersion &&
         user.updateTime?.isEqual(vote.userUpdateTime) &&
         (await validAuth(vote.uid))
@@ -470,7 +467,7 @@ export function proposalService(db: Firestore, auth: Auth) {
     if (uid !== record.authorUid) {
       if (record.status === "DRAFT")
         fail("permission-denied", "Bản nháp chỉ dành cho người đề xuất.");
-      reviewer(user.data(), record.operation);
+      reviewer(user.data());
     }
   }
   return {
@@ -509,7 +506,7 @@ export function proposalService(db: Firestore, auth: Auth) {
           votes: [],
           reviewNote: "",
           needsEdit: false,
-          requiredApprovals: requiredApprovals(operation),
+          requiredApprovals: requiredApprovals(),
         };
         tx.create(ref, {
           ...record,
@@ -560,7 +557,7 @@ export function proposalService(db: Firestore, auth: Auth) {
           votes: [],
           reviewNote: "",
           needsEdit: false,
-          requiredApprovals: requiredApprovals(operation),
+          requiredApprovals: requiredApprovals(),
         };
         tx.update(ref, { ...next, updatedAt: Timestamp.now() });
         revision(tx, id, next);
@@ -619,7 +616,7 @@ export function proposalService(db: Firestore, auth: Auth) {
         const ref = db.doc(`changeRequests/${id}`);
         const record = stored((await tx.get(ref)).data());
         const current = await tx.get(db.doc(`users/${caller}`));
-        reviewer(current.data(), record.operation);
+        reviewer(current.data());
         if (record.authorUid === caller)
           fail("permission-denied", "Không tự duyệt đề xuất của mình.");
         if (record.revision !== expected)
@@ -653,7 +650,7 @@ export function proposalService(db: Firestore, auth: Auth) {
           accessVersion: epoch(current.data()),
           userUpdateTime: current.updateTime,
         });
-        const apply = active.length >= requiredApprovals(record.operation);
+        const apply = active.length >= requiredApprovals();
         const graph = apply ? await applyReads(tx, id, record) : null;
         const next: Proposal = {
           ...record,
@@ -701,7 +698,7 @@ export function proposalService(db: Firestore, auth: Auth) {
           viewer.data()?.canReviewChanges !== true
         )
           fail("permission-denied", "Bạn không có quyền mở hộp duyệt.");
-        let q =
+        const q =
           input.scope === "OWN"
             ? db
                 .collection("changeRequests")
@@ -713,19 +710,13 @@ export function proposalService(db: Firestore, auth: Auth) {
                 .where("authorUid", "!=", caller)
                 .orderBy("authorUid")
                 .limit(31);
-        if (
-          input.scope === "REVIEW" &&
-          viewer.data()?.canReviewLineage !== true
-        )
-          q = q.where("requiredApprovals", "==", 1);
         const result = await tx.get(q);
         const items = [];
         for (const doc of result.docs.slice(0, 30)) {
           const record = stored(doc.data());
           if (
             input.scope === "REVIEW" &&
-            (record.authorUid === caller ||
-              !isReviewer(viewer.data(), record.operation))
+            (record.authorUid === caller || !isReviewer(viewer.data()))
           )
             continue;
           const active =

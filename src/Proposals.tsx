@@ -111,10 +111,7 @@ function BeforeAfter({ proposal }: { proposal: Proposal }) {
         Vai trò: {operation.parentRole === "FATHER" ? "Cha" : "Mẹ"} ·{" "}
         {operation.relationType === "BIOLOGICAL" ? "Sinh học" : "Nuôi"}
       </p>
-      <p>
-        Truyền dòng họ:{" "}
-        {operation.lineageTransmission ? "Có, cần hai người duyệt" : "Không"}
-      </p>
+      <p>Truyền dòng họ: {operation.lineageTransmission ? "Có" : "Không"}</p>
       {operation.lineageTransmission && (
         <p>Lý do truyền dòng: {operation.lineageReason}</p>
       )}
@@ -385,7 +382,7 @@ export function Proposals({
       <h1>{mode === "OWN" ? "Đề xuất thay đổi" : "Hộp duyệt"}</h1>
       <div className="notice">
         Bản thử nghiệm cục bộ, chỉ dùng dữ liệu giả. Người đề xuất không tự
-        duyệt; quan hệ truyền dòng cần hai người duyệt khác nhau. Chưa tự tính
+        duyệt; mọi thay đổi do một người duyệt khác người đề xuất. Chưa tự tính
         đời hoặc chi.
       </div>
       {error && <p role="alert">{error}</p>}
@@ -688,7 +685,8 @@ export function Proposals({
                   </label>
                   <p>
                     Không tự suy từ họ hoặc giới tính. Quan hệ truyền dòng, kể
-                    cả con nuôi hay ngoại lệ, phải được hai người duyệt rõ ràng.
+                    cả con nuôi hay ngoại lệ, phải được người duyệt xác nhận rõ
+                    ràng.
                   </p>
                   {lineageTransmission && (
                     <label>
