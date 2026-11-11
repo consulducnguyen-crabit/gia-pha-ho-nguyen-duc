@@ -8,6 +8,33 @@ let browser;
 let stage = "initialization";
 let pageErrors = 0;
 let failed = false;
+let dialogErrors = 0;
+let dialogCount = 0;
+const dialogControls = new Map();
+function confirmations(page) {
+  const control = { cancelNext: false };
+  dialogControls.set(page, control);
+  page.on("dialog", async (dialog) => {
+    const uuid =
+      "[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}";
+    const valid =
+      dialog.type() === "confirm" &&
+      new RegExp(
+        `^(Gửi đề xuất ${uuid}, bản sửa [1-9][0-9]*[?] Bản nháp sẽ chuyển sang chờ duyệt[.]|Ghi nhận phiếu đồng ý cho đề xuất ${uuid}, bản sửa [1-9][0-9]*[?] Dữ liệu chỉ được áp dụng khi đủ phiếu hợp lệ[.]|Từ chối cho đề xuất ${uuid}, bản sửa [1-9][0-9]*[?] Đề xuất sẽ kết thúc ở trạng thái từ chối[.]|Yêu cầu bổ sung cho đề xuất ${uuid}, bản sửa [1-9][0-9]*[?] Các phiếu cũ sẽ mất hiệu lực; người đề xuất phải sửa và gửi lại[.])$`,
+      ).test(dialog.message());
+    if (!valid) {
+      dialogErrors++;
+      await dialog.dismiss();
+      return;
+    }
+    dialogCount++;
+    if (control.cancelNext) {
+      control.cancelNext = false;
+      await dialog.dismiss();
+    } else await dialog.accept();
+  });
+}
+
 async function capability(enabled) {
   const response = await fetch(
     "http://127.0.0.1:8080/v1/projects/demo-gia-pha/databases/(default)/documents/users/demo-reviewer-one?updateMask.fieldPaths=canReviewChanges",
@@ -117,10 +144,12 @@ try {
   const [author, reviewerOne, reviewerTwo] = await Promise.all(
     contexts.map((context) => context.newPage()),
   );
-  for (const page of [author, reviewerOne, reviewerTwo])
+  for (const page of [author, reviewerOne, reviewerTwo]) {
+    confirmations(page);
     page.on("pageerror", () => {
       pageErrors++;
     });
+  }
   stage = "three separate authenticated sessions";
   await Promise.all([
     login(author, "nguoidexuat@example.test"),
@@ -184,6 +213,32 @@ try {
   await expect(
     detail(reviewerOne).getByText(`Sau: ${firstName}`, { exact: true }),
   ).toBeVisible();
+  stage = "cancel review preserves note and does not call backend";
+  let reviewRequests = 0;
+  reviewerOne.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      request.url().endsWith("/reviewChangeRequest")
+    )
+      reviewRequests++;
+  });
+  const keptNote = "Ghi chú giả được giữ lại khi hủy xác nhận.";
+  await reviewerOne.getByLabel("Ý kiến duyệt", { exact: true }).fill(keptNote);
+  dialogControls.get(reviewerOne).cancelNext = true;
+  const dialogsBeforeCancel = dialogCount;
+  await reviewerOne
+    .getByRole("button", { name: "Đồng ý duyệt", exact: true })
+    .click();
+  await expect.poll(() => dialogCount).toBe(dialogsBeforeCancel + 1);
+  await expect(
+    reviewerOne.getByLabel("Ý kiến duyệt", { exact: true }),
+  ).toHaveValue(keptNote);
+  await open(reviewerOne, personRequest);
+  await expect(
+    detail(reviewerOne).getByText(/Trạng thái: Chờ duyệt/),
+  ).toBeVisible();
+  if (reviewRequests !== 0)
+    throw Error("Canceled review made a mutation request");
   await approve(reviewerOne);
   await expect(
     detail(reviewerOne).getByText(/Trạng thái: Đã phê duyệt/),
@@ -376,7 +431,8 @@ try {
     reviewerOne.getByLabel("Ý kiến duyệt", { exact: true }),
   ).toHaveCount(0);
   await mobile(reviewerOne);
-  if (pageErrors) throw Error("Unexpected browser page error");
+  if (pageErrors || dialogErrors || dialogCount < 8)
+    throw Error("Unexpected browser page error or confirmation coverage");
 } catch {
   // Do not leak entered evidence or operation contents through Playwright call logs.
   failed = true;
@@ -392,5 +448,5 @@ try {
 if (failed)
   throw Error(`Proposal browser verification failed at stage: ${stage}`);
 console.log(
-  "Browser: proposal draft/edit/submit, one-review profile, needs-info/revision/reject, two-review lineage, duplicate vote, public search, capability removal and mobile passed.",
+  "Browser: proposal draft/edit/submit, one-review profile, needs-info/revision/reject, two-review lineage, confirmation/cancel guards, duplicate vote, public search, capability removal and mobile passed.",
 );
