@@ -333,22 +333,17 @@ describe("proposal callable workflow on real emulators", () => {
     expect(projected.profileVersion).toBe(2);
   });
 
-  it("requires two distinct eligible reviewers for lineage and never treats adoption as automatic transmission", async () => {
+  it("applies a lineage relation after one eligible reviewer's approval, with the lineage flag explicit", async () => {
     const operation = await relationOperation({ relationType: "ADOPTIVE" });
     const record = await submit(await draft(operation));
-    const first = await review(record);
-    expect(first).toMatchObject({
-      status: "SUBMITTED",
-      requiredApprovals: 2,
-      approvalCount: 1,
-    });
+    expect(record).toMatchObject({ status: "SUBMITTED", requiredApprovals: 1 });
     expect(
       (await db.doc(`relations/${operation.relationId}`).get()).exists,
     ).toBe(false);
-    const duplicate = await review(record);
-    expect(duplicate.approvalCount).toBe(1);
-    const final = await review(record, reviewer2);
-    expect(final).toMatchObject({ status: "APPROVED", approvalCount: 2 });
+    const final = await review(record);
+    expect(final).toMatchObject({ status: "APPROVED", approvalCount: 1 });
+    expect((await review(record, reviewer2)).status).toBe("APPROVED");
+    expect((await db.collection("relations").get()).size).toBe(1);
     expect(
       (await db.doc(`relations/${operation.relationId}`).get()).data(),
     ).toMatchObject({
@@ -382,10 +377,9 @@ describe("proposal callable workflow on real emulators", () => {
       );
   });
 
-  it("clears votes on needs-info, requires an edit and archives each immutable revision", async () => {
+  it("returns needs-info, requires an edit and archives each immutable revision", async () => {
     const operation = await relationOperation();
     const initial = await submit(await draft(operation));
-    await review(initial);
     const info = await review(
       initial,
       reviewer2,
@@ -417,8 +411,7 @@ describe("proposal callable workflow on real emulators", () => {
     ).toBe(true);
     const resubmitted = await submit(edited);
     await deny(review(initial), "failed-precondition");
-    expect((await review(resubmitted)).status).toBe("SUBMITTED");
-    expect((await review(resubmitted, reviewer2)).status).toBe("APPROVED");
+    expect((await review(resubmitted)).status).toBe("APPROVED");
   });
 
   it("keeps rejection terminal and does not apply canonical records", async () => {
@@ -466,37 +459,28 @@ describe("proposal callable workflow on real emulators", () => {
     );
   });
 
-  it("invalidates an existing vote after reviewer revocation and allows only a fresh authorized vote", async () => {
+  it("denies a revoked reviewer and lets a different authorized reviewer approve", async () => {
     const record = await submit(await draft(await relationOperation()));
-    await review(record);
     await db
       .doc(`users/${reviewer1.uid}`)
       .update({ enabled: false, accessVersion: 2 });
-    const second = await review(record, reviewer2);
-    expect(second).toMatchObject({ status: "SUBMITTED", approvalCount: 1 });
-    await db
-      .doc(`users/${reviewer1.uid}`)
-      .update({ enabled: true, accessVersion: 3 });
-    expect((await review(record)).status).toBe("APPROVED");
-  });
-
-  it("invalidates a vote when the server-side capability snapshot changed without an epoch bump", async () => {
-    const record = await submit(await draft(await relationOperation()));
-    await review(record);
-    await db
-      .doc(`users/${reviewer1.uid}`)
-      .update({ fixtureReviewMarker: randomUUID() });
+    await deny(review(record), "permission-denied");
     expect(await review(record, reviewer2)).toMatchObject({
-      status: "SUBMITTED",
+      status: "APPROVED",
       approvalCount: 1,
     });
-    expect((await review(record)).status).toBe("APPROVED");
   });
 
-  it("reports live vote counts consistently on read and retry paths after a voter loses authority", async () => {
+  it("rechecks reviewer capability live even when no epoch bump accompanies the change", async () => {
+    const record = await submit(await draft(await relationOperation()));
+    await db.doc(`users/${reviewer1.uid}`).update({ canReviewChanges: false });
+    await deny(review(record), "permission-denied");
+    expect((await review(record, reviewer2)).status).toBe("APPROVED");
+  });
+
+  it("reports consistent approval counts on read and retry paths after a reviewer loses authority", async () => {
     const operation = await relationOperation();
     const record = await submit(await draft(operation));
-    await review(record);
     await db
       .doc(`users/${reviewer1.uid}`)
       .update({ enabled: false, accessVersion: 2 });
@@ -527,7 +511,6 @@ describe("proposal callable workflow on real emulators", () => {
   it("rechecks author membership and Auth status before final application", async () => {
     const operation = await relationOperation();
     const record = await submit(await draft(operation));
-    await review(record);
     await db
       .doc(`users/${author.uid}`)
       .update({ enabled: false, accessVersion: 2 });
@@ -559,7 +542,6 @@ describe("proposal callable workflow on real emulators", () => {
   it("binds relation endpoint snapshots so names changed after review cannot silently pass", async () => {
     const operation = await relationOperation();
     const record = await submit(await draft(operation));
-    await review(record);
     await db.doc(`persons/${operation.parentId}`).update({ profileVersion: 2 });
     await db
       .doc(`memberProfiles/${operation.parentId}`)
@@ -649,7 +631,7 @@ describe("proposal callable workflow on real emulators", () => {
 
   it("rejects duplicate pairs, biological slot conflicts and multiple incoming lineage without overriding the old edge", async () => {
     const operation = await relationOperation();
-    await review(await review(await submit(await draft(operation))), reviewer2);
+    await review(await submit(await draft(operation)));
     for (const variant of [
       {
         ...operation,
@@ -672,7 +654,6 @@ describe("proposal callable workflow on real emulators", () => {
       },
     ]) {
       const record = await submit(await draft(variant));
-      if (variant.lineageTransmission) await review(record);
       await deny(review(record, reviewer2), "failed-precondition");
     }
     expect((await db.collection("relations").get()).size).toBe(1);
@@ -876,11 +857,11 @@ describe("proposal callable workflow on real emulators", () => {
     ).toBe(true);
     const lineage = await submit(await draft(await relationOperation()));
     const basicReviewer = await principal({ canReviewChanges: true });
-    await deny(
-      basicReviewer.call("getChangeRequest", { requestId: lineage.requestId }),
-      "permission-denied",
-    );
-    await deny(review(lineage, basicReviewer), "permission-denied");
+    expect(
+      await basicReviewer.call("getChangeRequest", {
+        requestId: lineage.requestId,
+      }),
+    ).toMatchObject({ requiredApprovals: 1 });
     const queue = await basicReviewer.call<{ items: RecordResult[] }>(
       "listChangeRequests",
       { scope: "REVIEW" },
@@ -888,6 +869,11 @@ describe("proposal callable workflow on real emulators", () => {
     expect(queue.items.every((record) => record.requiredApprovals === 1)).toBe(
       true,
     );
+    expect(
+      queue.items.some((item) => item.requestId === lineage.requestId),
+    ).toBe(true);
+    const lineageFlagOnly = await principal({ canReviewLineage: true });
+    await deny(review(lineage, lineageFlagOnly), "permission-denied");
     await db.doc(`users/${author.uid}`).update({ enabled: false });
     await deny(
       author.call("getChangeRequest", { requestId: own.requestId }),

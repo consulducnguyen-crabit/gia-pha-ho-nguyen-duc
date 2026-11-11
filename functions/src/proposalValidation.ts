@@ -132,8 +132,10 @@ export function parseOperation(raw: unknown): Operation {
   }
   return bad();
 }
-export function requiredApprovals(op: Operation): 1 | 2 {
-  return op.kind === "RELATION_CREATE" && op.lineageTransmission ? 2 : 1;
+// Chính sách 2026-11-11: mọi thay đổi, kể cả truyền dòng, cần một người duyệt
+// (khác người đề xuất). Kiểu 1 | 2 giữ lại để đọc được bản ghi cũ.
+export function requiredApprovals(): 1 {
+  return 1;
 }
 export function normalizeName(value: string) {
   return value

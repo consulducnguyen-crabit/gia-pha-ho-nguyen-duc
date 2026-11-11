@@ -134,7 +134,7 @@ async function newPersonDraft(page, name) {
 try {
   browser = await chromium.launch({
     headless: true,
-    executablePath: "/usr/bin/chromium",
+    executablePath: process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",
   });
   const contexts = await Promise.all([
     browser.newContext(),
@@ -331,9 +331,7 @@ try {
   await author.getByLabel("Truyền dòng họ", { exact: true }).check();
   await author
     .getByLabel("Lý do truyền dòng", { exact: true })
-    .fill(
-      "Đường truyền dòng giả được chỉ rõ để hai người duyệt độc lập kiểm chứng.",
-    );
+    .fill("Đường truyền dòng giả được chỉ rõ để người duyệt kiểm chứng.");
   await author
     .getByLabel("Nguồn và căn cứ", { exact: true })
     .fill("Tư liệu quan hệ giả, chỉ phục vụ kiểm thử trên emulator.");
@@ -341,47 +339,19 @@ try {
   const relationRequest = await save(author);
   await submit(author);
 
-  stage = "first lineage vote does not apply and duplicate vote is a no-op";
+  stage = "a single reviewer applies the lineage relation";
   await open(reviewerOne, relationRequest);
   await expect(
-    detail(reviewerOne).getByText("Cần 2 người duyệt; đã ghi nhận 0.", {
+    detail(reviewerOne).getByText("Cần 1 người duyệt; đã ghi nhận 0.", {
       exact: true,
     }),
   ).toBeVisible();
   await approve(reviewerOne);
   await expect(
-    detail(reviewerOne).getByText("Cần 2 người duyệt; đã ghi nhận 1.", {
-      exact: true,
-    }),
+    detail(reviewerOne).getByText(/Trạng thái: Đã phê duyệt/),
   ).toBeVisible();
   await expect(
-    detail(reviewerOne).getByText(/Trạng thái: Chờ duyệt/),
-  ).toBeVisible();
-  await reviewerOne
-    .getByRole("button", { name: "Đồng ý duyệt", exact: true })
-    .click();
-  await expect(
-    reviewerOne.getByRole("button", { name: "Tải lại đề xuất", exact: true }),
-  ).toBeEnabled();
-  await expect(reviewerOne.getByRole("alert")).toHaveCount(0);
-  await expect(
-    detail(reviewerOne).getByText(/Trạng thái: Chờ duyệt/),
-  ).toBeVisible();
-  await open(reviewerOne, relationRequest);
-  await expect(
-    detail(reviewerOne).getByText("Cần 2 người duyệt; đã ghi nhận 1.", {
-      exact: true,
-    }),
-  ).toBeVisible();
-
-  stage = "second distinct reviewer applies lineage relation";
-  await open(reviewerTwo, relationRequest);
-  await approve(reviewerTwo);
-  await expect(
-    detail(reviewerTwo).getByText(/Trạng thái: Đã phê duyệt/),
-  ).toBeVisible();
-  await expect(
-    detail(reviewerTwo).getByText("Cần 2 người duyệt; đã ghi nhận 2.", {
+    detail(reviewerOne).getByText("Cần 1 người duyệt; đã ghi nhận 1.", {
       exact: true,
     }),
   ).toBeVisible();
@@ -448,5 +418,5 @@ try {
 if (failed)
   throw Error(`Proposal browser verification failed at stage: ${stage}`);
 console.log(
-  "Browser: proposal draft/edit/submit, one-review profile, needs-info/revision/reject, two-review lineage, confirmation/cancel guards, duplicate vote, public search, capability removal and mobile passed.",
+  "Browser: proposal draft/edit/submit, one-review profile, needs-info/revision/reject, single-review lineage, confirmation/cancel guards, public search, capability removal and mobile passed.",
 );

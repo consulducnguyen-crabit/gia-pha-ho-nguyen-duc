@@ -9,8 +9,8 @@ Không deploy production, không chọn người quản trị thật hoặc thay
   memberProfiles bằng bốn trường allowlist; không sao chép private fields.
 - RELATION_CREATE: thêm quan hệ mới, vai trò FATHER/MOTHER và loại
   BIOLOGICAL/ADOPTIVE do người đề xuất chỉ định. Không suy từ họ hoặc giới tính.
-- Truyền dòng cần lý do rõ ràng và hai người duyệt khác nhau. Các nội dung khác
-  cần một người duyệt. Không tự duyệt, không tự tính truyền dòng cho con nuôi.
+- Truyền dòng cần lý do rõ ràng. Từ 2026-11-11 mọi đề xuất, kể cả truyền dòng,
+  chỉ cần một người duyệt (khác người đề xuất). Không tự duyệt.
 - Chưa sửa/xóa/gộp quan hệ, tính đời/chi, nhập Excel hoặc duyệt dữ liệu nhạy cảm.
 
 ## Invariants
@@ -21,9 +21,9 @@ Mỗi revision được lưu bất biến tại proposalRevisions; khi áp dụn
 snapshot này còn khớp. Audit chỉ ghi ID/trạng thái/version, không tên hay căn cứ.
 
 Backend kiểm tra membership và Auth hiện tại; quyền duyệt là capability explicit
-canReviewChanges và thêm canReviewLineage cho truyền dòng, chỉ trong fixtures.
-Phiếu gắn revision, accessVersion và updateTime tài khoản. Quyền bị thu hồi hoặc
-thay đổi làm phiếu mất hiệu lực; mọi phiếu được kiểm tra lại trước commit cuối.
+canReviewChanges, chỉ trong fixtures. Trường canReviewLineage cũ không còn được dùng.
+Phiếu gắn revision, accessVersion và updateTime tài khoản. Quyền duyệt được kiểm
+tra lại ngay trước commit cuối; quyền bị thu hồi thì không duyệt được.
 
 Áp dụng canonical, projection/quan hệ, trạng thái và audit trong cùng transaction.
 Kiểm tra baseVersion, ảnh trước và phiên bản hồ sơ liên quan; retry APPROVED không
@@ -46,7 +46,7 @@ VITE_USE_EMULATORS=true npm run dev -- --host 127.0.0.1
 ```
 
 Tài khoản giả: nguoidexuat@example.test, duyetmot@example.test,
-duyethai@example.test; cùng mật khẩu Demo-only-2026!. Seed có hai hồ sơ
+duyethai@example.test (người duyệt thứ hai, dùng khi cần thử nhiều người duyệt); cùng mật khẩu Demo-only-2026!. Seed có hai hồ sơ
 demo-parent/demo-child với projection cơ bản, không quan hệ được suy ra tự động.
 Mở các phiên riêng để thử Đề xuất thay đổi và Hộp duyệt.
 

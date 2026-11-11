@@ -37,13 +37,11 @@ for (const [uid, email, reviewer] of [
         roleIds: ["member"],
         accessVersion: 1,
         schemaVersion: 1,
-        ...(reviewer ? { canReviewChanges: true, canReviewLineage: true } : {}),
+        ...(reviewer ? { canReviewChanges: true } : {}),
       });
     else if (
       current.data().enabled !== true ||
-      (reviewer &&
-        (current.data().canReviewChanges !== true ||
-          current.data().canReviewLineage !== true))
+      (reviewer && current.data().canReviewChanges !== true)
     )
       throw Error(
         "Approval fixture was revoked; use a fresh emulator instead of regranting rights.",
