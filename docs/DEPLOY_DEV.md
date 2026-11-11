@@ -35,7 +35,7 @@ Sau đó `list` để kiểm tra. Thành viên thử khác: `grant` (Gmail) ho�
 
 ## 5. Kiểm tra trên Pages
 https://consulducnguyen-crabit.github.io/gia-pha-ho-nguyen-duc/
-- Đăng nhập Google bằng email đã cấp quyền → thấy Cây gia phả (45 người demo, 6 đời), hồ sơ, Quản lý tài khoản.
+- Đăng nhập Google bằng email đã cấp quyền → thấy Cây gia phả (47 người demo, 6 đời, có các trường hợp cờ cần kiểm tra), hồ sơ, Quản lý tài khoản.
 - Đăng nhập bằng tài khoản Google **chưa** được cấp quyền → "Chờ cấp quyền", không đọc được dữ liệu.
 - Thử thu hồi (`revoke`) rồi tải lại: mất quyền ngay.
 

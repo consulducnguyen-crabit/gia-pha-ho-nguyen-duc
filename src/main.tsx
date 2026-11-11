@@ -25,7 +25,7 @@ import { normalizeName, type Person } from "./domain";
 import { latestRequest } from "./latestRequest";
 import { AcceptInvitation, MembershipAdmin } from "./Membership";
 import { Proposals } from "./Proposals";
-import { PersonPage, TreePage } from "./Tree";
+import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
 import "./style.css";
 function App() {
@@ -97,6 +97,7 @@ function App() {
             ⌂ Tổng quan
           </NavLink>
           <NavLink to="/tree">Cây gia phả</NavLink>
+          <NavLink to="/review-queue">Cần kiểm tra</NavLink>
           <NavLink to="/persons">♧ Tra cứu thành viên</NavLink>
           {emulator && <NavLink to="/changes">Đề xuất thay đổi</NavLink>}
           {emulator && canReviewChanges && (
@@ -133,6 +134,10 @@ function App() {
             <Route
               path="/person/:id"
               element={<PersonPage key={user!.uid} uid={user!.uid} />}
+            />
+            <Route
+              path="/review-queue"
+              element={<ReviewQueuePage key={user!.uid} uid={user!.uid} />}
             />
             <Route path="/persons" element={<People />} />
             <Route path="/roadmap" element={<Roadmap />} />

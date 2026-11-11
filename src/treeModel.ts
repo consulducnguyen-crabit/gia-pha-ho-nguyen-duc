@@ -3,6 +3,23 @@
 import { normalizeName } from "./domain";
 
 export type Category = "CLAN" | "SPOUSE" | "EXTERNAL";
+export type FlagCode =
+  "BIRTH_CONFLICT" | "UNCONNECTED" | "DUP_NAME" | "NAME_UNKNOWN" | "VERIFY";
+// Phải khớp scripts/gia-pha/flags.ts (có test đối chiếu).
+export const FLAG_ORDER: FlagCode[] = [
+  "UNCONNECTED",
+  "VERIFY",
+  "BIRTH_CONFLICT",
+  "DUP_NAME",
+  "NAME_UNKNOWN",
+];
+export const FLAG_LABELS: Record<FlagCode, string> = {
+  BIRTH_CONFLICT: "Năm sinh/mất trong tài liệu gốc mâu thuẫn",
+  UNCONNECTED: "Chưa xác định vị trí trong cây",
+  DUP_NAME: "Trùng họ tên cùng đời với người khác, cần phân biệt",
+  NAME_UNKNOWN: "Chưa rõ tên",
+  VERIFY: "Tài liệu gốc chưa rõ, cần xác minh",
+};
 export interface SnapPerson {
   id: string;
   name: string;
@@ -11,6 +28,7 @@ export interface SnapPerson {
   generation: number | null;
   category: Category;
   branch: string | null;
+  flags: FlagCode[];
   normalized: string;
 }
 export interface SnapRelation {
@@ -72,8 +90,18 @@ export function parseSnapshot(doc: unknown): Snapshot {
   for (const [id, value] of Object.entries(
     data.persons as Record<string, unknown>,
   )) {
-    if (!Array.isArray(value) || value.length !== 6) return fail();
-    const [name, birth, death, generation, category, branch] = value;
+    // Bản cũ có 6 phần tử (chưa có cờ); bản mới có 7.
+    if (!Array.isArray(value) || (value.length !== 6 && value.length !== 7))
+      return fail();
+    const [name, birth, death, generation, category, branch, rawFlags] = value;
+    const flags: FlagCode[] = [];
+    if (rawFlags !== undefined) {
+      if (!Array.isArray(rawFlags)) return fail();
+      for (const f of rawFlags) {
+        if (!(FLAG_ORDER as string[]).includes(f as string)) return fail();
+        flags.push(f as FlagCode);
+      }
+    }
     const cat = CATEGORY[str(category)];
     if (!cat) return fail();
     persons.set(id, {
@@ -84,6 +112,7 @@ export function parseSnapshot(doc: unknown): Snapshot {
       generation: numOrNull(generation),
       category: cat,
       branch: branch === null ? null : str(branch),
+      flags,
       normalized: normalizeName(str(name)),
     });
   }

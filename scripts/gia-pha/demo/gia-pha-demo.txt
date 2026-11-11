@@ -26,7 +26,7 @@ P|m-d|Mẫu Đức Dũng|M|CLAN|IV|1|b=1945|Trưởng nam (demo).
 P|m-d-v|Đỗ Thị Dung|F|SPOUSE|||b=1948|Vợ ông Dũng (demo).
 P|m-e|Mẫu Thị Em|F|CLAN|IV|1|b=1948|Thứ nữ (demo).
 P|m-f|Mẫu Đức Phát|M|CLAN|IV|1|b=1950;d=1972|Thứ nam, hy sinh năm 1972 (demo).
-P|m-g|Mẫu Đức Giang|M|CLAN|IV|1|b=1955|Con bà hai (demo).
+P|m-g|Mẫu Đức Giang|M|CLAN|IV|1|b=1955/1956|Con bà hai (demo); năm sinh trong tài liệu gốc mâu thuẫn.
 K|m-d|m-d-v|m-h,m-i:A
 P|m-h|Mẫu Đức Hải|M|CLAN|V|1|b=1972|Con ông Dũng (demo).
 P|m-i|Mẫu Đức Ích|M|CLAN|V|1|b=1975|Con nuôi ông Dũng, vẫn tính đời theo dòng (demo).
@@ -43,10 +43,11 @@ P|m-o|Mẫu Thị Oanh|F|CLAN|III|2|b=1930|Thứ nữ (demo), lấy chồng ngo�
 P|m-o-ch|Đinh Văn Phúc|M|SPOUSE||||Chồng bà Oanh (demo).
 P|m-o1|Đinh Văn Quân|M|EXTERNAL|||b=1955|Con bà Oanh (demo, họ ngoại).
 K|m-o-ch|m-o|m-o1
-K|m-n|m-n-v|m-p,m-q
+K|m-n|m-n-v|m-p,m-q,m-p2
 P|m-p|Mẫu Đức Phong|M|CLAN|IV|2|b=1950|Trưởng nam (demo).
 P|m-p-v|Cao Thị Phượng|F|SPOUSE||||Vợ ông Phong (demo).
 P|m-q|Mẫu Thị Quế|F|CLAN|IV|2|b=1953|Thứ nữ (demo).
+P|m-p2|Mẫu Đức Dũng|M|CLAN|IV|2|b=1956|Con ông Nam (demo), trùng họ tên với ông Dũng ở Chi 1.
 K|m-p|m-p-v|m-r,m-s
 P|m-r|Mẫu Đức Rạng|M|CLAN|V|2|b=1975|Con ông Phong (demo).
 P|m-s|Mẫu Thị Sương|F|CLAN|V|2|b=1978|Con ông Phong (demo).
@@ -63,6 +64,9 @@ P|m-v|Mẫu Thị Vân|F|CLAN|IV|3|b=1958|Con bà Thu (demo).
 P|m-u-v|Hà Thị Uyên|F|SPOUSE||||Vợ ông Uy (demo).
 K|m-u|m-u-v|m-w
 P|m-w|Mẫu Đức Vinh|M|CLAN|V|3|b=1982|Con ông Uy (demo).
+
+# ===== Người chưa xác định vị trí (demo) =====
+P|m-z|Mẫu Đức Chưa Nối|M|CLAN|IV|1|b=1950|Chưa biết là con của ai (demo). CẦN XÁC MINH để nối quan hệ.
 
 # ===== Nhánh hợp nhất (demo) =====
 P|m-hn|Mẫu Đức Hợp|M|CLAN|II|HN|ky=15/3|Gốc nhánh hợp nhất từ một dòng họ cùng làng (demo); tạm nối dưới Thủy tổ theo chính sách một thủy tổ.

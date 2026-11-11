@@ -1,6 +1,7 @@
 // Dựng kế hoạch nạp Firestore từ mô hình gia phả đã kiểm tra (hàm thuần, không I/O).
 // Không chứa dữ liệu thật; dữ liệu thật chỉ đi qua từ private-data/ lúc chạy.
 import { normalizeName, type Model } from "./dsl.ts";
+import { computeReviewFlags } from "./flags.ts";
 
 export interface PlanDoc {
   path: string;
@@ -103,6 +104,7 @@ export function buildTreeSnapshot(
       .map((d) => [d.path.slice("memberProfiles/".length), d.data]),
   );
   const persons: Record<string, unknown[]> = {};
+  const flags = computeReviewFlags(model);
   for (const p of model.persons) {
     const mp = profile.get(p.id) as Record<string, unknown> | undefined;
     persons[p.id] = [
@@ -112,6 +114,7 @@ export function buildTreeSnapshot(
       model.derivedGeneration.get(p.id) ?? null,
       p.category === "CLAN" ? "C" : p.category === "SPOUSE" ? "S" : "E",
       p.branch || null,
+      flags.get(p.id) ?? [],
     ];
   }
   const data = {
@@ -164,6 +167,7 @@ export function buildImportPlan(model: Model, batchId: string): ImportPlan {
         birth,
         death,
         kyNhat: lunarAnniversary(p.kyNhat),
+        reviewFlags: computeReviewFlags(model).get(p.id) ?? [],
         profileVersion: 1,
         importRef: p.id,
         ...base,
