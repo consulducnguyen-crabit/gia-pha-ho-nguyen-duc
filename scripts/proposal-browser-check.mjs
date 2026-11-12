@@ -259,7 +259,9 @@ try {
       has: author.getByRole("heading", { name: firstName, exact: true }),
     })
     .click();
-  await author.getByText("Phiên bản: 1", { exact: true }).waitFor();
+  await author
+    .getByRole("link", { name: /Xem đời, chi và quan hệ trong cây/ })
+    .waitFor();
   await mobile(author);
   await author
     .getByRole("link", { name: "Đề xuất thay đổi", exact: true })
@@ -377,7 +379,7 @@ try {
     })
     .click();
   await author
-    .getByText("Đời và chi: chờ xác minh quan hệ truyền dòng.", { exact: true })
+    .getByRole("link", { name: /Xem đời, chi và quan hệ trong cây/ })
     .waitFor();
   await mobile(author);
   await mobile(reviewerTwo);
