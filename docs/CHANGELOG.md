@@ -97,3 +97,9 @@
 - Gom `SNAPSHOT_MAX_BYTES` (850000) và `exceedsSnapshotLimit()` vào `src/editCore.ts` (bỏ 4 bản trùng và 5 chỗ kiểm lặp; thông báo/mã lỗi giữ nguyên). Ghi chú đồng bộ với giới hạn `< 900000` trong firestore.rules (không đổi rules). Thêm test ngưỡng và ký tự nhiều byte.
 - Tách vendor trong `vite.config.ts` (`manualChunks`): `react` 260.05 kB, `firebase` 559.06 kB, chunk ứng dụng 136.36 kB (trước đó một chunk 958.72 kB). Thử tách riêng `@firebase/firestore` nhưng bản build bị lỗi chạy "Cannot access ... before initialization" (phụ thuộc vòng giữa hai chunk; phát hiện khi mở bản build bằng `vite preview`, browser check dùng Vite dev nên không bắt được) nên bỏ. `chunkSizeWarningLimit` đặt 600 có chủ đích vì SDK Firebase không tách an toàn. Thử lazy-load Proposals/Membership nhưng bỏ vì trang quá nhỏ, không giảm chunk chính.
 - `pages.yml` chỉ phát hành sau khi workflow "CI" thành công trên push main (chi tiết: DEPLOYMENT.md).
+
+# Nghiệm thu Giai đoạn 2 và chuẩn bị phát hành prod - 2026-11-13
+
+- Chỉ tài liệu, không đổi code/rules/dữ liệu. Thêm ACCEPTANCE_CHECKLIST.md (phần A thử ngay trên Pages; phần B chỉ sau sao lưu và deploy rules prod; cách báo lỗi).
+- PROD_ROLLOUT.md: liệt kê đủ 12 sự kiện sửa trong app, thay đổi chính sách đọc (admin `get` unions/auditLogs theo mã), thứ tự phát hành Giai đoạn 3 (7 bước), rủi ro giới hạn truy cập tài liệu của rules chưa thử trên Firestore thật, nhắc smoke test bản build.
+- OPEN_DECISIONS.md: bảng tổng hợp 10 quyết định đang chờ (3 phương án và đề xuất mỗi câu, chưa chốt).

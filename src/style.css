@@ -797,6 +797,10 @@ textarea {
   color: var(--color-danger);
   margin-top: var(--space-1);
 }
+/* Nút nằm giữa dòng chữ trong ghi chú xác nhận: margin để dòng cao đủ, không đè chữ ở 360px */
+.edit-note button {
+  margin: var(--space-2) var(--space-2) 0 0;
+}
 .edit-actions {
   display: flex;
   flex-wrap: wrap;
