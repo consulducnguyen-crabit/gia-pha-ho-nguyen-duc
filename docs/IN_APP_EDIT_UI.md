@@ -9,7 +9,7 @@ Trang hồ sơ `#/person/:id` có nút **Sửa hồ sơ** chỉ khi tài khoản
 - Ngày gốc có tháng/ngày được giữ khi đổi năm; ngày gốc "không rõ/mâu thuẫn" cần tích xác nhận.
 - Lưu qua `commitEdit` với `expectedVersion = editVersion` đã đọc. Xung đột phiên bản, mất quyền,
   mất mạng đều báo tiếng Việt và không ghi gì; sau khi lưu cây được tải lại từ máy chủ.
-- Chưa sửa quan hệ cha mẹ/con/vợ chồng (PR C).
+- Quan hệ cha mẹ/con/vợ chồng được sửa ở các mục riêng (xem IN_APP_EDIT_ADD.md, IN_APP_EDIT_RELATIONS.md, IN_APP_EDIT_DELETE.md).
 - Rules sửa dữ liệu CHƯA được triển khai lên production: trên prod, nút lưu sẽ báo "Không có quyền"
   cho tới khi quản trị viên phê duyệt triển khai rules.
 

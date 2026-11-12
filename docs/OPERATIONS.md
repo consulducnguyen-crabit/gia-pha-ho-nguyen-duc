@@ -1,8 +1,9 @@
 # Vận hành bản nền 0.1
 
 ## Phạm vi
-Schema version 1. Chưa có migration dữ liệu thật. Backend lời mời chỉ ghi membership,
-invitations và audit trong emulator; mọi ghi trực tiếp từ trình duyệt bị từ chối.
+Schema version 1. Dữ liệu thật (prod) đã nạp một lần từ file nguồn riêng; sau đó quản trị viên sửa trong app qua các lô
+có nhật ký (xem IN_APP_EDIT.md). Backend lời mời chỉ ghi membership, invitations và audit trong emulator; trình duyệt chỉ
+ghi được các lô sửa của quản trị viên đã qua rules (không có ghi trực tiếp nào khác).
 Media bị khóa toàn bộ cho đến khi triển khai và kiểm chứng ACL chi tiết. Vai trò
 editor/approver chưa có đặc quyền. Không phân phối dữ liệu giả trong frontend bundle.
 
@@ -26,12 +27,12 @@ Rules tests dùng dữ liệu giả với bypass chỉ bên trong emulator. Cài
 
 ## Firebase thật và GitHub Pages
 Hai project đã tạo: `gia-pha-nguyen-duc-dev` và `gia-pha-nguyen-duc-prod` (alias `dev`/`prod` trong `.firebaserc`), gói Spark, Firestore asia-southeast1, đã bật Google và Email/Password. Chạy cục bộ với dev: sao chép `.env.example` thành `.env.local` và điền web config dev; với prod dùng `.env.production.local`. Không dùng Admin SDK trong Vite. Authorized domain phải có `consulducnguyen-crabit.github.io`.
-Pages build đọc web config từ GitHub Actions **Variables** (Settings → Secrets and variables → Actions → Variables): `VITE_FIREBASE_API_KEY`, `_AUTH_DOMAIN`, `_PROJECT_ID`, `_STORAGE_BUCKET`, `_APP_ID`. Để trống thì trang chỉ hiển thị "Sẵn sàng kết nối". Tài khoản chỉ do backend đáng tin cậy cấp, chưa có công cụ provision production.
+Pages build đọc web config từ GitHub Actions **Variables** (Settings → Secrets and variables → Actions → Variables): `VITE_FIREBASE_API_KEY`, `_AUTH_DOMAIN`, `_PROJECT_ID`, `_STORAGE_BUCKET`, `_APP_ID`. Để trống thì trang chỉ hiển thị "Sẵn sàng kết nối". Tài khoản chỉ do quản trị viên cấp bằng công cụ cục bộ `npm run gia-pha:accounts` (Admin SDK, xem ACCOUNTS.md); không tạo tài khoản từ trình duyệt.
 GitHub Pages chỉ phục vụ `dist/`, router dùng hash và Vite base tương đối cho đường dẫn repository. Chưa cấu hình remote, Pages hoặc deploy rules. Trước production phải kiểm chứng phân quyền riêng tư (đã tách memberProfiles khỏi canonical), các quyết định hạ tầng còn mở, hoàn thiện approval backend, chạy bộ kiểm thử và bảo vệ GitHub environment production với reviewer. Không triển khai frontend như sản phẩm hoàn chỉnh.
 
 ## Sao lưu và khôi phục
 Công cụ sao lưu/khôi phục cục bộ và kết quả diễn tập: xem [BACKUP.md](BACKUP.md).
-Chưa có dữ liệu thật. Emulator có thể export bằng `npx firebase emulators:export /tmp/gia-pha-backup --project demo-gia-pha`; import bằng `npm run emulators -- --import /tmp/gia-pha-backup`. Không commit export.
+Prod đã có dữ liệu thật: sao lưu đã kiểm chứng là điều kiện trước mọi deploy rules hoặc thao tác phá hủy (xem BACKUP.md, PROD_ROLLOUT.md). Emulator có thể export bằng `npx firebase emulators:export /tmp/gia-pha-backup --project demo-gia-pha`; import bằng `npm run emulators -- --import /tmp/gia-pha-backup`. Không commit export.
 Trước migration thật: người phụ trách được chỉ định tạo Firestore export và bản sao Storage vào kho riêng có ACL, ghi checksum/phiên bản schema và thời điểm; dry-run trên project cô lập; đối chiếu số lượng, quan hệ, quyền và tài liệu mẫu sau restore. Chưa tuyên bố khả năng restore production khi chưa diễn tập. Thay đổi production cần phê duyệt rõ ràng.
 
 ## Rollback

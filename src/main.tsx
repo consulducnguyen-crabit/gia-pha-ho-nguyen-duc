@@ -355,8 +355,8 @@ function Overview() {
         <div>
           <h2>Từng hồ sơ, một câu chuyện</h2>
           <p>
-            Tra cứu hồ sơ đã được cấp quyền. Các chức năng cập nhật sẽ mở khi
-            hoàn tất kiểm chứng quy trình phê duyệt.
+            Xem cây gia phả và tra cứu hồ sơ đã được cấp quyền. Quản trị viên
+            cập nhật dữ liệu có ghi nhật ký để có thể kiểm tra và khôi phục.
           </p>
           <NavLink className="primary link" to="/persons">
             Tra cứu thành viên →
@@ -375,12 +375,9 @@ function Overview() {
           <p>Không suy đoán đời hoặc chi từ tên và giới tính.</p>
         </article>
         <article>
-          <span>03 / ĐANG CHUẨN BỊ</span>
-          <h3>Cây và đề xuất</h3>
-          <p>
-            Đề xuất và phê duyệt đã có bản thử nghiệm cục bộ; cây tương tác đang
-            chuẩn bị.
-          </p>
+          <span>03 / CÂY GIA PHẢ</span>
+          <h3>Cây theo dòng truyền dòng</h3>
+          <p>Xem từ thủy tổ xuống, tìm theo tên, mở hồ sơ từng người.</p>
         </article>
       </div>
     </>
@@ -498,8 +495,8 @@ function Roadmap() {
         </p>
         <h2>Chưa mở</h2>
         <p>
-          Cây tương tác, nhập Excel, ảnh, tài liệu và quản trị tài khoản
-          production.
+          Sơ đồ cây đồ họa, ảnh, tài liệu, kênh góp ý của thành viên và quản trị
+          tài khoản ngay trong ứng dụng.
         </p>
       </article>
     </>
