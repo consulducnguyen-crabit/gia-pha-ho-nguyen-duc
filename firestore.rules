@@ -21,8 +21,8 @@ service cloud.firestore {
   //  - PERSON_EDITED: persons/{id} + memberProfiles/{id} (profileVersion + 1) [+ personPrivate].
   //  - PERSON_ADDED : new persons/memberProfiles [+ personPrivate] + relations (listed in the audit).
   //  - SPOUSE_ADDED : unions/{unionId} [+ a new person listed in the audit's createdPersonIds].
-  //  - PERSON_DELETED / PERSON_RESTORED: soft delete (persons.deleted, its parent relations and at most one
-  //    union listed in the audit); memberProfiles is deleted (hidden from members) and recreated on restore.
+  //  - PERSON_DELETED / PERSON_RESTORED: soft delete (persons.deleted, its parent relations and up to six
+  //    unions: unionId + moreUnionIds, each proven written in the same batch by auditCreateOk); memberProfiles is deleted (hidden from members) and recreated on restore.
   // Rules cannot parse the snapshot JSON, so its content stays the trusted client's (applyEdit/applyAdd)
   // job; the snapshot rule only proves that the matching canonical docs are created/bumped in the batch.
   function snapshotPath() { return /databases/$(database)/documents/treeSnapshots/main; }
@@ -175,14 +175,36 @@ service cloud.firestore {
     && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED'];
    allow create: if manager() && auditCreateOk(id);
   }
+  // The first union (audit.unionId) plus up to five extra ones. Each listed union must have been written in THIS batch:
+  // deletedAt/restoredAt == request.time cannot hold for an untouched doc. Fixed indexes because rules cannot loop;
+  // 3 base reads + 6 getAfter (unionId + 5 more) stays at 9, under the 10-access limit of one request.
+  function unionWritten(unionId, d) {
+   let u = getAfter(unionDoc(unionId)).data;
+   return d.event == 'PERSON_DELETED'
+    ? (u.get('deleted', false) == true && u.get('deletedAt', null) == request.time && u.get('deletedWith', '') == d.personId)
+    : (u.get('deleted', false) == false && u.get('restoredAt', null) == request.time);
+  }
+  function moreUnionsOk(d) {
+   let m = d.get('moreUnionIds', []);
+   return m is list && m.size() <= 5
+    && (m.size() == 0 || (d.event in ['PERSON_DELETED', 'PERSON_RESTORED'] && d.get('unionId', null) is string))
+    && m.toSet().size() == m.size() && !(d.get('unionId', null) in m)
+    && (!(d.event in ['PERSON_DELETED', 'PERSON_RESTORED']) || d.get('unionId', null) == null || unionWritten(d.unionId, d))
+    && (m.size() < 1 || unionWritten(m[0], d))
+    && (m.size() < 2 || unionWritten(m[1], d))
+    && (m.size() < 3 || unionWritten(m[2], d))
+    && (m.size() < 4 || unionWritten(m[3], d))
+    && (m.size() < 5 || unionWritten(m[4], d));
+  }
   function auditCreateOk(id) {
    let d = request.resource.data;
    return d.keys().hasOnly(['event', 'actorUid', 'target', 'personId', 'createdPersonIds', 'relationIds',
-        'removedRelationIds', 'unionId', 'editVersion', 'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
+        'removedRelationIds', 'unionId', 'moreUnionIds', 'editVersion', 'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
     && d.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'RELATION_TYPE_CHANGED',
         'PERSON_DELETED', 'PERSON_RESTORED']
     && (d.event == 'PARENT_CHANGED' || d.get('removedRelationIds', []).size() == 0)
     && d.schemaVersion == 1
+    && moreUnionsOk(d)
     && d.fields is list && d.before is map && d.after is map
     && d.editVersion is int
     && d.actorUid == request.auth.uid
@@ -302,7 +324,7 @@ service cloud.firestore {
    return manager()
     && getAfter(snapshotPath()).data.editVersion == n
     && a.actorUid == request.auth.uid
-    && id == a.unionId && a.personId in resource.data.partnerIds
+    && (id == a.get('unionId', null) || id in a.get('moreUnionIds', [])) && a.personId in resource.data.partnerIds
     && ((live && a.event == 'PERSON_DELETED'
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'deletedWith'])
          && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid

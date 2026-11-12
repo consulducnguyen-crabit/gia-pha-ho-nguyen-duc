@@ -1,7 +1,7 @@
 // Xóa mềm một người và khôi phục (hàm thuần). KHÔNG xóa cứng: persons/relations/unions chỉ đánh dấu `deleted`;
 // memberProfiles (bản thành viên đọc được) bị xóa để ẩn khỏi thành viên và được tạo lại khi khôi phục.
-// Chính sách: chỉ xóa người KHÔNG còn con (kể cả con nuôi), không phải người sáng lập chi, có tối đa một
-// quan hệ vợ/chồng. Các hàng của snapshot bị gỡ được lưu trong nhật ký (`before`) để khôi phục chính xác.
+// Chính sách: chỉ xóa người KHÔNG còn con (kể cả con nuôi), không phải người sáng lập chi, có tối đa
+// MAX_UNIONS quan hệ vợ/chồng (nhiều vợ/chồng là lịch sử có thật). Các hàng của snapshot bị gỡ được lưu trong nhật ký (`before`) để khôi phục chính xác.
 import {
   EditError,
   SERVER_TIME,
@@ -50,6 +50,8 @@ export interface DeleteResult {
 
 const ID = /^[A-Za-z0-9_-]{1,100}$/;
 const SNAPSHOT_MAX_BYTES = 850000;
+/** Trần cứng: rules không có vòng lặp nên kiểm từng liên kết đã ghi bằng chỉ số cố định (firestore.rules). */
+export const MAX_UNIONS = 6;
 const rid = (parent: string, child: string) => `r-${parent}-${child}`;
 const uid2 = (a: string, b: string) => `u-${[a, b].sort().join("-")}`;
 
@@ -107,6 +109,13 @@ export function parseDeletedAudit(
   const person = b?.person;
   const rels = b?.relations;
   const union = b?.union;
+  const more = b?.moreUnions ?? [];
+  const unionOk = (u: unknown) =>
+    isRow(u, 3) &&
+    typeof u[0] === "string" &&
+    typeof u[1] === "string" &&
+    (u[0] === personId || u[1] === personId) &&
+    (u[2] === null || typeof u[2] === "string");
   if (
     audit.event !== "PERSON_DELETED" ||
     audit.personId !== personId ||
@@ -126,14 +135,11 @@ export function parseDeletedAudit(
         (r[3] === "A" || r[3] === "B") &&
         (r[4] === 0 || r[4] === 1),
     ) ||
-    !(
-      union === null ||
-      (isRow(union, 3) &&
-        typeof union[0] === "string" &&
-        typeof union[1] === "string" &&
-        (union[0] === personId || union[1] === personId) &&
-        (union[2] === null || typeof union[2] === "string"))
-    )
+    !(union === null || unionOk(union)) ||
+    !Array.isArray(more) ||
+    more.length > MAX_UNIONS - 1 ||
+    (more.length > 0 && union === null) ||
+    !more.every(unionOk)
   )
     throw new EditError(
       "BAD_STATE",
@@ -142,7 +148,7 @@ export function parseDeletedAudit(
   return {
     person: person as unknown[],
     relations: rels as Row[],
-    union: union as Row | null,
+    unions: (union === null ? [] : [union, ...more]) as Row[],
   };
 }
 
@@ -184,7 +190,7 @@ export function applyDelete(
   const writes: EditWrite[] = [];
   let event: "PERSON_DELETED" | "PERSON_RESTORED";
   let relationIds: string[];
-  let unionId: string | null;
+  let unionIds: string[];
   let before: Doc;
   let after: Doc;
 
@@ -210,15 +216,24 @@ export function applyDelete(
     )
       invalid("Người này là người sáng lập một chi; không thể ẩn.");
     const unions = data.unions.filter((u) => u[0] === id || u[1] === id);
-    if (unions.length > 1)
-      invalid("Người này có nhiều quan hệ vợ/chồng; chưa hỗ trợ ẩn.");
+    const unionKeys = unions.map((u) => uid2(String(u[0]), String(u[1])));
+    if (
+      new Set(unionKeys).size !== unionKeys.length ||
+      unions.some((u) => u[0] === u[1])
+    )
+      throw new EditError(
+        "BAD_STATE",
+        "Dữ liệu vợ/chồng của người này bị trùng hoặc tự nối; hãy chạy đối soát.",
+      );
+    if (unions.length > MAX_UNIONS)
+      invalid(
+        `Người này có ${unions.length} quan hệ vợ/chồng; chỉ ẩn được tối đa ${MAX_UNIONS}.`,
+      );
     const parentRows = data.relations.filter((r) => r[1] === id);
     if (parentRows.length > 2)
       invalid("Người này có hơn hai quan hệ cha/mẹ; chưa hỗ trợ ẩn.");
     relationIds = parentRows.map((r) => rid(String(r[0]), id));
-    unionId = unions[0]
-      ? uid2(String(unions[0][0]), String(unions[0][1]))
-      : null;
+    unionIds = unionKeys;
     writes.push({
       path: `persons/${id}`,
       mode: "merge",
@@ -246,7 +261,7 @@ export function applyDelete(
         },
       });
     }
-    if (unionId)
+    for (const unionId of unionIds)
       writes.push({
         path: `unions/${unionId}`,
         mode: "merge",
@@ -262,6 +277,7 @@ export function applyDelete(
         person: tuple,
         relations: parentRows,
         union: unions[0] ?? null,
+        moreUnions: unions.slice(1),
       }),
     };
     after = { deleted: true };
@@ -286,17 +302,17 @@ export function applyDelete(
         invalid(
           `Cha/mẹ ${String(r[0])} hiện không có trong cây; hãy khôi phục người đó trước.`,
         );
-    if (saved.union) {
-      const other = saved.union[0] === id ? saved.union[1] : saved.union[0];
+    for (const u of saved.unions) {
+      const other = u[0] === id ? u[1] : u[0];
       if (!known(other))
         invalid(
-          "Vợ/chồng hiện không có trong cây; hãy khôi phục người đó trước.",
+          `Vợ/chồng ${String(other)} hiện không có trong cây; hãy khôi phục người đó trước.`,
         );
     }
     relationIds = saved.relations.map((r) => rid(String(r[0]), id));
-    unionId = saved.union
-      ? uid2(String(saved.union[0]), String(saved.union[1]))
-      : null;
+    unionIds = saved.unions.map((u) => uid2(String(u[0]), String(u[1])));
+    if (new Set(unionIds).size !== unionIds.length)
+      throw new EditError("BAD_STATE", "Nhật ký có vợ/chồng bị trùng.");
     const tuple = saved.person;
     const profile: Doc = {
       displayName: person.displayName,
@@ -332,7 +348,7 @@ export function applyDelete(
           restoredBy: input.actorUid,
         },
       });
-    if (unionId)
+    for (const unionId of unionIds)
       writes.push({
         path: `unions/${unionId}`,
         mode: "merge",
@@ -344,7 +360,7 @@ export function applyDelete(
       });
     data.persons[id] = tuple;
     for (const r of saved.relations) data.relations.push(r);
-    if (saved.union) data.unions.push(saved.union);
+    for (const u of saved.unions) data.unions.push(u);
     recomputeGenerations(data);
     before = { deleted: true };
     after = { restoredFromVersion: op.deleteVersion };
@@ -369,7 +385,8 @@ export function applyDelete(
       createdPersonIds: [],
       relationIds,
       removedRelationIds: [],
-      unionId,
+      unionId: unionIds[0] ?? null,
+      moreUnionIds: unionIds.slice(1),
       editVersion: nextVersion,
       fields: [op.type === "deletePerson" ? "delete" : "restore"],
       before,

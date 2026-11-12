@@ -5,6 +5,7 @@
 - `persons/{personId}/names/{nameId}`: type, value, sourceRefs.
 - `relations/{relationId}`: parentId, childId, relationType, lineageTransmission, verificationStatus, sourceRefs, version.
 - `unions/{unionId}`: partnerIds, status, eventDate, sourceRefs.
+- `auditLogs/edit-N` (ẩn/khôi phục người): `unionId` = liên kết vợ/chồng đầu, `moreUnionIds` = tối đa 5 liên kết còn lại (xem IN_APP_EDIT_DELETE.md).
 - `branches/{branchId}`: name, founderPersonId, parentBranchId, status, mergedFrom (ghi chú nguồn gốc nếu nhánh hợp nhất từ dòng khác; không tách gốc riêng).
 - `generationOverrides/{overrideId}`: personId, generation, reason, approvedBy, approvedAt.
 - `changeRequests/{requestId}`: authorUid, status, baseVersions, proposedOperations, evidenceRefs, decision.

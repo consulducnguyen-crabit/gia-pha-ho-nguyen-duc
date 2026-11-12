@@ -1277,6 +1277,85 @@ describe("ẩn và khôi phục người: rules", () => {
     ).toBe(true);
   });
 
+  // Người b có nhiều vợ/chồng (lịch sử có thật): thêm n vợ/chồng mới cho b, rồi ẩn/khôi phục b.
+  async function givenSpouses(db: Firestore, n: number) {
+    for (let i = 0; i < n; i++) {
+      const op = newSpouse() as Extract<AddOp, { type: "addSpouse" }>;
+      const spouse = op.spouse as { newId: string };
+      spouse.newId = `p-sp${i}`;
+      op.order = String(i + 1);
+      await assertSucceeds(commit(db, (await planAdd(db, op, i)).writes));
+    }
+  }
+  const auditOf = (w: Writes) =>
+    w.find((x) => x.path.startsWith("auditLogs/"))!;
+
+  it("ẩn rồi khôi phục người có 6 vợ/chồng: thành công (trong giới hạn truy cập của rules)", async () => {
+    const db = admin();
+    await givenSpouses(db, 6);
+    const hide = await planDel(db, delB(), 6);
+    const a = auditOf(hide.writes).data;
+    expect(a.unionId).toBe("u-b-p-sp0");
+    expect(a.moreUnionIds).toHaveLength(5);
+    await assertSucceeds(commit(db, hide.writes));
+    const restore = await planDel(db, restoreB(7), 7);
+    await assertSucceeds(commit(db, restore.writes));
+    await env.withSecurityRulesDisabled(async (c) => {
+      for (let i = 0; i < 6; i++)
+        expect(
+          (await getDoc(doc(c.firestore(), "unions", `u-b-p-sp${i}`))).data()!
+            .deleted,
+        ).toBe(false);
+    });
+  });
+
+  it("nhật ký liệt kê vợ/chồng nhưng lô không ghi liên kết đó, hoặc liệt kê quá 5 hoặc liên kết lạ: bị chặn", async () => {
+    const db = admin();
+    await givenSpouses(db, 3);
+    const hide = await planDel(db, delB(), 3);
+    // Bỏ một liên kết khỏi lô nhưng vẫn liệt kê trong nhật ký.
+    // Cả liên kết ĐẦU (unionId) cũng phải được ghi trong lô.
+    await assertFails(commit(db, without(hide.writes, "unions/u-b-p-sp0")));
+    await assertFails(commit(db, without(hide.writes, "unions/u-b-p-sp2")));
+    await assertFails(commit(db, without(hide.writes, "unions/u-b-p-sp1")));
+    const withMore = (more: unknown) =>
+      hide.writes.map((w) =>
+        w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, moreUnionIds: more } }
+          : w,
+      );
+    await assertFails(commit(db, withMore(["u-b-p-sp1", "u-khac-lạ"])));
+    await assertFails(
+      commit(db, withMore(["u-b-p-sp1", "u-b-p-sp2", "a", "b", "c", "d"])),
+    );
+    await assertFails(commit(db, withMore("u-b-p-sp1")));
+    // Trùng phần tử, hoặc trùng với unionId.
+    await assertFails(commit(db, withMore(["u-b-p-sp1", "u-b-p-sp1"])));
+    await assertFails(commit(db, withMore(["u-b-p-sp0", "u-b-p-sp1"])));
+    await assertSucceeds(commit(db, hide.writes));
+  });
+
+  it("khôi phục bỏ sót một liên kết vợ/chồng đã liệt kê: bị chặn", async () => {
+    const db = admin();
+    await givenSpouses(db, 3);
+    await assertSucceeds(commit(db, (await planDel(db, delB(), 3)).writes));
+    const restore = await planDel(db, restoreB(4), 4);
+    await assertFails(commit(db, without(restore.writes, "unions/u-b-p-sp2")));
+    await assertFails(commit(db, without(restore.writes, "unions/u-b-p-sp0")));
+    // unionId lạ (không ghi trong lô) bị chặn.
+    await assertFails(
+      commit(
+        db,
+        restore.writes.map((w) =>
+          w.path.startsWith("auditLogs/")
+            ? { ...w, data: { ...w.data, unionId: "u-khac-lạ" } }
+            : w,
+        ),
+      ),
+    );
+    await assertSucceeds(commit(db, restore.writes));
+  });
+
   it("khôi phục: không dùng được số phiên bản sai, không làm hai lần", async () => {
     const db = admin();
     await assertSucceeds(commit(db, (await planDel(db, delB(), 0)).writes));

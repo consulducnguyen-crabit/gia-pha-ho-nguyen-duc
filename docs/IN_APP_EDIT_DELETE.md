@@ -5,7 +5,7 @@ Không có xóa cứng ở bất kỳ đâu.
 
 ## Chính sách (src/editDelete.ts, hàm thuần `applyDelete`)
 
-- Chỉ ẩn được người **không còn con** (kể cả con nuôi), **không phải người sáng lập chi**, có **tối đa một** quan hệ
+- Chỉ ẩn được người **không còn con** (kể cả con nuôi), **không phải người sáng lập chi**, có **tối đa 6** quan hệ
   vợ/chồng. Còn con thì phải đổi cha/mẹ của các con trước (C2a). Cần tích xác nhận (`CONFIRM_REQUIRED`).
 - Ẩn = một lô nguyên tử: `persons/{id}` (`deleted`, `deletedAt/By`, `deletedAtVersion`, `profileVersion` + 1),
   `memberProfiles/{id}` bị **xóa** (thành viên không còn thấy tên), các quan hệ cha/mẹ của người đó và quan hệ vợ/chồng
@@ -32,8 +32,11 @@ không sửa được và không được chọn làm cha/mẹ (quan hệ mới 
 - Khi mở "Khôi phục người đã ẩn", app tải tối đa 100 người đang ẩn (`persons` có `deleted == true`, quản trị viên đã có quyền đọc, rules không đổi), sắp theo lần ẩn gần nhất; bấm một người thì mã và số phiên bản tự điền. Vẫn nhập tay được nếu danh sách không tải được. Quá 100 người ẩn thì phải nhập tay.
 - Rules chỉ kiểm quan hệ đầu tiên trong lô ẩn/khôi phục và không kiểm nội dung JSON snapshot; script đối soát (PR D).
 - Quan hệ cha/mẹ cũ đã bị thay thế (C2a) vẫn chưa khôi phục được riêng lẻ.
+- Nhiều vợ/chồng (yếu tố lịch sử): ẩn/khôi phục mọi liên kết của người đó trong cùng lô. Nhật ký lưu `unionId` (liên kết đầu) và `moreUnionIds` (tối đa 5 liên kết còn lại); `before.rows` có `union` + `moreUnions`. Rules kiểm CHẶT cả `unionId` lẫn từng phần tử của `moreUnionIds` (không trùng nhau) bằng chỉ số cố định (không có vòng lặp): liên kết phải thật sự được ghi trong lô này (`deletedAt`/`restoredAt == request.time`), nên trần là 6 (3 truy cập nền + 6 `getAfter` = 9 < giới hạn 10 của một yêu cầu). Dữ liệu thật hiện tối đa 3 vợ/chồng mỗi người (đếm chỉ đọc 2026-11-12). Trên 6 thì chưa ẩn được (báo rõ). Nhật ký cũ chỉ có `union` vẫn khôi phục được (khôi phục dựa vào nhật ký ở phía client; rules chỉ dựa vào `deletedWith`).
+- Rules không chứng minh được lô đã ẩn/khôi phục ĐỦ mọi liên kết của người đó (không liệt kê được theo `partnerIds`); khâu này do client và script đối soát (PR D) bảo đảm, giống quan hệ cha/mẹ.
+- Giới hạn truy cập tài liệu của rules (10/yêu cầu, 20/lô) chưa kiểm chứng trên Firestore thật; emulator đạt với 6 vợ/chồng. Thứ tự hiển thị vợ/chồng sau khôi phục có thể đổi (liên kết được thêm vào cuối).
+- Thứ tự phát hành: deploy RULES trước, rồi frontend (frontend mới gửi `moreUnionIds`, rules cũ sẽ từ chối mọi lần ẩn). Deploy rules prod cần người dùng duyệt.
 - `functions/src/proposals.ts` (emulator-only) chưa lọc `deleted`; cờ `DUP_NAME` của người trùng tên kia không tự cập nhật (xem IN_APP_EDIT.md).
-- Người có nhiều hơn một quan hệ vợ/chồng chưa ẩn được.
 - Chưa thử trên Firestore thật (chỉ emulator).
 
 ## Kiểm thử

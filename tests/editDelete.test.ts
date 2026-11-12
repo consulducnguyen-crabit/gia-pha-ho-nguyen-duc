@@ -101,13 +101,9 @@ describe("ẩn người (xóa mềm)", () => {
     expect(w).toContain("unions/u-a-b");
     expect(data(r).unions).toEqual([]);
   });
-  it("chặn: còn con, người sáng lập chi, nhiều vợ/chồng, chưa xác nhận, sai phiên bản, đã ẩn", () => {
+  it("chặn: còn con, người sáng lập chi, chưa xác nhận, sai phiên bản, đã ẩn", () => {
     expect(code(() => run(delState("a"), del("a")))).toBe("INVALID");
     expect(code(() => run(delState("ts"), del("ts")))).toBe("INVALID");
-    const t = tree();
-    t.relations = [t.relations[0]];
-    t.unions.push(["a", "z", "2"]);
-    expect(code(() => run(delState("a", t), del("a")))).toBe("INVALID");
     expect(code(() => run(delState(), del("k", false)))).toBe(
       "CONFIRM_REQUIRED",
     );
@@ -117,6 +113,52 @@ describe("ẩn người (xóa mềm)", () => {
     expect(code(() => run(s, del("k")))).toBe("INVALID");
     expect(code(() => run(delState(), del("khong-co")))).toBe("INVALID");
   });
+  // Người lẻ z có nhiều vợ/chồng: z–a, z–b, ... (nhiều vợ/chồng là lịch sử có thật).
+  const multi = (n: number) => {
+    const t = tree();
+    t.relations = [t.relations[0]];
+    t.unions = [];
+    for (let i = 0; i < n; i++) {
+      const id = `v${i}`;
+      (t.persons as Record<string, unknown[]>)[id] = [
+        `Vợ ${i}`,
+        null,
+        null,
+        null,
+        "S",
+        null,
+        [],
+      ];
+      t.unions.push(["z", id, String(i + 1)]);
+    }
+    return t;
+  };
+  it("ẩn người có nhiều vợ/chồng: ẩn từng liên kết, nhật ký có unionId + moreUnionIds", () => {
+    const r = run(delState("z", multi(3)), del("z"));
+    const w = r.writes.map((x) => x.path);
+    for (let i = 0; i < 3; i++) expect(w).toContain(`unions/u-v${i}-z`);
+    expect(data(r).unions).toEqual([]);
+    const a = r.writes.find((x) => x.path === "auditLogs/edit-6")!.data;
+    expect(a.unionId).toBe("u-v0-z");
+    expect(a.moreUnionIds).toEqual(["u-v1-z", "u-v2-z"]);
+    const rows = JSON.parse(String((a.before as { rows: string }).rows));
+    expect(rows.union).toEqual(["z", "v0", "1"]);
+    expect(rows.moreUnions).toHaveLength(2);
+  });
+  it("ẩn được đúng 6 vợ/chồng, 7 thì chặn", () => {
+    expect(
+      run(delState("z", multi(6)), del("z")).writes.length,
+    ).toBeGreaterThan(6);
+    expect(code(() => run(delState("z", multi(7)), del("z")))).toBe("INVALID");
+  });
+  it("báo lỗi dữ liệu khi có hàng vợ/chồng trùng hai chiều hoặc tự nối", () => {
+    const t = multi(2);
+    t.unions.push(["v0", "z", "9"]);
+    expect(code(() => run(delState("z", t), del("z")))).toBe("BAD_STATE");
+    const u = multi(1);
+    u.unions.push(["z", "z", "9"]);
+    expect(code(() => run(delState("z", u), del("z")))).toBe("BAD_STATE");
+  });
   it("chặn người có hơn hai quan hệ cha/mẹ", () => {
     const t = tree();
     t.relations.push(["z", "k", "F", "A", 0]);
@@ -124,6 +166,94 @@ describe("ẩn người (xóa mềm)", () => {
   });
   it("deleteReads trả các quan hệ cha/mẹ", () => {
     expect(deleteReads(snap(tree()), "k").sort()).toEqual(["r-a-k", "r-b-k"]);
+  });
+});
+
+describe("khôi phục người nhiều vợ/chồng", () => {
+  const t0 = () => {
+    const t = tree();
+    t.relations = [t.relations[0]];
+    t.unions = [];
+    for (let i = 0; i < 3; i++) {
+      (t.persons as Record<string, unknown[]>)[`v${i}`] = [
+        `Vợ ${i}`,
+        null,
+        null,
+        null,
+        "S",
+        null,
+        [],
+      ];
+      t.unions.push(["z", `v${i}`, String(i + 1)]);
+    }
+    return t;
+  };
+  const hidden = () => {
+    const first = run(delState("z", t0()), del("z"));
+    return {
+      audit: first.writes.find((w) => w.path === "auditLogs/edit-6")!.data,
+      snapshot: snap(data(first), 6),
+    };
+  };
+  const stateOf = (over: Partial<DeleteState> = {}): DeleteState => ({
+    ...hidden(),
+    person: person({ deleted: true, deletedAtVersion: 6, profileVersion: 3 }),
+    relations: {},
+    ...over,
+  });
+  const op: DeleteOp = {
+    type: "restorePerson",
+    personId: "z",
+    deleteVersion: 6,
+  };
+  it("khôi phục đủ mọi liên kết vợ/chồng", () => {
+    const r = run(stateOf(), op, 6);
+    expect(data(r).unions).toHaveLength(3);
+    const w = r.writes.map((x) => x.path);
+    for (let i = 0; i < 3; i++) expect(w).toContain(`unions/u-v${i}-z`);
+    const a = r.writes.find((x) => x.path === "auditLogs/edit-7")!.data;
+    expect(a.unionId).toBe("u-v0-z");
+    expect(a.moreUnionIds).toEqual(["u-v1-z", "u-v2-z"]);
+  });
+  it("từ chối nếu một vợ/chồng hiện không có trong cây, nêu rõ mã", () => {
+    const h = hidden();
+    const t = JSON.parse(String(h.snapshot.data));
+    delete t.persons.v2;
+    let message = "";
+    try {
+      run(stateOf({ snapshot: snap(t, 6) }), op, 6);
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toContain("v2");
+  });
+  it("khôi phục được từ nhật ký cũ chỉ có `union` (không có moreUnions)", () => {
+    const h = hidden();
+    const rows = JSON.parse(String((h.audit.before as { rows: string }).rows));
+    delete rows.moreUnions;
+    rows.union = ["z", "v0", "1"];
+    const audit = { ...h.audit, before: { rows: JSON.stringify(rows) } };
+    const r = run(stateOf({ audit }), op, 6);
+    expect(data(r).unions).toHaveLength(1);
+  });
+  it("từ chối nhật ký có moreUnions sai hình dạng hoặc vượt 5", () => {
+    const h = hidden();
+    const rows = JSON.parse(String((h.audit.before as { rows: string }).rows));
+    const mk = (moreUnions: unknown) => ({
+      ...h.audit,
+      before: { rows: JSON.stringify({ ...rows, moreUnions }) },
+    });
+    expect(code(() => run(stateOf({ audit: mk("x") }), op, 6))).toBe(
+      "BAD_STATE",
+    );
+    expect(
+      code(() =>
+        run(stateOf({ audit: mk(Array(6).fill(["z", "v9", "1"])) }), op, 6),
+      ),
+    ).toBe("BAD_STATE");
+    expect(
+      code(() => run(stateOf({ audit: mk([["x", "y", null]]) }), op, 6)),
+    ).toBe("BAD_STATE");
   });
 });
 
