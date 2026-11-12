@@ -32,12 +32,12 @@ Sửa `private-data/gia-pha.txt` → `npm run gia-pha:excel` (kiểm tra) → sa
 **Chỉ áp dụng khi CHƯA có sửa trong app.** Sau khi có `auditLogs/edit-N` (`editVersion > 0`), nạp lại sẽ GHI ĐÈ các sửa trong app nên script CHẶN `--replace` trên prod (xem [INTEGRITY_GUARD.md](INTEGRITY_GUARD.md), [IN_APP_EDIT.md](IN_APP_EDIT.md)). Từ mốc đó dữ liệu được làm sạch bằng form trong app; file nguồn không còn là nguồn sự thật.
 
 ## Rollback
-- Nạp hỏng giữa chừng (trước khi có sửa trong app): chạy lại nạp với `--replace` (idempotent), hoặc khôi phục (khôi phục từ sao lưu phải giữ `editVersion` lớn nhất của `auditLogs/edit-*`, xem BACKUP.md): `gia-pha:backup -- restore --dir <bản sao lưu trước> --replace --project ... --confirm ... --ack "KHOI PHUC <project>" --pre-backup-dir <bản sao lưu mới của trạng thái hiện tại> --apply`.
+- Nạp hỏng giữa chừng (trước khi có sửa trong app): chạy lại nạp với `--replace` (idempotent), hoặc khôi phục (`restore --replace` xóa rồi ghi lại mọi collection có trong bản sao lưu, kể cả `auditLogs` và `treeSnapshots`: các lần sửa trong app SAU thời điểm sao lưu bị mất cùng nhật ký của chúng; xem [IN_APP_EDIT.md](IN_APP_EDIT.md)): `gia-pha:backup -- restore --dir <bản sao lưu trước> --replace --project ... --confirm ... --ack "KHOI PHUC <project>" --pre-backup-dir <bản sao lưu mới của trạng thái hiện tại> --apply`.
 - Rules: deploy lại bản trước, luôn giữ mặc định từ chối.
 - Pages: đặt lại Variables về dev (hoặc xóa) rồi chạy workflow.
 
 ## Rules sửa trong app
-Các chức năng sửa trong app (sửa hồ sơ, thêm con/vợ chồng, đổi cha/mẹ, ẩn/khôi phục, hoàn tác thay cha/mẹ) cần rules mới trên prod. Thứ tự: sao lưu đã kiểm chứng → thử trên dev → `npm run gia-pha:reconcile` (chỉ đọc) → deploy rules → deploy frontend (Pages tự phát hành khi merge vào `main`) → đối soát lại. Frontend mới chạy với rules cũ bị từ chối an toàn (nút lưu báo "Không có quyền"). Deploy rules prod cần người dùng duyệt rõ ràng.
+Các chức năng sửa trong app (sửa hồ sơ, thêm con/vợ chồng, đổi cha/mẹ, ẩn/khôi phục) cần rules mới trên prod. Thứ tự mong muốn: sao lưu đã kiểm chứng → thử trên dev → `npm run gia-pha:reconcile` (chỉ đọc) → deploy rules → đối soát lại. Pages tự phát hành frontend khi merge vào `main`, nên frontend có thể lên TRƯỚC rules; khi đó nút lưu báo "Không có quyền" (từ chối an toàn, không ghi gì) cho tới khi rules được deploy. Deploy rules prod cần người dùng duyệt rõ ràng.
 
 ## Chưa có
 App Check, cảnh báo ngân sách khi nâng Blaze, lịch sao lưu tự động, luồng đề xuất/duyệt (cần Blaze).

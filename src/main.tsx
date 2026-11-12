@@ -355,8 +355,9 @@ function Overview() {
         <div>
           <h2>Từng hồ sơ, một câu chuyện</h2>
           <p>
-            Xem cây gia phả và tra cứu hồ sơ đã được cấp quyền. Quản trị viên
-            cập nhật dữ liệu có ghi nhật ký để có thể kiểm tra và khôi phục.
+            Xem cây gia phả và tra cứu hồ sơ đã được cấp quyền. Dữ liệu do quản
+            trị viên quản lý; mỗi thay đổi được ghi nhật ký để kiểm tra và khôi
+            phục.
           </p>
           <NavLink className="primary link" to="/persons">
             Tra cứu thành viên →

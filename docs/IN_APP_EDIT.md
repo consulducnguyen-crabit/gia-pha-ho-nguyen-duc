@@ -59,7 +59,7 @@ nhật ký. Admin đọc được `persons`, `personPrivate` và `get` từng nh
 - `--replace` của script nạp giữ `editVersion` cũ (tránh khóa chết vì `edit-N` còn) nhưng vẫn GHI ĐÈ các sửa
   trong app; bị chặn trên prod và cần --discard-app-edits ở dev (xem INTEGRITY_GUARD.md). Không chạy `--replace` trên prod sau khi có sửa trong app.
   Khôi phục từ sao lưu cũ cũng cần giữ `editVersion` lớn nhất của `auditLogs/edit-*`.
-- Giao diện và các thao tác quan hệ/hôn nhân/ẩn–khôi phục/hoàn tác thay cha mẹ đã có (xem IN_APP_EDIT_UI.md, _ADD, _RELATIONS, _DELETE).
+- Giao diện và các thao tác quan hệ/hôn nhân/ẩn–khôi phục đã có; quan hệ cha/mẹ đã bị thay thế chưa khôi phục được riêng lẻ (xem IN_APP_EDIT_UI.md, _ADD, _RELATIONS, _DELETE).
 
 ## Kiểm thử
 
