@@ -68,3 +68,9 @@
 
 - `applyRelation`, `commitRelation`, mục quản trị quan hệ cha mẹ; rules cho PARENT_CHANGED và
   RELATION_TYPE_CHANGED. Quan hệ bị thay được ẩn (xóa mềm), không xóa cứng. Xem IN_APP_EDIT_RELATIONS.md.
+
+# Gỡ liên kết vợ/chồng nhập sai (PR-6, 2026-11-12)
+
+- `applyUnion`, `commitUnion`, mục "Quan hệ vợ/chồng (quản trị)", khôi phục qua "Thêm vợ/chồng"; rules cho `UNION_REMOVED` và `UNION_REMOVAL_UNDONE`; admin `get` unions theo mã (không liệt kê).
+- Vá rules: `PERSON_RESTORED` không hồi sinh liên kết đã gỡ (`removedAtVersion != null`).
+- Đối soát thêm `UNION_REMOVED_BAD_STATE`; `EDIT_EVENTS` thêm hai sự kiện. Xem IN_APP_EDIT_UNIONS.md. Chưa deploy rules lên prod.

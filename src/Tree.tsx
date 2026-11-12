@@ -6,6 +6,7 @@ import { PersonEdit } from "./PersonEdit";
 import { PersonDelete } from "./PersonDelete";
 import { PersonAdd } from "./PersonAdd";
 import { PersonRelations } from "./PersonRelations";
+import { PersonUnions } from "./PersonUnions";
 import {
   buildIndex,
   categoryLabel,
@@ -517,6 +518,23 @@ export function PersonPage({
       {canEdit && (
         <PersonRelations
           key={`rel:${id}:${index.snapshot.editVersion}`}
+          onStart={() => setSaved(null)}
+          index={index}
+          p={p}
+          uid={uid}
+          onReload={() => {
+            setSaved(null);
+            reload();
+          }}
+          onSaved={(message, focusId) => {
+            setSaved({ id: focusId, message });
+            reload();
+          }}
+        />
+      )}
+      {canEdit && (
+        <PersonUnions
+          key={`uni:${id}:${index.snapshot.editVersion}`}
           onStart={() => setSaved(null)}
           index={index}
           p={p}

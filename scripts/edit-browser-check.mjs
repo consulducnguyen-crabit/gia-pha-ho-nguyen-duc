@@ -582,10 +582,102 @@ try {
   if (rec2.status !== 0)
     throw Error("Đối soát lệch: " + rec2.stdout + rec2.stderr);
 
+  stage = "remove one of two spouse links with confirmation, then restore it";
+  const reconcileOk = (label) => {
+    const r = spawnSync("node scripts/gia-pha/reconcile.ts", {
+      shell: true,
+      encoding: "utf8",
+      env: { ...process.env, FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080" },
+    });
+    if (r.status !== 0)
+      throw Error(`Đối soát lệch ${label}: ${r.stdout}${r.stderr}`);
+  };
+  await page.goto(`${URL}/#/person/q`);
+  await expect(
+    page.getByRole("heading", { name: "Quan hệ vợ/chồng (quản trị)" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Gỡ liên kết vợ\/chồng với/ }),
+  ).toHaveCount(3);
+  await page
+    .getByRole("button", { name: "Gỡ liên kết vợ/chồng với Vợ Hai Quý" })
+    .click();
+  await expect(
+    page.getByText(/sẽ không còn nối với ai trong cây/),
+  ).toBeVisible();
+  // Bắt buộc tích xác nhận: bấm khi chưa tích thì báo lỗi và không ghi gì.
+  await page.getByRole("button", { name: "Xác nhận gỡ liên kết" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "tích xác nhận" }),
+  ).toBeVisible();
+  if ((await unionDeleted("u-q-q2")) !== false)
+    throw Error("Chưa xác nhận thì không được gỡ");
+  for (const width of [360, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const wide = await page.evaluate(
+      () => document.documentElement.scrollWidth > globalThis.innerWidth,
+    );
+    if (wide) throw Error(`Tràn ngang khi gỡ liên kết ở ${width}px`);
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByLabel("Tôi xác nhận gỡ liên kết vợ/chồng này.").check();
+  await page.getByRole("button", { name: "Xác nhận gỡ liên kết" }).click();
+  await expect(
+    page.getByText(/Đã gỡ liên kết vợ\/chồng giữa Giả Văn Quý và Vợ Hai Quý/),
+  ).toBeVisible();
+  await expect.poll(() => unionDeleted("u-q-q2")).toBe(true);
+  const gone = (await db.doc("unions/u-q-q2").get()).data();
+  if (!Number.isInteger(gone.removedAtVersion) || gone.deletedWith !== null)
+    throw Error("Dấu gỡ liên kết sai");
+  const goneSnap = JSON.parse(
+    (await db.doc("treeSnapshots/main").get()).data().data,
+  );
+  if (goneSnap.unions.some((u) => u.includes("q2")))
+    throw Error("Snapshot phải bỏ dòng liên kết đã gỡ");
+  if (!goneSnap.persons.q2) throw Error("Người q2 phải còn trong cây");
+  // Cây không còn liên kết; hai liên kết còn lại vẫn hiện.
+  await expect(page.getByRole("link", { name: "Vợ Hai Quý" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Vợ Một Quý" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Vợ Ba Quý" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Gỡ liên kết vợ\/chồng với/ }),
+  ).toHaveCount(2);
+  reconcileOk("sau khi gỡ liên kết vợ/chồng");
+  // Khôi phục qua "Thêm vợ/chồng": nút Lưu đổi thành nút khôi phục.
+  await page.getByRole("button", { name: "Thêm vợ/chồng" }).click();
+  await page.getByLabel("Người đã có trong cây").check();
+  await page.getByLabel("Tìm theo tên").fill("vợ hai quý");
+  await page.getByLabel("Chọn người").selectOption("q2");
+  await expect(
+    page.getByText(/từng có liên kết vợ\/chồng đã bị gỡ/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Khôi phục liên kết đã gỡ" }).click();
+  await expect(
+    page.getByText("Đã khôi phục liên kết vợ/chồng đã gỡ và ghi nhật ký."),
+  ).toBeVisible();
+  await expect.poll(() => unionDeleted("u-q-q2")).toBe(false);
+  if ((await db.doc("unions/u-q-q2").get()).data().removedAtVersion != null)
+    throw Error("removedAtVersion phải được xóa khi khôi phục");
+  await expect(page.getByRole("link", { name: "Vợ Hai Quý" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Gỡ liên kết vợ\/chồng với/ }),
+  ).toHaveCount(3);
+  const events = (
+    await db
+      .collection("auditLogs")
+      .where("event", "in", ["UNION_REMOVED", "UNION_REMOVAL_UNDONE"])
+      .get()
+  ).docs
+    .map((d) => d.data().event)
+    .sort();
+  if (events.join() !== "UNION_REMOVAL_UNDONE,UNION_REMOVED")
+    throw Error("Nhật ký gỡ/khôi phục liên kết sai: " + events.join());
+  reconcileOk("sau khi khôi phục liên kết vợ/chồng");
+
   stage = "version conflict is reported, nothing written";
   await page.goto(`${URL}/#/person/b`);
   await page.getByRole("button", { name: "Sửa hồ sơ" }).click();
-  await db.doc("treeSnapshots/main").update({ editVersion: 19 });
+  await db.doc("treeSnapshots/main").update({ editVersion: 99 });
   await page.getByLabel("Họ tên (bắt buộc)").fill("Giả Thị Bình Mới");
   await page.getByRole("button", { name: "Lưu thay đổi" }).click();
   await expect(

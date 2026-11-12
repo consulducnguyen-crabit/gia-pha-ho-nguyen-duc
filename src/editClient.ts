@@ -15,6 +15,12 @@ import {
   type RelationResult,
 } from "./editRelation";
 import {
+  applyUnion,
+  unionReads,
+  type UnionOp,
+  type UnionResult,
+} from "./editUnion";
+import {
   applyDelete,
   deleteReads,
   parseDeletedAudit,
@@ -215,6 +221,71 @@ export async function findRemovedParent(
   )
     return null;
   return { role: d.parentRole, removeVersion: v };
+}
+
+/** Gỡ hoặc khôi phục liên kết vợ/chồng. Đọc và ghi trong CÙNG một giao dịch. */
+export async function commitUnion(
+  db: Firestore,
+  input: { op: UnionOp; expectedVersion: number; actorUid: string },
+): Promise<UnionResult> {
+  const op = input.op;
+  if ([op.personId, op.spouseId].some((id) => !SAFE_ID.test(String(id))))
+    throw new EditError("INVALID", "Mã người không hợp lệ.");
+  return runTransaction(db, async (tx) => {
+    const snapshot = await tx.get(doc(db, "treeSnapshots", "main"));
+    if (!snapshot.exists())
+      throw new EditError("BAD_STATE", "Chưa có ảnh chụp cây.");
+    const reads = unionReads(op);
+    const docs: Record<string, DocumentData | null> = {};
+    for (const id of reads.persons) {
+      const d = await tx.get(doc(db, "persons", id));
+      docs[id] = d.exists() ? d.data() : null;
+    }
+    const u = await tx.get(doc(db, "unions", reads.unionId));
+    let audit: DocumentData | null = null;
+    if (reads.audit) {
+      const a = await tx.get(doc(db, "auditLogs", reads.audit));
+      audit = a.exists() ? a.data() : null;
+    }
+    const result = applyUnion(
+      {
+        snapshot: snapshot.data(),
+        docs,
+        union: u.exists() ? u.data() : null,
+        audit,
+      },
+      input,
+    );
+    stageWrites(db, tx as unknown as SetTarget, result.writes);
+    return result;
+  });
+}
+
+/**
+ * Tìm liên kết vợ/chồng đã bị GỠ giữa hai người (đọc ngoài giao dịch, chỉ để hiển thị nút khôi phục; giao dịch khôi
+ * phục kiểm lại mọi điều kiện). Trả null nếu không có liên kết đã gỡ. Chỉ quản trị viên đọc được unions.
+ */
+export async function findRemovedUnion(
+  db: Firestore,
+  personId: string,
+  spouseId: string,
+): Promise<{ removeVersion: number } | null> {
+  if (!SAFE_ID.test(personId) || !SAFE_ID.test(spouseId)) return null;
+  const d = (
+    await getDoc(
+      doc(db, "unions", `u-${[personId, spouseId].sort().join("-")}`),
+    )
+  ).data();
+  const v = d?.removedAtVersion;
+  if (
+    !d ||
+    d.deleted !== true ||
+    typeof v !== "number" ||
+    !Number.isInteger(v) ||
+    v < 1
+  )
+    return null;
+  return { removeVersion: v };
 }
 
 /** Ẩn (xóa mềm) hoặc khôi phục một người. Đọc và ghi trong CÙNG một giao dịch. */

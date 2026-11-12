@@ -30,5 +30,9 @@ describe("chặn --replace sau khi có sửa trong app", () => {
     expect(EDIT_EVENTS).toContain("PARENT_REVERTED");
     expect(EDIT_EVENTS).toContain("PARENT_REMOVED");
     expect(EDIT_EVENTS).toContain("PARENT_REMOVAL_UNDONE");
+    expect(EDIT_EVENTS).toContain("UNION_REMOVED");
+    expect(EDIT_EVENTS).toContain("UNION_REMOVAL_UNDONE");
+    // Firestore `where in` nhận tối đa 30 giá trị.
+    expect(EDIT_EVENTS.length).toBeLessThanOrEqual(30);
   });
 });

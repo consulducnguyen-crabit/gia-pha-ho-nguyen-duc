@@ -170,6 +170,8 @@ export function reconcile(input: ReconcileInput): Issue[] {
   const unionIds = new Set<string>();
   for (const u of unions) {
     const id = `u-${[String(u[0]), String(u[1])].sort().join("-")}`;
+    if (unionIds.has(id)) add("SNAPSHOT_UNION_DUPLICATE", id);
+    if (u[0] === u[1]) add("UNION_SELF", id);
     unionIds.add(id);
     if (
       !Object.hasOwn(persons, String(u[0])) ||
@@ -183,10 +185,28 @@ export function reconcile(input: ReconcileInput): Issue[] {
         [String(u[0]), String(u[1])].sort().join()
     )
       add("UNION_PARTNERS_MISMATCH", id);
+    const ud = input.unions.get(id);
+    if (ud && (ud.order ?? null) !== (u[2] ?? null))
+      add("UNION_ORDER_MISMATCH", id);
     if (!live(input.unions.get(id))) add("SNAPSHOT_UNION_NOT_LIVE", id);
   }
   for (const [id, d] of input.unions)
     if (live(d) && !unionIds.has(id)) add("UNION_NOT_IN_SNAPSHOT", id);
+  // Liên kết vợ/chồng đã GỠ (UNION_REMOVED) phải ở đúng trạng thái: đã ẩn và không mang dấu "ẩn cùng người",
+  // nếu không khôi phục người có thể hồi sinh nhầm liên kết đã gỡ.
+  for (const [id, d] of input.unions)
+    if (
+      d.removedAtVersion !== undefined &&
+      d.removedAtVersion !== null &&
+      (d.deleted !== true ||
+        (d.deletedWith !== undefined && d.deletedWith !== null) ||
+        // removedAtVersion phải trỏ tới nhật ký edit-N có sự kiện UNION_REMOVED.
+        !input.edits.some(
+          (e) =>
+            e.editVersion === d.removedAtVersion && e.event === "UNION_REMOVED",
+        ))
+    )
+      add("UNION_REMOVED_BAD_STATE", id);
 
   // Phiên bản sửa: liên tục từ 1 và khớp snapshot.
   const versions = input.edits

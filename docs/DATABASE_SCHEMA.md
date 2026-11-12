@@ -7,6 +7,7 @@
 - `unions/{unionId}`: partnerIds, status, eventDate, sourceRefs.
 - `relations/{id}` bị ẩn khi hoàn tác thay cha/mẹ có `revertedAtVersion`; `auditLogs` sự kiện `PARENT_REVERTED` có `revertsVersion` (xem IN_APP_EDIT_RELATIONS.md).
 - `relations/{id}` bị gỡ (cha/mẹ nhập sai) có `deleted`, `removedAtVersion` = số edit của sự kiện `PARENT_REMOVED`; khôi phục (`PARENT_REMOVAL_UNDONE`, `revertsVersion` = số đó) đặt `deleted: false` và đặt `removedAtVersion` về `null`. Quan hệ còn `removedAtVersion` không bị hồi sinh bởi luồng nào khác.
+- `unions/{id}` bị gỡ (vợ/chồng nhập sai) có `deleted: true`, `deletedWith: null`, `removedAtVersion` = số edit của sự kiện `UNION_REMOVED`; khôi phục (`UNION_REMOVAL_UNDONE`, `revertsVersion` = số đó) đặt `deleted: false`, `removedAtVersion: null`, `restoredAt/By`. Union không có `version`; không đổi `schemaVersion`. Liên kết còn `removedAtVersion` không bị hồi sinh bởi `PERSON_RESTORED` (xem IN_APP_EDIT_UNIONS.md).
 - `auditLogs/edit-N` (ẩn/khôi phục người): `unionId` = liên kết vợ/chồng đầu, `moreUnionIds` = tối đa 5 liên kết còn lại (xem IN_APP_EDIT_DELETE.md).
 - `branches/{branchId}`: name, founderPersonId, parentBranchId, status, mergedFrom (ghi chú nguồn gốc nếu nhánh hợp nhất từ dòng khác; không tách gốc riêng).
 - `generationOverrides/{overrideId}`: personId, generation, reason, approvedBy, approvedAt.
@@ -34,7 +35,7 @@ Paths like `private/persons/{personId}/{mediaId}`; Storage Rules must check memb
 
 ## Privacy revision — đã phê duyệt chính sách
 `memberProfiles/{personId}` là projection tạo bằng allowlist: displayName, normalizedName, profileVersion, schemaVersion, birthYear, deathYear (nạp bằng script quản trị; cập nhật trong lô sửa của quản trị viên). Không chứa ngày sinh đầy đủ, liên hệ, nguồn, ghi chú hoặc lý do ngoại lệ. Client chỉ đọc collection này khi enabled.
-`persons`, `personPrivate` chỉ quản trị viên (`manager`) đọc; `relations` chỉ `get` theo mã (trong giao dịch của quản trị viên), `unions` không client nào đọc được (chỉ ghi qua lô sửa); thành viên thường không đọc được các collection này (tên và quan hệ cho thành viên lấy từ `memberProfiles` và `treeSnapshots/main`). Không migrate hay tự công bố dữ liệu cũ; phải có dry-run và review phân loại trước backfill. Seed dev chỉ ghi projection giả.
+`persons`, `personPrivate` chỉ quản trị viên (`manager`) đọc; `relations` chỉ `get` theo mã (trong giao dịch của quản trị viên), `unions` chỉ quản trị viên `get` theo mã (không liệt kê; thay đổi 2026-11-12 để biết liên kết đã gỡ), ghi qua lô sửa; thành viên thường không đọc được các collection này (tên và quan hệ cho thành viên lấy từ `memberProfiles` và `treeSnapshots/main`). Không migrate hay tự công bố dữ liệu cũ; phải có dry-run và review phân loại trước backfill. Seed dev chỉ ghi projection giả.
 
 ## Lời mời — schema 1, chỉ emulator
 
