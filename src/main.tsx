@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { HashRouter, NavLink, Route, Routes } from "react-router-dom";
+import { HashRouter, Link, NavLink, Route, Routes } from "react-router-dom";
 import {
   onAuthStateChanged,
   GoogleAuthProvider,
@@ -466,9 +466,11 @@ function People() {
         <section className="detail">
           <button onClick={() => setSelected(null)}>Đóng hồ sơ</button>
           <h2>{selected.displayName}</h2>
-          <p>Mã hồ sơ: {selected.id}</p>
-          <p>Phiên bản: {selected.profileVersion}</p>
-          <p>Đời và chi: chờ xác minh quan hệ truyền dòng.</p>
+          <p>
+            <Link className="primary link" to={`/person/${selected.id}`}>
+              Xem đời, chi và quan hệ trong cây →
+            </Link>
+          </p>
         </section>
       )}
     </>

@@ -53,7 +53,9 @@ await page
 await page
   .getByRole("button", { name: "N Nhân vật giả 1 Xem hồ sơ →" })
   .click();
-await page.getByText("Phiên bản: 1", { exact: true }).waitFor();
+await page
+  .getByRole("link", { name: /Xem đời, chi và quan hệ trong cây/ })
+  .waitFor();
 await page.setViewportSize({ width: 390, height: 844 });
 if (
   await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
@@ -98,7 +100,9 @@ try {
   await membership(false);
   await page.getByRole("heading", { name: "Chờ cấp quyền" }).waitFor();
   await expect(page.locator(".person, .detail")).toHaveCount(0);
-  await expect(page.getByText("Phiên bản: 1", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: /Xem đời, chi và quan hệ trong cây/ }),
+  ).toHaveCount(0);
   await membership(true);
   await page
     .getByRole("heading", { name: "Tra cứu thành viên", exact: true })
