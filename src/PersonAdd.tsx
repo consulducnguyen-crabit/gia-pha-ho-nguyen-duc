@@ -274,9 +274,7 @@ function ChildPanel({
     : null;
   // Cùng quy tắc editAdd: chỉ con theo dòng mới có đời (= đời cha + 1).
   const childGeneration =
-    fatherIsClan &&
-    category === "CLAN" &&
-    fatherGeneration !== null
+    fatherIsClan && category === "CLAN" && fatherGeneration !== null
       ? fatherGeneration + 1
       : null;
   // Chi mặc định theo chi của cha, trừ khi người dùng đã tự chọn.
