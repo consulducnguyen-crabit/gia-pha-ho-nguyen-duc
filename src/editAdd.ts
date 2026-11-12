@@ -9,6 +9,7 @@ import {
   SERVER_TIME,
   checkYear,
   currentEditVersion,
+  exceedsSnapshotLimit,
   invalid,
   yearDate,
   type EditWrite,
@@ -69,7 +70,6 @@ export interface AddResult {
 }
 
 const ID = /^[A-Za-z0-9_-]{1,100}$/;
-const SNAPSHOT_MAX_BYTES = 850000;
 const CAT_CODE = { CLAN: "C", SPOUSE: "S", EXTERNAL: "E" } as const;
 
 /** Mã người cần đọc (cả người sẽ tạo, để chắc chắn chưa tồn tại). */
@@ -405,7 +405,7 @@ export function applyAdd(state: AddState, input: AddInput): AddResult {
   }
 
   const json = JSON.stringify(data);
-  if (new TextEncoder().encode(json).length > SNAPSHOT_MAX_BYTES)
+  if (exceedsSnapshotLimit(json))
     invalid("Ảnh chụp cây đã quá lớn; không thể thêm người.");
   writes.push({
     path: "treeSnapshots/main",
