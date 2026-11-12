@@ -55,7 +55,7 @@ nhật ký. Admin đọc được `persons`, `personPrivate` và `get` từng nh
   `replaceRawDate`. Nhật ký giữ nguyên object ngày cũ.
 - Nhật ký KHÔNG lưu nguyên văn ghi chú (riêng tư, không xóa được từ client), chỉ độ dài; nội dung cũ của
   ghi chú chỉ khôi phục từ sao lưu. Tên/năm/chi/giới tính/cờ lưu trước-sau.
-- Đổi tên chưa tính lại cờ `DUP_NAME` của người đó và người trùng tên (admin tự gắn/gỡ cờ).
+- Cờ `DUP_NAME` khi đổi tên: form sửa so tên mới (đúng dấu, không phân biệt hoa/thường, cùng đời đã biết) với snapshot, hiện cảnh báo kèm liên kết và tự gắn cờ cho CHÍNH người đang sửa (gỡ nếu tên mới không còn trùng). Người trùng kia KHÔNG bị ghi vì rules chỉ cho mỗi lần sửa một người; admin gắn cờ cho họ bằng form nếu cần. Form thêm con chỉ cảnh báo (rules bắt buộc `reviewFlags` rỗng khi tạo). Chỉ so khi đời đã biết, giống quy tắc nạp dữ liệu.
 - `--replace` của script nạp giữ `editVersion` cũ (tránh khóa chết vì `edit-N` còn) nhưng vẫn GHI ĐÈ các sửa
   trong app; bị chặn trên prod và cần --discard-app-edits ở dev (xem INTEGRITY_GUARD.md). Không chạy `--replace` trên prod sau khi có sửa trong app.
   Khôi phục từ sao lưu cũ cũng cần giữ `editVersion` lớn nhất của `auditLogs/edit-*`.

@@ -32,7 +32,7 @@ không sửa được và không được chọn làm cha/mẹ (quan hệ mới 
 - Người đã ẩn không liệt kê được trong app: phải nhớ mã người và số phiên bản (nằm trong thông báo và nhật ký).
 - Rules chỉ kiểm quan hệ đầu tiên trong lô ẩn/khôi phục và không kiểm nội dung JSON snapshot; script đối soát (PR D).
 - Quan hệ cha/mẹ cũ đã bị thay thế (C2a) vẫn chưa khôi phục được riêng lẻ.
-- `functions/src/proposals.ts` (emulator-only) chưa lọc `deleted`; cờ `DUP_NAME` của người trùng tên không tự tính lại.
+- `functions/src/proposals.ts` (emulator-only) chưa lọc `deleted`; cờ `DUP_NAME` của người trùng tên kia không tự cập nhật (xem IN_APP_EDIT.md).
 - Người có nhiều hơn một quan hệ vợ/chồng chưa ẩn được.
 - Chưa thử trên Firestore thật (chỉ emulator).
 

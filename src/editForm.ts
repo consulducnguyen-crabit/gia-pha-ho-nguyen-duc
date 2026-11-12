@@ -37,6 +37,29 @@ export function parseYear(text: string, label: string): number | null | string {
   return n;
 }
 
+/**
+ * Tự đồng bộ cờ DUP_NAME của CHÍNH người đang sửa khi đổi tên: gắn nếu tên mới trùng người khác cùng đời,
+ * gỡ nếu tên mới không còn trùng. Không đụng tới cờ khi tên không đổi (admin tự quyết bằng ô cờ).
+ */
+export function syncDupNameFlag(
+  initialName: string,
+  values: FormValues,
+  duplicateCount: number,
+): FormValues {
+  if (normalizeNameInput(values.name) === initialName) return values;
+  const has = values.flags.includes("DUP_NAME");
+  if (duplicateCount > 0 && !has)
+    return {
+      ...values,
+      flags: FLAG_ORDER.filter(
+        (c) => c === "DUP_NAME" || values.flags.includes(c),
+      ),
+    };
+  if (duplicateCount === 0 && has)
+    return { ...values, flags: values.flags.filter((c) => c !== "DUP_NAME") };
+  return values;
+}
+
 /** So giá trị nhập với giá trị ban đầu; chỉ gửi những trường thật sự đổi. */
 export function buildChanges(
   initial: FormValues,

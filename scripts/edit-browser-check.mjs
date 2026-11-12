@@ -393,7 +393,48 @@ try {
     encoding: "utf8",
     env: { ...process.env, FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080" },
   });
-  if (rec.status !== 0) throw Error("Đối soát lệch: " + rec.stdout + rec.stderr);
+  if (rec.status !== 0)
+    throw Error("Đối soát lệch: " + rec.stdout + rec.stderr);
+
+  stage =
+    "duplicate name warns, auto-flags the edited person, and unflags on rename back";
+  await page.goto(`${URL}/#/person/b`);
+  await page.getByRole("button", { name: "Sửa hồ sơ" }).click();
+  await page.getByLabel("Họ tên (bắt buộc)").fill("giả  văn ân");
+  await expect(
+    page.getByRole("status").filter({ hasText: "trùng họ tên và cùng đời" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByText("Đã lưu thay đổi và ghi nhật ký.")).toBeVisible();
+  await expect
+    .poll(async () => (await db.doc("persons/b").get()).data()?.reviewFlags)
+    .toEqual(["DUP_NAME"]);
+  if ((await db.doc("persons/a").get()).data().reviewFlags.length)
+    throw Error("Người trùng kia không được bị ghi");
+  await page.getByRole("button", { name: "Sửa hồ sơ" }).click();
+  await page.getByLabel("Họ tên (bắt buộc)").fill("Giả Thị Bình");
+  await expect(
+    page.getByRole("status").filter({ hasText: "trùng họ tên và cùng đời" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByText("Đã lưu thay đổi và ghi nhật ký.")).toBeVisible();
+  await expect
+    .poll(async () => (await db.doc("persons/b").get()).data()?.reviewFlags)
+    .toEqual([]);
+
+  stage =
+    "add-child form warns about a same-name person of the same generation";
+  await page.goto(`${URL}/#/person/ts`);
+  await page.getByRole("button", { name: "Thêm con" }).click();
+  await page.getByLabel("Cha của đứa trẻ").check();
+  await page.getByLabel("Họ tên (bắt buộc)").fill("Giả Văn Ân");
+  await expect(
+    page.getByRole("status").filter({ hasText: "trùng họ tên và cùng đời" }),
+  ).toBeVisible();
+  await page.getByLabel("Họ tên (bắt buộc)").fill("Giả Văn Khác");
+  await expect(
+    page.getByRole("status").filter({ hasText: "trùng họ tên và cùng đời" }),
+  ).toHaveCount(0);
 
   stage = "version conflict is reported, nothing written";
   await page.goto(`${URL}/#/person/b`);

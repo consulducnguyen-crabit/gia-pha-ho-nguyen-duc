@@ -7,13 +7,16 @@ import {
   buildChanges,
   normalizeNameInput,
   saveErrorMessage,
+  syncDupNameFlag,
   type FormErrors,
   type FormValues,
 } from "./editForm";
 import { EditError, NAME_MAX, NOTE_MAX } from "./editCore";
+import { DuplicateNote } from "./DuplicateNote";
 import {
   FLAG_LABELS,
   FLAG_ORDER,
+  sameNamePeople,
   type FlagCode,
   type SnapPerson,
   type TreeIndex,
@@ -150,6 +153,12 @@ export function PersonEdit({
   const { initial, birthRaw, deathRaw } = phase;
   const set = <K extends keyof FormValues>(k: K, v: FormValues[K]) =>
     setValues({ ...values, [k]: v });
+  const duplicates = sameNamePeople(
+    index.snapshot.persons.values(),
+    values.name,
+    p.generation,
+    p.id,
+  );
   const rawNeedsConfirm =
     (birthRaw?.unknown && values.birthYear.trim() !== initial.birthYear) ||
     (deathRaw?.unknown && values.deathYear.trim() !== initial.deathYear);
@@ -159,10 +168,17 @@ export function PersonEdit({
     if (!values || busy) return;
     setSaveError(null);
     setConflict(false);
-    const result = buildChanges(initial, {
-      ...values,
-      replaceRawDate: Boolean(rawNeedsConfirm) && values.replaceRawDate,
-    });
+    const result = buildChanges(
+      initial,
+      syncDupNameFlag(
+        initial.name,
+        {
+          ...values,
+          replaceRawDate: Boolean(rawNeedsConfirm) && values.replaceRawDate,
+        },
+        duplicates.length,
+      ),
+    );
     if ("errors" in result) {
       setErrors(result.errors);
       return;
@@ -230,6 +246,10 @@ export function PersonEdit({
               {...aria("name")}
             />
             {err("name")}
+            <DuplicateNote
+              people={duplicates}
+              nameChanged={normalizeNameInput(values.name) !== initial.name}
+            />
           </label>
           <label>
             Năm sinh
