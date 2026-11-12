@@ -841,3 +841,9 @@ textarea {
   vertical-align: middle;
   accent-color: var(--color-primary);
 }
+.edit-note {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}

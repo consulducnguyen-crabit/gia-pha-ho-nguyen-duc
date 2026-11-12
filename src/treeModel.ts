@@ -166,6 +166,38 @@ export function parseSnapshot(doc: unknown): Snapshot {
   };
 }
 
+/** Khóa so trùng họ tên: đúng dấu (Tuấn khác Tuân), không phân biệt hoa/thường, gộp khoảng trắng. */
+export function dupNameKey(name: string): string {
+  return name
+    .normalize("NFC")
+    .toLocaleLowerCase("vi")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Những người khác trùng họ tên (đúng dấu) VÀ cùng đời đã biết. Đời chưa biết (null) thì không báo trùng,
+ * giống quy tắc nạp dữ liệu (scripts/gia-pha/dsl.ts).
+ */
+export function sameNamePeople(
+  persons: Iterable<SnapPerson>,
+  name: string,
+  generation: number | null,
+  excludeId: string | null,
+): SnapPerson[] {
+  const key = dupNameKey(name);
+  if (generation === null || !key) return [];
+  const found: SnapPerson[] = [];
+  for (const x of persons)
+    if (
+      x.id !== excludeId &&
+      x.generation === generation &&
+      dupNameKey(x.name) === key
+    )
+      found.push(x);
+  return found;
+}
+
 export interface TreeIndex {
   snapshot: Snapshot;
   root: string | null;
