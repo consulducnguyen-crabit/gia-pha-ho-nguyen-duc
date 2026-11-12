@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parseDsl } from "../scripts/gia-pha/dsl";
 import { buildImportPlan } from "../scripts/gia-pha/import-plan";
-import { buildIndex, parseSnapshot, yearsLabel } from "../src/treeModel";
+import {
+  buildIndex,
+  parseSnapshot,
+  sameNamePeople,
+  yearsLabel,
+  type SnapPerson,
+} from "../src/treeModel";
 
 // Dữ liệu hoàn toàn giả, đi qua đúng bộ dựng ảnh chụp của script nạp.
 const text = [
@@ -119,5 +125,43 @@ describe("từ chối ảnh chụp sai cấu trúc", () => {
         }),
       }),
     ).toThrow();
+  });
+});
+
+describe("sameNamePeople", () => {
+  const mk = (
+    id: string,
+    name: string,
+    generation: number | null,
+  ): SnapPerson => ({
+    id,
+    name,
+    birthYear: null,
+    deathYear: null,
+    generation,
+    category: "CLAN",
+    branch: null,
+    flags: [],
+    normalized: "",
+  });
+  const all = [
+    mk("a", "Giả Văn An", 3),
+    mk("b", "giả  văn an", 3),
+    mk("c", "Giả Văn An", 4),
+    mk("d", "Giả Văn Ân", 3),
+    mk("e", "Giả Văn An", null),
+  ];
+  it("trùng đúng dấu, cùng đời, bỏ qua hoa/thường và khoảng trắng", () => {
+    expect(sameNamePeople(all, "Giả Văn An", 3, "a").map((x) => x.id)).toEqual([
+      "b",
+    ]);
+    expect(sameNamePeople(all, "Giả Văn An", 3, null).map((x) => x.id)).toEqual(
+      ["a", "b"],
+    );
+  });
+  it("không báo khi khác dấu, khác đời hoặc chưa biết đời", () => {
+    expect(sameNamePeople(all, "Giả Văn Ân", 3, "d")).toEqual([]);
+    expect(sameNamePeople(all, "Giả Văn An", null, null)).toEqual([]);
+    expect(sameNamePeople(all, "   ", 3, null)).toEqual([]);
   });
 });
