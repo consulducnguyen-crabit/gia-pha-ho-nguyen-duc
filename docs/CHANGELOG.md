@@ -79,3 +79,10 @@
 
 - Route `#/audit` chỉ cho quản trị viên: đọc `auditLogs/edit-{n}` theo mã, phân trang 20 bản, lọc trong bản đã tải, nhãn tiếng Việt cho 12 sự kiện, bảo vệ dữ liệu không tin cậy và quyền riêng tư (chỉ hiện năm, ghi chú chỉ độ dài). Không đổi rules.
 - `formatVnTime` dùng chung (dd/mm/yyyy HH:mm, giờ VN), `Users.tsx` dùng lại. Thêm test rules đọc nhật ký và kiểm tra trình duyệt (`test:browser:audit`). Xem AUDIT_LOG_UI.md.
+
+# PR-9 — Hiển thị thông tin chi — 2026-11-12
+
+- Hồ sơ người: thêm dòng "Chi này có nguồn gốc hợp nhất từ: …" (`mergedFrom`) dưới nhãn chi, cho mọi thành viên.
+- Cây gia phả: khi chọn chi ở bộ lọc hiện khối thông tin chi (tên chi, thủy tổ chi có liên kết nếu có trong cây, nguồn gốc hợp nhất). Quản trị viên (`canManageMembership`) còn thấy "Ghi chú quản trị (chi)".
+- Chuỗi dài hơn 500 ký tự được cắt kèm nút "Xem đầy đủ"; mọi chuỗi render bằng text, không `dangerouslySetInnerHTML`, không `href` từ dữ liệu (liên kết thủy tổ chỉ khi mã khớp `^[A-Za-z0-9_-]{1,100}$` và có trong ảnh chụp).
+- Chỉ đọc/hiển thị: không đổi rules, schema, API. Mã mới: `src/branchInfo.ts`, `src/BranchInfoView.tsx`; test `tests/branchInfo.test.ts`, `scripts/branch-info-browser-check.mjs` (`npm run test:browser:branch`, đã thêm vào CI).

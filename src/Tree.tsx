@@ -7,6 +7,8 @@ import { PersonDelete } from "./PersonDelete";
 import { PersonAdd } from "./PersonAdd";
 import { PersonRelations } from "./PersonRelations";
 import { PersonUnions } from "./PersonUnions";
+import { branchInfo } from "./branchInfo";
+import { BranchInfoBox, MergedFromLine } from "./BranchInfoView";
 import {
   buildIndex,
   categoryLabel,
@@ -246,7 +248,13 @@ function initialExpanded(index: TreeIndex, from: string, levels: number) {
   return out;
 }
 
-export function TreePage({ uid }: { uid: string }) {
+export function TreePage({
+  uid,
+  isAdmin = false,
+}: {
+  uid: string;
+  isAdmin?: boolean;
+}) {
   const { state, reload } = useTree(uid);
   if (state.status !== "ready")
     return (
@@ -256,11 +264,15 @@ export function TreePage({ uid }: { uid: string }) {
       </>
     );
   return (
-    <TreeView key={state.index.snapshot.dataVersion} index={state.index} />
+    <TreeView
+      key={state.index.snapshot.dataVersion}
+      index={state.index}
+      isAdmin={isAdmin}
+    />
   );
 }
 
-function TreeView({ index }: { index: TreeIndex }) {
+function TreeView({ index, isAdmin }: { index: TreeIndex; isAdmin: boolean }) {
   const [branch, setBranch] = useState("");
   const [query, setQuery] = useState("");
   const [showExternal, setShowExternal] = useState(false);
@@ -283,6 +295,10 @@ function TreeView({ index }: { index: TreeIndex }) {
     });
   }, []);
   const results = useMemo(() => index.search(query), [index, query]);
+  const selectedBranch = useMemo(
+    () => branchInfo(index.snapshot, branch, { isAdmin }),
+    [index, branch, isAdmin],
+  );
   const clanCount = useMemo(
     () =>
       [...index.snapshot.persons.values()].filter((p) => p.category === "CLAN")
@@ -354,6 +370,9 @@ function TreeView({ index }: { index: TreeIndex }) {
           <button onClick={() => setExpanded(new Set())}>Thu gọn tất cả</button>
         </div>
       </div>
+      {selectedBranch && (
+        <BranchInfoBox key={selectedBranch.code} info={selectedBranch} />
+      )}
       {query.trim() && (
         <section aria-label="Kết quả tìm kiếm" className="tree-results">
           <h2>
@@ -462,6 +481,9 @@ export function PersonPage({
         </p>
       </>
     );
+  const profileBranch = branchInfo(index.snapshot, p.branch, {
+    isAdmin: false,
+  });
   const path = p.category === "CLAN" ? index.lineagePath(id) : [];
   const parents = index.parents(id);
   const siblings = index.siblings(id);
@@ -573,6 +595,7 @@ export function PersonPage({
         {years(p)} <Badges index={index} p={p} />{" "}
         <span className="tree-meta">{categoryLabel(p.category)}</span>
       </p>
+      {profileBranch && <MergedFromLine info={profileBranch} />}
       {p.flags.length > 0 && (
         <section className="tree-flag-box">
           <h2>Cần kiểm tra</h2>

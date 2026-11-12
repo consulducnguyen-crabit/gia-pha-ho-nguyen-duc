@@ -133,7 +133,13 @@ function App() {
             <Route path="/" element={<Overview />} />
             <Route
               path="/tree"
-              element={<TreePage key={user!.uid} uid={user!.uid} />}
+              element={
+                <TreePage
+                  key={user!.uid}
+                  uid={user!.uid}
+                  isAdmin={canManageMembership}
+                />
+              }
             />
             <Route
               path="/person/:id"

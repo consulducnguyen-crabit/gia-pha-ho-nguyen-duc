@@ -907,3 +907,43 @@ textarea {
   min-width: 280px;
   overflow-wrap: anywhere;
 }
+
+/* Thông tin chi (nguồn gốc hợp nhất, thủy tổ chi, ghi chú quản trị) */
+.branch-info {
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-soft);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  margin: var(--space-4) 0;
+}
+.branch-info h2 {
+  font-size: 20px;
+  margin: 0 0 var(--space-2);
+}
+.branch-info dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.branch-info dt {
+  color: var(--color-text-muted);
+}
+.branch-info dd {
+  margin: 0 0 var(--space-2);
+}
+@media (min-width: 768px) {
+  .branch-info dl {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+  .branch-info dd {
+    margin: 0;
+  }
+}
+.branch-text,
+.branch-merged {
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
