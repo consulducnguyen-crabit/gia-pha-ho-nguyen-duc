@@ -428,6 +428,55 @@ try {
     if (await unionDeleted(u)) throw Error(`${u} phải được khôi phục`);
   await expect(page.getByRole("link", { name: "Vợ Ba Quý" })).toBeVisible();
 
+  stage = "replace a parent, then revert the latest replacement";
+  await page.goto(`${URL}/#/person/b`);
+  await page.getByRole("button", { name: "Đặt hoặc đổi cha/mẹ" }).click();
+  await page.getByLabel("Cha", { exact: true }).check();
+  await page.getByLabel("Tìm theo tên").fill("giả văn ân");
+  await page.getByLabel("Chọn người").selectOption("a");
+  await page.getByLabel(/Tôi xác nhận thay Cha hiện có/).check();
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByText("Đã cập nhật quan hệ cha/mẹ và ghi nhật ký."),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await db.doc("relations/r-ts-b").get()).data()?.deleted)
+    .toBe(true);
+  await page.getByRole("button", { name: "Hoàn tác lần thay cha" }).click();
+  await expect(
+    page.getByText(/trở lại làm cha, thay Giả Văn Ân/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Xác nhận hoàn tác" }).click();
+  await expect(
+    page.getByText("Đã hoàn tác lần thay cha/mẹ và ghi nhật ký."),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await db.doc("relations/r-ts-b").get()).data()?.deleted)
+    .toBe(false);
+  const reverted = (await db.doc("relations/r-ts-b").get()).data();
+  if (reverted.replacedBy) throw Error("replacedBy phải được xóa");
+  if (!(await db.doc("relations/r-a-b").get()).data().deleted)
+    throw Error("quan hệ thay thế phải bị ẩn");
+  const lastAudit = await db
+    .collection("auditLogs")
+    .where("event", "==", "PARENT_REVERTED")
+    .get();
+  if (lastAudit.size !== 1) throw Error("phải có đúng một nhật ký hoàn tác");
+  await page.getByRole("button", { name: "Hoàn tác lần thay cha" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "để hoàn tác" }),
+  ).toBeVisible();
+  await page.goto(`${URL}/#/person/ts`);
+
+  stage = "reconcile again after multi-spouse hide/restore and parent revert";
+  const rec2 = spawnSync("node scripts/gia-pha/reconcile.ts", {
+    shell: true,
+    encoding: "utf8",
+    env: { ...process.env, FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080" },
+  });
+  if (rec2.status !== 0)
+    throw Error("Đối soát lệch: " + rec2.stdout + rec2.stderr);
+
   stage = "version conflict is reported, nothing written";
   await page.goto(`${URL}/#/person/b`);
   await page.getByRole("button", { name: "Sửa hồ sơ" }).click();

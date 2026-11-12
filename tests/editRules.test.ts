@@ -1093,6 +1093,183 @@ const restoreB = (v: number): DeleteOp => ({
   deleteVersion: v,
 });
 
+async function planRevert(
+  db: Firestore,
+  op: RelationOp,
+  expectedVersion: number,
+) {
+  const snap = await getDoc(doc(db, "treeSnapshots", "main"));
+  const reads = relationReads(snap.data()!, op);
+  const docs: Record<string, Record<string, unknown> | null> = {};
+  for (const id of reads.persons) {
+    const d = await getDoc(doc(db, "persons", id));
+    docs[id] = d.exists() ? d.data() : null;
+  }
+  const relations: Record<string, Record<string, unknown> | null> = {};
+  for (const id of reads.relations) {
+    const d = await getDoc(doc(db, "relations", id));
+    relations[id] = d.exists() ? d.data() : null;
+  }
+  const a = await getDoc(doc(db, "auditLogs", reads.audit!));
+  return applyRelation(
+    {
+      snapshot: snap.data()!,
+      docs,
+      relations,
+      audit: a.exists() ? a.data() : null,
+    },
+    { op, expectedVersion, actorUid: "admin" },
+  );
+}
+const revertFather = (): RelationOp => ({
+  type: "revertParent",
+  childId: "b",
+  role: "FATHER",
+  parentId: "a",
+  changeVersion: 1,
+});
+
+describe("hoàn tác thay cha/mẹ: rules", () => {
+  async function replaced() {
+    const db = admin();
+    await assertSucceeds(
+      commit(db, (await planRel(db, replaceFather())).writes),
+    );
+    return db;
+  }
+
+  it("hoàn tác thành công: quan hệ cũ sống lại (xóa replacedBy), quan hệ mới bị ẩn, snapshot đảo", async () => {
+    const db = await replaced();
+    await assertSucceeds(
+      commit(db, (await planRevert(db, revertFather(), 1)).writes),
+    );
+    const old = (await getDoc(doc(db, "relations", "r-a-b"))).data()!;
+    expect(old.deleted).toBe(false);
+    expect(old.replacedBy ?? null).toBeNull();
+    const cur = (await getDoc(doc(db, "relations", "r-c-b"))).data()!;
+    expect(cur.deleted).toBe(true);
+    expect(cur.revertedAtVersion).toBe(2);
+    const snap = (await getDoc(doc(db, "treeSnapshots", "main"))).data()!;
+    expect(snap.editVersion).toBe(2);
+    const rows = JSON.parse(snap.data).relations;
+    expect(rows).toContainEqual(["a", "b", "F", "B", 1]);
+    expect(rows).not.toContainEqual(["c", "b", "F", "B", 1]);
+    // Quản trị viên đọc được nhật ký; thành viên thường thì không.
+    expect((await getDoc(doc(db, "auditLogs", "edit-2"))).data()!.event).toBe(
+      "PARENT_REVERTED",
+    );
+    const member = env
+      .authenticatedContext("member")
+      .firestore() as unknown as Firestore;
+    await assertFails(getDoc(doc(member, "auditLogs", "edit-2")));
+  });
+
+  it("thành viên thường không hoàn tác được; thiếu phần nào của lô, hoặc phát lại lô thì bị chặn", async () => {
+    const db = await replaced();
+    const r = await planRevert(db, revertFather(), 1);
+    const member = env
+      .authenticatedContext("member")
+      .firestore() as unknown as Firestore;
+    await assertFails(commit(member, r.writes));
+    for (const skip of [
+      "relations/r-a-b",
+      "relations/r-c-b",
+      "treeSnapshots/main",
+      "auditLogs/edit-2",
+    ])
+      await assertFails(commit(db, without(r.writes, skip)));
+    await assertSucceeds(commit(db, r.writes));
+    await assertFails(commit(db, r.writes));
+  });
+
+  it("không mở được quan hệ khác: giữ replacedBy, trường lạ, revertedAtVersion sai, revertsVersion sai, nhật ký trỏ quan hệ khác", async () => {
+    const db = await replaced();
+    const r = await planRevert(db, revertFather(), 1);
+    await assertFails(
+      commit(
+        db,
+        r.writes.map((w) =>
+          w.path === "relations/r-a-b"
+            ? { ...w, data: { ...w.data, replacedBy: "r-c-b" } }
+            : w,
+        ),
+      ),
+    );
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "relations/r-a-b", { parentId: "c" })),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-c-b", { revertedAtVersion: 9 }),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-c-b", { parentRole: "MOTHER" }),
+      ),
+    );
+    const audit = (extra: Record<string, unknown>) =>
+      r.writes.map((w) =>
+        w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, ...extra } }
+          : w,
+      );
+    await assertFails(commit(db, audit({ revertsVersion: 2 })));
+    await assertFails(commit(db, audit({ revertsVersion: 0 })));
+    await assertFails(commit(db, audit({ revertsVersion: "1" })));
+    await assertFails(commit(db, audit({ relationIds: ["r-a-c"] })));
+    await assertFails(commit(db, audit({ removedRelationIds: ["r-a-c"] })));
+    await assertFails(commit(db, audit({ unionId: "u-x" })));
+    await assertFails(commit(db, audit({ event: "PARENT_CHANGED" })));
+    await assertSucceeds(commit(db, r.writes));
+  });
+
+  it("cha cũ đã bị ẩn, hoặc quan hệ không phải do lần thay đó tạo: bị chặn", async () => {
+    const db = await replaced();
+    const r = await planRevert(db, revertFather(), 1);
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(
+        doc(c.firestore(), "persons", "a"),
+        { deleted: true },
+        { merge: true },
+      );
+    });
+    await assertFails(commit(db, r.writes));
+    await env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(
+        doc(c.firestore(), "persons", "a"),
+        { deleted: false },
+        { merge: true },
+      );
+      await setDoc(
+        doc(c.firestore(), "relations", "r-c-b"),
+        { sourceRefs: ["auditLogs/edit-7"] },
+        { merge: true },
+      );
+    });
+    await assertFails(commit(db, r.writes));
+  });
+
+  it("PERSON_RESTORED không hồi sinh được quan hệ mới đã hoàn tác; ẩn rồi khôi phục người con sau hoàn tác vẫn đạt", async () => {
+    const db = await replaced();
+    await assertSucceeds(
+      commit(db, (await planRevert(db, revertFather(), 1)).writes),
+    );
+    await assertSucceeds(commit(db, (await planDel(db, delB(), 2)).writes));
+    await assertSucceeds(
+      commit(db, (await planDel(db, restoreB(3), 3)).writes),
+    );
+    expect((await getDoc(doc(db, "relations", "r-a-b"))).data()!.deleted).toBe(
+      false,
+    );
+    expect((await getDoc(doc(db, "relations", "r-c-b"))).data()!.deleted).toBe(
+      true,
+    );
+  });
+});
+
 describe("ẩn và khôi phục người: rules", () => {
   it("ẩn rồi khôi phục: thành công, bản thành viên mất rồi có lại", async () => {
     const db = admin();

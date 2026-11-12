@@ -31,7 +31,7 @@ không sửa được và không được chọn làm cha/mẹ (quan hệ mới 
 - Sau khi ẩn, app chuyển tới cha/mẹ, vợ/chồng hoặc thủy tổ để hiện thông báo kèm mã người và số phiên bản.
 - Người đã ẩn không liệt kê được trong app: phải nhớ mã người và số phiên bản (nằm trong thông báo và nhật ký).
 - Rules chỉ kiểm quan hệ đầu tiên trong lô ẩn/khôi phục và không kiểm nội dung JSON snapshot; script đối soát (PR D).
-- Quan hệ cha/mẹ cũ đã bị thay thế (C2a) vẫn chưa khôi phục được riêng lẻ.
+- Quan hệ cha/mẹ cũ đã bị thay thế (C2a) được đưa lại bằng "Hoàn tác lần thay" (xem IN_APP_EDIT_RELATIONS.md), không bằng khôi phục người.
 - `functions/src/proposals.ts` (emulator-only) chưa lọc `deleted`; cờ `DUP_NAME` của người trùng tên không tự tính lại.
 - Nhiều vợ/chồng (yếu tố lịch sử): ẩn/khôi phục mọi liên kết của người đó trong cùng lô. Nhật ký lưu `unionId` (liên kết đầu) và `moreUnionIds` (tối đa 5 liên kết còn lại); `before.rows` có `union` + `moreUnions`. Rules kiểm CHẶT cả `unionId` lẫn từng phần tử của `moreUnionIds` (không trùng nhau) bằng chỉ số cố định (không có vòng lặp): liên kết phải thật sự được ghi trong lô này (`deletedAt`/`restoredAt == request.time`), nên trần là 6 (3 truy cập nền + 6 `getAfter` = 9 < giới hạn 10 của một yêu cầu). Dữ liệu thật hiện tối đa 3 vợ/chồng mỗi người (đếm chỉ đọc 2026-11-12). Trên 6 thì chưa ẩn được (báo rõ). Nhật ký cũ chỉ có `union` vẫn khôi phục được (khôi phục dựa vào nhật ký ở phía client; rules chỉ dựa vào `deletedWith`).
 - Rules không chứng minh được lô đã ẩn/khôi phục ĐỦ mọi liên kết của người đó (không liệt kê được theo `partnerIds`); khâu này do client và script đối soát (PR D) bảo đảm, giống quan hệ cha/mẹ.

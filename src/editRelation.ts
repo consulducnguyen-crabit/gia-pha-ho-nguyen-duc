@@ -27,7 +27,19 @@ export interface SetRelationTypeOp {
   childId: string;
   adoptive: boolean;
 }
-export type RelationOp = SetParentOp | SetRelationTypeOp;
+/**
+ * Hoàn tác MỘT lần thay cha/mẹ: quan hệ cũ (cha/mẹ `parentId`) sống lại, quan hệ hiện tại bị ẩn.
+ * `changeVersion` là số phiên bản nhật ký (edit-N, sự kiện PARENT_CHANGED) của lần thay bị hoàn tác.
+ */
+export interface RevertParentOp {
+  type: "revertParent";
+  childId: string;
+  role: "FATHER" | "MOTHER";
+  /** Cha/mẹ CŨ cần đưa trở lại. */
+  parentId: string;
+  changeVersion: number;
+}
+export type RelationOp = SetParentOp | SetRelationTypeOp | RevertParentOp;
 
 export interface RelationState {
   snapshot: Doc;
@@ -35,6 +47,8 @@ export interface RelationState {
   docs: Record<string, Doc | null>;
   /** relations/{id} của quan hệ liên quan; quan hệ mới phải là null. */
   relations: Record<string, Doc | null>;
+  /** auditLogs/edit-{changeVersion}; chỉ cần khi hoàn tác. */
+  audit?: Doc | null;
 }
 export interface RelationInput {
   op: RelationOp;
@@ -83,8 +97,21 @@ function parse(snapshot: Doc): Data {
 export function relationReads(
   snapshot: Doc,
   op: RelationOp,
-): { persons: string[]; relations: string[] } {
+): { persons: string[]; relations: string[]; audit?: string } {
   const data = parse(snapshot);
+  if (op.type === "revertParent") {
+    const cur = data.relations.find(
+      (r) => r[1] === op.childId && r[2] === ROLE_CODE[op.role],
+    );
+    return {
+      persons: [op.parentId, op.childId],
+      relations: [
+        rid(op.parentId, op.childId),
+        ...(cur ? [rid(String(cur[0]), op.childId)] : []),
+      ],
+      audit: `edit-${op.changeVersion}`,
+    };
+  }
   if (op.type === "setRelationType")
     return {
       persons: [op.parentId, op.childId],
@@ -170,7 +197,11 @@ export function applyRelation(
   input: RelationInput,
 ): RelationResult {
   const { op } = input;
-  if (op.type !== "setParent" && op.type !== "setRelationType")
+  if (
+    op.type !== "setParent" &&
+    op.type !== "setRelationType" &&
+    op.type !== "revertParent"
+  )
     invalid("Loại thao tác chưa được hỗ trợ.");
   if (!input.actorUid) invalid("Thiếu người thực hiện.");
   const version = currentEditVersion(state.snapshot);
@@ -190,6 +221,8 @@ export function applyRelation(
     ID.test(id) &&
     Object.hasOwn(data.persons, id) &&
     Array.isArray(data.persons[id]);
+  if (op.type === "revertParent")
+    return applyRevert(state, input, op, data, version, nextVersion, known);
   if (typeof op.adoptive !== "boolean") invalid("Thiếu loại con (nuôi/ruột).");
   if (!known(op.childId) || !known(op.parentId))
     invalid("Người không có trong cây.");
@@ -365,5 +398,184 @@ export function applyRelation(
       schemaVersion: 1,
     },
   });
+  return { writes, nextVersion, focusId: op.childId };
+}
+
+function applyRevert(
+  state: RelationState,
+  input: RelationInput,
+  op: RevertParentOp,
+  data: Data,
+  version: number,
+  nextVersion: number,
+  known: (id: unknown) => id is string,
+): RelationResult {
+  if (op.role !== "FATHER" && op.role !== "MOTHER")
+    invalid("Vai trò phải là cha hoặc mẹ.");
+  if (
+    !Number.isInteger(op.changeVersion) ||
+    op.changeVersion < 1 ||
+    op.changeVersion > version
+  )
+    invalid("Số phiên bản của lần thay không hợp lệ.");
+  if (!known(op.childId)) invalid("Người này không có trong cây.");
+  if (!known(op.parentId))
+    invalid("Cha/mẹ cũ hiện không có trong cây; hãy khôi phục người đó trước.");
+  if (state.docs[op.childId]?.deleted === true)
+    invalid("Người này đang bị ẩn; hãy khôi phục trước.");
+  if (state.docs[op.parentId]?.deleted === true)
+    invalid("Cha/mẹ cũ đang bị ẩn; hãy khôi phục người đó trước.");
+  const role = ROLE_CODE[op.role];
+  const curRow = data.relations.find(
+    (r) => r[1] === op.childId && r[2] === role,
+  );
+  if (!curRow)
+    invalid(`Người này hiện không có ${ROLE_LABEL[op.role]} để hoàn tác.`);
+  const curId = rid(String(curRow[0]), op.childId);
+  const oldId = rid(op.parentId, op.childId);
+  const cur = state.relations[curId];
+  const old = state.relations[oldId];
+  const audit = state.audit;
+  const num = (v: unknown): v is number => Number.isInteger(v);
+  if (!cur || !old || !audit || !num(cur.version) || !num(old.version))
+    throw new EditError("BAD_STATE", "Thiếu dữ liệu quan hệ hoặc nhật ký.");
+  const refs = cur.sourceRefs;
+  const after = audit.after as Doc | undefined;
+  const removed = (audit.before as Doc | undefined)?.removed as
+    Doc | null | undefined;
+  // Chỉ hoàn tác được lần thay MỚI NHẤT của vai trò này: quan hệ hiện tại phải do chính lần thay đó tạo ra.
+  if (
+    !Array.isArray(refs) ||
+    refs[0] !== `auditLogs/edit-${op.changeVersion}` ||
+    audit.event !== "PARENT_CHANGED" ||
+    audit.personId !== op.childId ||
+    !Array.isArray(audit.relationIds) ||
+    audit.relationIds[0] !== curId ||
+    !Array.isArray(audit.removedRelationIds) ||
+    audit.removedRelationIds[0] !== oldId ||
+    !removed ||
+    removed.parentId !== op.parentId ||
+    removed.role !== op.role ||
+    !after ||
+    after.parentId !== curRow[0]
+  )
+    throw new EditError(
+      "BAD_STATE",
+      "Đây không phải lần thay gần nhất của quan hệ này; không hoàn tác được.",
+    );
+  if (
+    old.deleted !== true ||
+    old.replacedBy !== curId ||
+    old.parentRole !== op.role ||
+    cur.parentRole !== op.role ||
+    cur.deleted === true
+  )
+    throw new EditError(
+      "BAD_STATE",
+      "Trạng thái quan hệ không còn khớp với lần thay; không hoàn tác được.",
+    );
+  const oldAdoptive = old.relationType === "ADOPTIVE";
+  const oldLineage = old.lineageTransmission === true;
+  if (
+    !["ADOPTIVE", "BIOLOGICAL"].includes(String(old.relationType)) ||
+    typeof old.lineageTransmission !== "boolean" ||
+    (removed.relationType === "ADOPTIVE") !== oldAdoptive ||
+    removed.lineageTransmission !== oldLineage
+  )
+    throw new EditError(
+      "BAD_STATE",
+      "Quan hệ cũ không khớp nhật ký; chạy đối soát trước.",
+    );
+  const sex = state.docs[op.parentId]?.sex;
+  if (op.role === "FATHER" && sex === "F")
+    invalid("Cha cũ hiện đang ghi giới tính nữ.");
+  if (op.role === "MOTHER" && sex === "M")
+    invalid("Mẹ cũ hiện đang ghi giới tính nam.");
+  if (data.relations.some((r) => r[0] === op.parentId && r[1] === op.childId))
+    invalid("Người này hiện đã là cha/mẹ của người con ở vai trò khác.");
+  if (descendants(data.relations, op.childId).has(op.parentId))
+    invalid("Không thể hoàn tác: sẽ tạo vòng lặp (cha/mẹ cũ nay là con cháu).");
+  const child = data.persons[op.childId];
+  const parent = data.persons[op.parentId];
+  if (child[4] === "C" && op.role === "FATHER") {
+    if (parent[4] !== "C")
+      invalid("Người thuộc dòng họ chỉ có thể có cha thuộc dòng họ.");
+    if (typeof parent[3] !== "number")
+      invalid("Cha cũ chưa nối được tới thủy tổ (chưa có đời).");
+  }
+  data.relations.splice(data.relations.indexOf(curRow), 1);
+  data.relations.push([
+    op.parentId,
+    op.childId,
+    role,
+    oldAdoptive ? "A" : "B",
+    oldLineage ? 1 : 0,
+  ]);
+  recomputeGenerations(data);
+  const json = JSON.stringify(data);
+  if (new TextEncoder().encode(json).length > SNAPSHOT_MAX_BYTES)
+    invalid("Ảnh chụp cây đã quá lớn.");
+  const writes: EditWrite[] = [
+    {
+      path: `relations/${oldId}`,
+      mode: "merge",
+      data: {
+        deleted: false,
+        replacedBy: null,
+        restoredAt: SERVER_TIME,
+        restoredBy: input.actorUid,
+        version: old.version + 1,
+      },
+    },
+    {
+      path: `relations/${curId}`,
+      mode: "merge",
+      data: {
+        deleted: true,
+        deletedAt: SERVER_TIME,
+        deletedBy: input.actorUid,
+        revertedAtVersion: nextVersion,
+        version: cur.version + 1,
+      },
+    },
+    {
+      path: "treeSnapshots/main",
+      mode: "merge",
+      data: { data: json, editVersion: nextVersion },
+    },
+    {
+      path: `auditLogs/edit-${nextVersion}`,
+      mode: "create",
+      data: {
+        event: "PARENT_REVERTED",
+        actorUid: input.actorUid,
+        target: `persons/${op.childId}`,
+        personId: op.childId,
+        createdPersonIds: [],
+        relationIds: [oldId],
+        removedRelationIds: [curId],
+        revertsVersion: op.changeVersion,
+        unionId: null,
+        editVersion: nextVersion,
+        fields: ["parent"],
+        before: {
+          reverted: {
+            parentId: curRow[0],
+            role: op.role,
+            relationType: cur.relationType ?? null,
+            lineageTransmission: cur.lineageTransmission ?? null,
+          },
+        },
+        after: {
+          parentId: op.parentId,
+          role: op.role,
+          adoptive: oldAdoptive,
+          lineageTransmission: oldLineage,
+        },
+        timestamp: SERVER_TIME,
+        schemaVersion: 1,
+      },
+    },
+  ];
   return { writes, nextVersion, focusId: op.childId };
 }
