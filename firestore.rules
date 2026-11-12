@@ -76,7 +76,7 @@ service cloud.firestore {
      || (a.event == 'PARENT_REVERTED'
          && get(relationDoc(a.relationIds[0])).data.get('deleted', false) == true
          && getAfter(relationDoc(a.relationIds[0])).data.get('deleted', false) == false
-         && getAfter(relationDoc(a.removedRelationIds[0])).data.get('deleted', false) == true)
+         && getAfter(relationDoc(a.removedRelationIds[0])).data.get('revertedAtVersion', null) == n)
      || (a.event == 'RELATION_TYPE_CHANGED'
          && getAfter(relationDoc(a.relationIds[0])).data.version == get(relationDoc(a.relationIds[0])).data.version + 1)
      || (a.event == 'PERSON_DELETED'
@@ -321,7 +321,7 @@ service cloud.firestore {
          && d.replacedBy == a.relationIds[0])
      || (!live && a.event == 'PARENT_REVERTED' && id in a.relationIds
          && resource.data.get('replacedBy', null) == a.removedRelationIds[0]
-         && getAfter(relationDoc(a.removedRelationIds[0])).data.get('deleted', false) == true
+         && getAfter(relationDoc(a.removedRelationIds[0])).data.get('revertedAtVersion', null) == n
          && get(personDoc(resource.data.parentId)).data.get('deleted', false) == false
          && get(personDoc(resource.data.childId)).data.get('deleted', false) == false
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'replacedBy', 'version', 'restoredAt', 'restoredBy'])
@@ -341,6 +341,7 @@ service cloud.firestore {
      || (!live && a.event == 'PERSON_RESTORED' && id in a.relationIds
          && resource.data.get('deletedWith', '') == a.personId
          && resource.data.get('replacedBy', null) == null
+         && resource.data.get('revertedAtVersion', null) == null
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'version', 'restoredAt', 'restoredBy'])
          && d.deleted == false && d.restoredAt == request.time && d.restoredBy == request.auth.uid));
   }

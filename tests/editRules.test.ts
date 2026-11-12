@@ -1138,6 +1138,136 @@ describe("hoàn tác thay cha/mẹ: rules", () => {
     return db;
   }
 
+  // Thêm người d (cha thứ ba) vào snapshot + persons để dựng chuỗi thay a -> c -> d cho người con b.
+  async function chainReplaced() {
+    const db = admin();
+    await env.withSecurityRulesDisabled(async (c) => {
+      const f = c.firestore();
+      const ref = doc(f, "treeSnapshots", "main");
+      const data = JSON.parse((await getDoc(ref)).data()!.data);
+      data.persons.d = ["Nguyễn Văn D", null, null, 2, "C", null, []];
+      data.relations.push(["a", "d", "F", "B", 1]);
+      await setDoc(ref, { data: JSON.stringify(data) }, { merge: true });
+      await setDoc(doc(f, "persons", "d"), {
+        displayName: "d",
+        normalizedName: "d",
+        sex: "M",
+        category: "CLAN",
+        profileVersion: 1,
+      });
+    });
+    await assertSucceeds(
+      commit(db, (await planRel(db, replaceFather())).writes),
+    );
+    const toD: RelationOp = { ...replaceFather(), parentId: "d" } as RelationOp;
+    await assertSucceeds(commit(db, (await planRel(db, toD, 1)).writes));
+    return db;
+  }
+
+  it("chuỗi thay a->c->d: không hồi sinh quan hệ cũ bằng cách trỏ tới quan hệ đã ẩn từ trước (hai cha cùng sống)", async () => {
+    const db = await chainReplaced();
+    const snap = (await getDoc(doc(db, "treeSnapshots", "main"))).data()!;
+    const oldDoc = (await getDoc(doc(db, "relations", "r-a-b"))).data()!;
+    const writes = [
+      {
+        path: "relations/r-a-b",
+        mode: "merge" as const,
+        data: {
+          deleted: false,
+          replacedBy: null,
+          restoredAt: SERVER_TIME,
+          restoredBy: "admin",
+          version: (oldDoc.version as number) + 1,
+        },
+      },
+      {
+        path: "treeSnapshots/main",
+        mode: "merge" as const,
+        data: { data: snap.data, editVersion: 3 },
+      },
+      {
+        path: "auditLogs/edit-3",
+        mode: "create" as const,
+        data: {
+          event: "PARENT_REVERTED",
+          actorUid: "admin",
+          target: "persons/b",
+          personId: "b",
+          createdPersonIds: [],
+          relationIds: ["r-a-b"],
+          removedRelationIds: ["r-c-b"],
+          revertsVersion: 1,
+          unionId: null,
+          editVersion: 3,
+          fields: ["parent"],
+          before: {},
+          after: {},
+          timestamp: SERVER_TIME,
+          schemaVersion: 1,
+        },
+      },
+    ];
+    await assertFails(commit(db, writes));
+  });
+
+  it("PERSON_RESTORED không hồi sinh được quan hệ đã bị hoàn tác (còn deletedWith cũ)", async () => {
+    const db = await replaced();
+    await assertSucceeds(commit(db, (await planDel(db, delB(), 1)).writes));
+    await assertSucceeds(
+      commit(db, (await planDel(db, restoreB(2), 2)).writes),
+    );
+    await assertSucceeds(
+      commit(db, (await planRevert(db, revertFather(), 3)).writes),
+    );
+    await assertSucceeds(commit(db, (await planDel(db, delB(), 4)).writes));
+    const legit = await planDel(db, restoreB(5), 5);
+    const cur = (await getDoc(doc(db, "relations", "r-c-b"))).data()!;
+    expect(cur.deleted).toBe(true);
+    expect(cur.deletedWith).toBe("b");
+    const sneaky = [
+      ...legit.writes.map((w) =>
+        w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, relationIds: ["r-a-b", "r-c-b"] } }
+          : w,
+      ),
+      {
+        path: "relations/r-c-b",
+        mode: "merge" as const,
+        data: {
+          deleted: false,
+          version: (cur.version as number) + 1,
+          restoredAt: SERVER_TIME,
+          restoredBy: "admin",
+        },
+      },
+    ];
+    await assertFails(commit(db, sneaky));
+    await assertSucceeds(commit(db, legit.writes));
+    expect((await getDoc(doc(db, "relations", "r-c-b"))).data()!.deleted).toBe(
+      true,
+    );
+  });
+
+  it("nhật ký trỏ tới quan hệ có thật nhưng không phải cặp thay thế: bị chặn", async () => {
+    const db = await replaced();
+    const r = await planRevert(db, revertFather(), 1);
+    const audit = (extra: Record<string, unknown>) =>
+      r.writes.map((w) =>
+        w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, ...extra } }
+          : w,
+      );
+    // r-a-c tồn tại thật (quan hệ cha của c), nhưng không phải cặp của người con b.
+    await assertFails(commit(db, audit({ relationIds: ["r-a-c"] })));
+    await assertFails(commit(db, audit({ removedRelationIds: ["r-a-c"] })));
+    await assertFails(
+      commit(
+        db,
+        audit({ relationIds: ["r-c-b"], removedRelationIds: ["r-a-b"] }),
+      ),
+    );
+  });
+
   it("hoàn tác thành công: quan hệ cũ sống lại (xóa replacedBy), quan hệ mới bị ẩn, snapshot đảo", async () => {
     const db = await replaced();
     await assertSucceeds(
@@ -1252,7 +1382,7 @@ describe("hoàn tác thay cha/mẹ: rules", () => {
     await assertFails(commit(db, r.writes));
   });
 
-  it("PERSON_RESTORED không hồi sinh được quan hệ mới đã hoàn tác; ẩn rồi khôi phục người con sau hoàn tác vẫn đạt", async () => {
+  it("ẩn rồi khôi phục người con sau hoàn tác vẫn đạt, quan hệ đã hoàn tác vẫn ẩn", async () => {
     const db = await replaced();
     await assertSucceeds(
       commit(db, (await planRevert(db, revertFather(), 1)).writes),
