@@ -230,3 +230,74 @@ export function reconcile(input: ReconcileInput): Issue[] {
       add("AUDIT_ID_MISMATCH", e.id);
   return issues;
 }
+
+const MAX_DEPTH = 500;
+
+// Cảnh báo (KHÔNG làm đối soát thất bại): người CLAN thuộc cây con của người khai chi X nhưng branchCode khác chi của X.
+// Đi ngược theo cha/mẹ có lineageTransmission (con nuôi tính như ruột), dừng ở tầng gần nhất có người khai chi.
+// Không suy chi từ họ/giới tính; SPOUSE/EXTERNAL bị bỏ qua. Chỉ trả mã + mã người (không tên).
+export function reconcileWarnings(input: ReconcileInput): Issue[] {
+  const out: Issue[] = [];
+  const { snapshot } = input;
+  if (!snapshot || typeof snapshot.data !== "string") return out;
+  let data: {
+    persons?: Record<string, unknown[]>;
+    relations?: unknown[][];
+    branches?: Record<string, unknown>;
+  };
+  try {
+    data = JSON.parse(snapshot.data);
+  } catch {
+    return out;
+  }
+  if (!data || typeof data !== "object") return out;
+  const persons = data.persons ?? {};
+  // founderId → các mã chi mà người đó khai.
+  const founded = new Map<string, Set<string>>();
+  for (const [code, v] of Object.entries(data.branches ?? {})) {
+    const fid = Array.isArray(v) ? v[1] : null;
+    if (typeof fid !== "string") continue;
+    if (!founded.has(fid)) founded.set(fid, new Set());
+    founded.get(fid)!.add(code);
+  }
+  if (!founded.size) return out;
+  const up = new Map<string, string[]>();
+  for (const r of data.relations ?? []) {
+    if (r[4] !== 1) continue;
+    const d = input.relations.get(`r-${String(r[0])}-${String(r[1])}`);
+    if (d && d.deleted === true) continue;
+    up.set(String(r[1]), [...(up.get(String(r[1])) ?? []), String(r[0])]);
+  }
+  for (const [id, t] of Object.entries(persons)) {
+    if (t[4] !== "C" || !live(input.persons.get(id))) continue;
+    const have = typeof t[5] === "string" ? t[5] : null;
+    // Người khai chi: chi của họ phải thuộc các chi họ khai (chi lồng nhau); không so với tổ tiên.
+    const own = founded.get(id);
+    if (own) {
+      if (have === null || !own.has(have))
+        out.push({ code: "BRANCH_FOUNDER_MISMATCH", ref: id });
+      continue;
+    }
+    // BFS theo tầng (có visited + giới hạn độ sâu nên vòng lặp không treo); lấy tầng gần nhất có người khai chi.
+    const seen = new Set<string>([id]);
+    let level = [id];
+    for (let depth = 0; depth < MAX_DEPTH && level.length; depth++) {
+      const next: string[] = [];
+      const want = new Set<string>();
+      for (const c of level)
+        for (const p of up.get(c) ?? []) {
+          if (seen.has(p)) continue;
+          seen.add(p);
+          next.push(p);
+          for (const code of founded.get(p) ?? []) want.add(code);
+        }
+      if (want.size) {
+        if (have === null || !want.has(have))
+          out.push({ code: "BRANCH_FOUNDER_MISMATCH", ref: id });
+        break;
+      }
+      level = next;
+    }
+  }
+  return out;
+}

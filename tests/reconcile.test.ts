@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   reconcile,
+  reconcileWarnings,
   type ReconcileInput,
 } from "../scripts/gia-pha/reconcile-core";
 
@@ -252,5 +253,106 @@ describe("đối soát snapshot", () => {
     expect(codes(g)).toEqual(["SNAPSHOT_MISSING"]);
     g.snapshot = { data: "{" };
     expect(codes(g)).toEqual(["SNAPSHOT_UNREADABLE"]);
+  });
+
+  describe("cảnh báo chi lệch người khai chi", () => {
+    // ts(c1, khai c1) → a(c1) → k(c2); người khai chi c2 là a2.
+    const mk = () => {
+      const g = good();
+      const t = tree() as unknown as {
+        persons: Record<string, unknown[]>;
+        relations: unknown[][];
+        branches: Record<string, unknown[]>;
+      };
+      t.branches = {
+        c1: ["Chi 1", "ts", null, null],
+        c2: ["Chi 2", "a", null, null],
+      };
+      // Người khai chi c2 phải mang chi c2 (chi lồng nhau trong c1).
+      t.persons.a[5] = "c2";
+      t.persons.k = ["Giả K", null, null, 3, "C", "c2", []];
+      t.relations.push(["a", "k", "F", "B", 1]);
+      setData(g, t);
+      g.persons.get("a")!.branchCode = "c2";
+      g.persons.set("k", {
+        displayName: "Giả K",
+        category: "CLAN",
+        branchCode: "c2",
+      });
+      g.memberProfiles.set("k", { displayName: "Giả K" });
+      g.relations.set("r-a-k", {
+        parentRole: "FATHER",
+        relationType: "BIOLOGICAL",
+        lineageTransmission: true,
+      });
+      return { g, t };
+    };
+    const warn = (i: ReconcileInput) =>
+      reconcileWarnings(i).map((x) => `${x.code}:${x.ref}`);
+    it("khớp thì không cảnh báo", () => {
+      expect(warn(mk().g)).toEqual([]);
+    });
+    it("người khai chi của chi con mang chi của mình thì không cảnh báo", () => {
+      expect(warn(mk().g)).not.toContain("BRANCH_FOUNDER_MISMATCH:a");
+    });
+    it("người khai chi mang chi KHÁC chi mình khai (kể cả chi của cha) thì cảnh báo", () => {
+      const { g, t } = mk();
+      t.persons.a[5] = "c1";
+      setData(g, t);
+      g.persons.get("a")!.branchCode = "c1";
+      expect(warn(g)).toContain("BRANCH_FOUNDER_MISMATCH:a");
+    });
+    it("lệch thì cảnh báo, không đổi kết quả đối soát", () => {
+      const { g, t } = mk();
+      t.persons.k[5] = "c1";
+      setData(g, t);
+      g.persons.get("k")!.branchCode = "c1";
+      expect(warn(g)).toEqual(["BRANCH_FOUNDER_MISMATCH:k"]);
+      expect(codes(g)).toEqual([]);
+      expect(reconcile(g)).toEqual([]);
+      const out = JSON.stringify(reconcileWarnings(g));
+      expect(out).not.toContain("Giả K");
+      expect(out).not.toContain("Chi 2");
+    });
+    it("con nuôi có lineage tính như con ruột", () => {
+      const { g, t } = mk();
+      t.relations[1] = ["a", "k", "F", "A", 1];
+      t.persons.k[5] = "c1";
+      setData(g, t);
+      g.persons.get("k")!.branchCode = "c1";
+      g.relations.get("r-a-k")!.relationType = "ADOPTIVE";
+      expect(warn(g)).toEqual(["BRANCH_FOUNDER_MISMATCH:k"]);
+    });
+    it("SPOUSE/EXTERNAL bị bỏ qua", () => {
+      const { g, t } = mk();
+      t.persons.k[4] = "E";
+      t.persons.k[5] = "c1";
+      setData(g, t);
+      expect(warn(g)).toEqual([]);
+    });
+    it("người đã ẩn và quan hệ đã deleted bị bỏ qua", () => {
+      const { g, t } = mk();
+      t.persons.k[5] = "c1";
+      setData(g, t);
+      g.persons.get("k")!.deleted = true;
+      expect(warn(g)).toEqual([]);
+      g.persons.get("k")!.deleted = false;
+      g.relations.get("r-a-k")!.deleted = true;
+      expect(warn(g)).toEqual([]);
+    });
+    it("người không thuộc cây con người khai chi nào thì bỏ qua", () => {
+      const { g, t } = mk();
+      t.branches.c1[1] = null; // chi c1 không khai người khai chi
+      t.persons.ts[5] = "c9"; // thủy tổ không có tổ tiên khai chi
+      setData(g, t);
+      expect(warn(g)).toEqual([]);
+    });
+    it("vòng lặp quan hệ không treo", () => {
+      const { g, t } = mk();
+      t.relations.push(["k", "ts", "F", "B", 1]);
+      t.persons.k[5] = "c1";
+      setData(g, t);
+      expect(warn(g)).toContain("BRANCH_FOUNDER_MISMATCH:k");
+    });
   });
 });
