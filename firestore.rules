@@ -175,9 +175,9 @@ service cloud.firestore {
     && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED'];
    allow create: if manager() && auditCreateOk(id);
   }
-  // Up to five extra unions (the first is audit.unionId). Each listed union must have been written in THIS batch:
+  // The first union (audit.unionId) plus up to five extra ones. Each listed union must have been written in THIS batch:
   // deletedAt/restoredAt == request.time cannot hold for an untouched doc. Fixed indexes because rules cannot loop;
-  // 3 base reads + 5 getAfter stays under the 10-access limit of one request.
+  // 3 base reads + 6 getAfter (unionId + 5 more) stays at 9, under the 10-access limit of one request.
   function unionWritten(unionId, d) {
    let u = getAfter(unionDoc(unionId)).data;
    return d.event == 'PERSON_DELETED'
@@ -188,6 +188,8 @@ service cloud.firestore {
    let m = d.get('moreUnionIds', []);
    return m is list && m.size() <= 5
     && (m.size() == 0 || (d.event in ['PERSON_DELETED', 'PERSON_RESTORED'] && d.get('unionId', null) is string))
+    && m.toSet().size() == m.size() && !(d.get('unionId', null) in m)
+    && (!(d.event in ['PERSON_DELETED', 'PERSON_RESTORED']) || d.get('unionId', null) == null || unionWritten(d.unionId, d))
     && (m.size() < 1 || unionWritten(m[0], d))
     && (m.size() < 2 || unionWritten(m[1], d))
     && (m.size() < 3 || unionWritten(m[2], d))

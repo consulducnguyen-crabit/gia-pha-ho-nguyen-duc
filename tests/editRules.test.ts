@@ -1314,6 +1314,8 @@ describe("ẩn và khôi phục người: rules", () => {
     await givenSpouses(db, 3);
     const hide = await planDel(db, delB(), 3);
     // Bỏ một liên kết khỏi lô nhưng vẫn liệt kê trong nhật ký.
+    // Cả liên kết ĐẦU (unionId) cũng phải được ghi trong lô.
+    await assertFails(commit(db, without(hide.writes, "unions/u-b-p-sp0")));
     await assertFails(commit(db, without(hide.writes, "unions/u-b-p-sp2")));
     await assertFails(commit(db, without(hide.writes, "unions/u-b-p-sp1")));
     const withMore = (more: unknown) =>
@@ -1327,6 +1329,9 @@ describe("ẩn và khôi phục người: rules", () => {
       commit(db, withMore(["u-b-p-sp1", "u-b-p-sp2", "a", "b", "c", "d"])),
     );
     await assertFails(commit(db, withMore("u-b-p-sp1")));
+    // Trùng phần tử, hoặc trùng với unionId.
+    await assertFails(commit(db, withMore(["u-b-p-sp1", "u-b-p-sp1"])));
+    await assertFails(commit(db, withMore(["u-b-p-sp0", "u-b-p-sp1"])));
     await assertSucceeds(commit(db, hide.writes));
   });
 
@@ -1336,6 +1341,18 @@ describe("ẩn và khôi phục người: rules", () => {
     await assertSucceeds(commit(db, (await planDel(db, delB(), 3)).writes));
     const restore = await planDel(db, restoreB(4), 4);
     await assertFails(commit(db, without(restore.writes, "unions/u-b-p-sp2")));
+    await assertFails(commit(db, without(restore.writes, "unions/u-b-p-sp0")));
+    // unionId lạ (không ghi trong lô) bị chặn.
+    await assertFails(
+      commit(
+        db,
+        restore.writes.map((w) =>
+          w.path.startsWith("auditLogs/")
+            ? { ...w, data: { ...w.data, unionId: "u-khac-lạ" } }
+            : w,
+        ),
+      ),
+    );
     await assertSucceeds(commit(db, restore.writes));
   });
 
