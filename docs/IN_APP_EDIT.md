@@ -66,3 +66,7 @@ nhật ký. Admin đọc được `persons`, `personPrivate` và `get` từng nh
 `npm test` (tests/editCore.test.ts) và `npm run test:rules` (tests/editRules.test.ts: admin hợp lệ,
 member/anonymous bị chặn, thiếu nhật ký/snapshot, sai target/actor, nhảy phiên bản, phát lại,
 `profileVersion`, không xóa/sửa nhật ký). Dữ liệu giả, project `demo-gia-pha-edit`.
+
+## Xem nhật ký
+
+Trang `#/audit` (chỉ quản trị viên) đọc `auditLogs/edit-{n}` theo mã để xem lại mọi lần sửa; không đổi rules. Xem AUDIT_LOG_UI.md.

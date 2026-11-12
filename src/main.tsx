@@ -23,6 +23,7 @@ import {
 import { auth, db, emulator } from "./firebase";
 import { normalizeName, type Person } from "./domain";
 import { latestRequest } from "./latestRequest";
+import { AuditLogPage } from "./AuditLog";
 import { AcceptInvitation, MembershipAdmin } from "./Membership";
 import { Proposals } from "./Proposals";
 import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
@@ -106,6 +107,9 @@ function App() {
           {canManageMembership && (
             <NavLink to="/users">Quản lý tài khoản</NavLink>
           )}
+          {canManageMembership && (
+            <NavLink to="/audit">Nhật ký chỉnh sửa</NavLink>
+          )}
           {emulator && canManageMembership && (
             <NavLink to="/accounts">Tài khoản và lời mời</NavLink>
           )}
@@ -173,6 +177,12 @@ function App() {
             )}
             {canManageMembership && (
               <Route path="/users" element={<UsersPage key={user!.uid} />} />
+            )}
+            {canManageMembership && (
+              <Route
+                path="/audit"
+                element={<AuditLogPage key={user!.uid} uid={user!.uid} />}
+              />
             )}
             {emulator && canManageMembership && (
               <Route

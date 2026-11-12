@@ -21,3 +21,5 @@ lỗi gần trường, không tràn ngang ở 360/768/1280, lưu thật qua rule
       "node scripts/edit-browser-check.mjs"
 
 Gỡ/khôi phục liên kết vợ/chồng (mục "Quan hệ vợ/chồng (quản trị)" và "Thêm vợ/chồng"): xem IN_APP_EDIT_UNIONS.md.
+
+Xem lại mọi lần sửa ở trang "Nhật ký chỉnh sửa" (`#/audit`, chỉ quản trị viên): xem AUDIT_LOG_UI.md.
