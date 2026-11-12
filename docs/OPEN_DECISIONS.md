@@ -2,7 +2,7 @@
 
 Bảy chính sách dòng họ đã được phê duyệt, xem APPROVED_DECISIONS.md. Không hỏi lại các lựa chọn này.
 
-Chưa phê duyệt hạ tầng có chi phí hoặc production: Firebase region, Blaze/billing cho Storage, dự án/remote GitHub, danh tính người chịu trách nhiệm duyệt và sao lưu.
+Chưa phê duyệt hạ tầng có chi phí hoặc production: Firebase region, Blaze/billing cho Storage, dự án/remote GitHub, danh tính người chịu trách nhiệm duyệt.
 
 Thông tin phục vụ định cỡ: số hồ sơ và truy cập đồng thời dự kiến. Trong dev dùng truy vấn có giới hạn, không tự giả định quy mô production.
 
@@ -14,7 +14,7 @@ Chưa chốt (trang nhật ký, PR-7; mặc định thận trọng đang áp d�
 
 Chưa chốt (ghi chú chi `note`, PR-9): `note` của chi nằm trong ảnh chụp cây mà mọi thành viên đọc được; giao diện chỉ hiện cho quản trị viên nên đây KHÔNG phải kiểm soát bảo mật. Phương án: A giữ nguyên, ẩn ở giao diện và ghi rõ giới hạn trong tài liệu (đang dùng, đề xuất); B bỏ `note` khỏi ảnh chụp chung và đưa vào tài liệu chỉ quản trị viên đọc (cần đổi bước dựng ảnh chụp, định dạng và script nạp); C hiển thị cho mọi thành viên (thừa nhận ghi chú không nhạy cảm). Cho đến khi chốt, không ghi thông tin nhạy cảm vào ghi chú chi. Xem TREE_UI.md.
 
-Đã chốt 2026-11-12 (chi lệch người khai chi, PR-8; phương án E: không làm đổi chi hàng loạt trong app): Q1=A vẫn lưu `branchCode`, đối soát cảnh báo `BRANCH_FOUNDER_MISMATCH` khi lệch cây con người khai chi; Q2=A chỉ xét người CLAN, không tự gán chi cho SPOUSE/EXTERNAL và giữ nguyên EXTERNAL đang có chi; Q3=E (chỉ cảnh báo chỉ-đọc); Q4=A công cụ hàng loạt sau này cấm chuyển người ra/vào chi có `mergedFrom`. Việc để sau: script Admin SDK đổi chi hàng loạt chỉ khi có nhu cầu thật và có sao lưu đã kiểm chứng (dry run bắt buộc); công cụ đó phải tuân Q4 (không đụng chi có `mergedFrom`) và Q2 (chỉ người CLAN). Xem INTEGRITY_GUARD.md.
+Đã chốt 2026-11-12 (chi lệch người khai chi, PR-8; phương án E: không làm đổi chi hàng loạt trong app): Q1=A vẫn lưu `branchCode`, đối soát cảnh báo `BRANCH_FOUNDER_MISMATCH` khi lệch cây con người khai chi; Q2=A chỉ xét người CLAN, không tự gán chi cho SPOUSE/EXTERNAL và giữ nguyên EXTERNAL đang có chi; Q3=E (chỉ cảnh báo chỉ-đọc); Q4=A công cụ hàng loạt sau này cấm chuyển người ra/vào chi có `mergedFrom`. Việc để sau: script Admin SDK đổi chi hàng loạt chỉ khi có nhu cầu thật (dry run bắt buộc; sao lưu do quản trị viên tự quyết); công cụ đó phải tuân Q4 (không đụng chi có `mergedFrom`) và Q2 (chỉ người CLAN). Xem INTEGRITY_GUARD.md.
 
 ## Quyết định đang chờ người dùng (tổng hợp, CHƯA CHỐT)
 
@@ -30,7 +30,7 @@ Gom các câu còn mở rải rác bên trên và trong các tài liệu khác. 
 | 6   | Lý do bắt buộc khi sửa (hiện nhật ký không có trường lý do bắt buộc)                                                   | A: không có lý do; B: ô lý do tùy chọn; C: lý do bắt buộc cho thao tác nhạy cảm (đổi cha/mẹ, ẩn, gỡ liên kết)                                                                                         | A         | B, bàn thêm C nếu có nhiều quản trị                          |
 | 7   | Quản trị viên thứ hai (hiện một quản trị đầu tiên; một người giữ quyền là điểm lỗi đơn)                                | A: giữ một quản trị; B: thêm một quản trị thứ hai tin cậy (`gia-pha:accounts grant --admin`); C: hai quản trị, sửa lớn cần người kia xem nhật ký                                                      | A         | B                                                            |
 | 8   | App Check (chưa bật; chỉ là lớp phòng thủ thêm, không thay xác thực và rules)                                          | A: chưa bật; B: bật chế độ giám sát trước, chưa ép; C: bật ép buộc                                                                                                                                    | A         | B sau khi ổn định Giai đoạn 3                                |
-| 9   | Sao lưu định kỳ tự động (hiện chỉ sao lưu tay có kiểm chứng; lịch tự động chưa có, cần khóa/cụm mật khẩu và chỗ chạy)  | A: sao lưu tay trước mỗi đợt sửa lớn và định kỳ nhắc nhở; B: lịch chạy trên máy người dùng (Task Scheduler) với khóa hạn chế; C: dịch vụ đám mây (cần Blaze/chi phí)                                  | A         | A cộng nhắc lịch hằng tháng, xem lại B khi dữ liệu sửa nhiều |
+| 9   | Sao lưu định kỳ tự động (hiện chỉ sao lưu tay có kiểm chứng; lịch tự động chưa có, cần khóa/cụm mật khẩu và chỗ chạy) **ĐÃ BỎ khỏi phạm vi theo quyết định 2026-11-13 (người dùng); có thể mở lại khi cần.** | A: sao lưu tay trước mỗi đợt sửa lớn và định kỳ nhắc nhở; B: lịch chạy trên máy người dùng (Task Scheduler) với khóa hạn chế; C: dịch vụ đám mây (cần Blaze/chi phí)                                  | A         | A cộng nhắc lịch hằng tháng, xem lại B khi dữ liệu sửa nhiều |
 | 10  | Tự tính lại cờ `DUP_NAME` của người trùng tên còn lại (form chỉ gắn/gỡ cho người đang sửa; INTEGRITY_GUARD.md)         | A: giữ nguyên, quản trị tự gắn bằng form; B: đối soát cảnh báo chỉ-đọc khi cờ lệch; C: tự cập nhật cả hai người trong một lô (cần đổi rules vì mỗi lần sửa một người)                                 | A         | B                                                            |
 
 Codex được tự lập phương án kỹ thuật, dùng agent độc lập phản biện, sửa và kiểm thử theo AGENTS.md. Các quyết định vượt thẩm quyền cần câu hỏi có ít nhất ba phương án, đánh dấu đề xuất. Tiếp tục phần độc lập khi chờ trả lời.

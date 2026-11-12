@@ -103,3 +103,8 @@
 - Chỉ tài liệu, không đổi code/rules/dữ liệu. Thêm ACCEPTANCE_CHECKLIST.md (phần A thử ngay trên Pages; phần B chỉ sau sao lưu và deploy rules prod; cách báo lỗi).
 - PROD_ROLLOUT.md: liệt kê đủ 12 sự kiện sửa trong app, thay đổi chính sách đọc (admin `get` unions/auditLogs theo mã), thứ tự phát hành Giai đoạn 3 (7 bước), rủi ro giới hạn truy cập tài liệu của rules chưa thử trên Firestore thật, nhắc smoke test bản build.
 - OPEN_DECISIONS.md: bảng tổng hợp 10 quyết định đang chờ (3 phương án và đề xuất mỗi câu, chưa chốt).
+
+# Rules prod đã deploy, sửa thử đạt, bỏ yêu cầu sao lưu - 2026-11-13
+
+- Rules sửa trong app đã deploy lên prod (commit a8c740a); sửa thử một người (c2-thai-son) ĐẠT, nhật ký `edit-1`, `edit-2` hiện đúng ở `#/audit`.
+- Người dùng bỏ yêu cầu xây dựng/cấu hình sao lưu khỏi phạm vi dự án: sao lưu không còn là điều kiện trước deploy rules hay sửa thử. Chỉ cập nhật tài liệu; không đổi code/rules/công cụ (cổng `--backup-dir` của import/restore-ghi-đè trên prod giữ nguyên).

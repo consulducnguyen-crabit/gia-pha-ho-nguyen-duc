@@ -8,9 +8,9 @@ Cách ghi nhận chung: đánh dấu Đạt / Không đạt cạnh mỗi mục; 
 
 ## Hiểu rõ trước khi thử
 
-- Trang GitHub Pages hiện đang nối **dữ liệu thật (prod)**, nhưng prod **chưa** được cài bản rules cho phép sửa trong app.
-- Vì vậy ở Phần A mọi thao tác **ghi** (nếu bạn thử bấm Lưu) sẽ báo **"Không có quyền"**. Đó là kết quả **đúng và an toàn**: không có gì bị ghi.
-- Phần B chỉ làm được **sau khi** Claude/bạn đã sao lưu và cài rules lên prod (xem `PROD_ROLLOUT.md`, mục "Thứ tự phát hành Giai đoạn 3").
+- Trang GitHub Pages hiện đang nối **dữ liệu thật (prod)**. Rules sửa trong app đã được cài lên prod ngày 2026-11-13.
+- Phần A chỉ xem/đọc; thao tác **ghi** thuộc Phần B và là ghi dữ liệu thật.
+- Phần B chỉ làm **sau khi** đã cài rules lên prod (đã làm 2026-11-13; xem `PROD_ROLLOUT.md`, mục "Thứ tự phát hành Giai đoạn 3").
 
 ---
 
@@ -74,9 +74,9 @@ Cách ghi nhận chung: đánh dấu Đạt / Không đạt cạnh mỗi mục; 
 
 ---
 
-## Phần B. CHỈ thử SAU khi đã sao lưu và cài rules lên prod
+## Phần B. CHỈ thử SAU khi đã cài rules lên prod (đã làm 2026-11-13)
 
-> **CẢNH BÁO:** từ đây là **ghi dữ liệu thật**. Chỉ làm khi Claude xác nhận bằng văn bản rằng: (1) đã có bản sao lưu mã hóa đã kiểm chứng ngay trước khi cài rules, (2) rules prod đã cài, (3) đối soát (`gia-pha:reconcile`) không lỗi.
+> **CẢNH BÁO:** từ đây là **ghi dữ liệu thật**. Chỉ làm khi rules prod đã cài (đã làm 2026-11-13). Đối soát (`gia-pha:reconcile`, chỉ đọc) là tùy chọn và cần khóa service account prod; chưa chạy trên prod tính đến 2026-11-13.
 >
 > Quy tắc an toàn: **chọn MỘT người thử** (ví dụ một người đã ít liên quan, ít họ hàng) và dùng riêng người đó cho mọi mục dưới đây. **Ghi lại giá trị cũ** (tên, năm sinh/mất, giới tính, chi, ghi chú, cha/mẹ) trước khi sửa để sửa lại cho đúng sau khi thử. Mỗi thao tác chỉ làm một lần rồi xem kết quả, đừng làm dồn.
 >
@@ -84,7 +84,7 @@ Cách ghi nhận chung: đánh dấu Đạt / Không đạt cạnh mỗi mục; 
 
 Ghi sẵn trước khi bắt đầu: tên người thử: ______; giá trị cũ: ______.
 
-### B1. Sửa hồ sơ một người thử
+### B1. Sửa hồ sơ một người thử (ĐẠT 2026-11-13: người c2-thai-son, nhật ký `edit-1`, `edit-2` hiện đúng ở `#/audit`)
 
 - **Làm gì:** quản trị, mở hồ sơ người thử, bấm "Sửa hồ sơ", đổi một chi tiết nhỏ (ví dụ năm sinh hoặc ghi chú), Lưu.
 - **Đúng là:** báo lưu thành công; hồ sơ và cây hiện giá trị mới. Sau đó sửa lại về giá trị cũ, Lưu lần nữa.
@@ -144,4 +144,4 @@ Khi một mục Không đạt, gửi trong chat:
 4. Các bước bạn đã bấm, và kết quả bạn mong đợi so với kết quả thực tế.
 5. Tên người thử đã dùng (không cần dữ liệu nào khác).
 
-**KHÔNG gửi:** mật khẩu, cụm mật khẩu sao lưu, khóa service account (file JSON), mã/token, hay toàn bộ file dữ liệu gia phả. Nếu ảnh có chứa thông tin đó, che đi trước khi gửi.
+**KHÔNG gửi:** mật khẩu, khóa service account (file JSON), mã/token, hay toàn bộ file dữ liệu gia phả. Nếu ảnh có chứa thông tin đó, che đi trước khi gửi.
