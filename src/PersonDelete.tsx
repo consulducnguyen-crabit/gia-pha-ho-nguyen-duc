@@ -3,6 +3,7 @@ import { useId, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "./firebase";
 import { commitDelete } from "./editClient";
+import { MAX_UNIONS } from "./editDelete";
 import { EditError } from "./editCore";
 import { saveErrorMessage } from "./editForm";
 import { AddPanel } from "./PersonAdd";
@@ -53,6 +54,9 @@ function HidePanel(props: Props & { close: () => void }) {
   const [confirm, setConfirm] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const children = index.children(p.id).length;
+  const spouseNames = index
+    .spouses(p.id)
+    .map((id) => index.snapshot.persons.get(id)?.name ?? id);
   const panel = usePanel(
     props,
     async () => {
@@ -89,6 +93,12 @@ function HidePanel(props: Props & { close: () => void }) {
           });
           return;
         }
+        if (spouseNames.length > MAX_UNIONS) {
+          setErrors({
+            confirm: `Người này có ${spouseNames.length} vợ/chồng; chỉ ẩn được tối đa ${MAX_UNIONS}.`,
+          });
+          return;
+        }
         if (!confirm) {
           setErrors({ confirm: "Hãy tích xác nhận để ẩn người này." });
           return;
@@ -107,6 +117,12 @@ function HidePanel(props: Props & { close: () => void }) {
         />
         Tôi xác nhận ẩn {p.name} (cùng quan hệ cha/mẹ và vợ/chồng của người này)
         khỏi cây.
+        {spouseNames.length > 1 && (
+          <span className="edit-note">
+            Sẽ ẩn {spouseNames.length} quan hệ vợ/chồng với:{" "}
+            {spouseNames.join(", ")}. Khôi phục sẽ đưa lại đủ.
+          </span>
+        )}
         {errors.confirm && (
           <span id={`${uniq}-err`} role="alert" className="edit-error">
             {errors.confirm}

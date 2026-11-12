@@ -5,7 +5,7 @@ Không có xóa cứng ở bất kỳ đâu.
 
 ## Chính sách (src/editDelete.ts, hàm thuần `applyDelete`)
 
-- Chỉ ẩn được người **không còn con** (kể cả con nuôi), **không phải người sáng lập chi**, có **tối đa một** quan hệ
+- Chỉ ẩn được người **không còn con** (kể cả con nuôi), **không phải người sáng lập chi**, có **tối đa 6** quan hệ
   vợ/chồng. Còn con thì phải đổi cha/mẹ của các con trước (C2a). Cần tích xác nhận (`CONFIRM_REQUIRED`).
 - Ẩn = một lô nguyên tử: `persons/{id}` (`deleted`, `deletedAt/By`, `deletedAtVersion`, `profileVersion` + 1),
   `memberProfiles/{id}` bị **xóa** (thành viên không còn thấy tên), các quan hệ cha/mẹ của người đó và quan hệ vợ/chồng
@@ -33,7 +33,9 @@ không sửa được và không được chọn làm cha/mẹ (quan hệ mới 
 - Rules chỉ kiểm quan hệ đầu tiên trong lô ẩn/khôi phục và không kiểm nội dung JSON snapshot; script đối soát (PR D).
 - Quan hệ cha/mẹ cũ đã bị thay thế (C2a) vẫn chưa khôi phục được riêng lẻ.
 - `functions/src/proposals.ts` (emulator-only) chưa lọc `deleted`; cờ `DUP_NAME` của người trùng tên không tự tính lại.
-- Người có nhiều hơn một quan hệ vợ/chồng chưa ẩn được.
+- Nhiều vợ/chồng (yếu tố lịch sử): ẩn/khôi phục mọi liên kết của người đó trong cùng lô. Nhật ký lưu `unionId` (liên kết đầu) và `moreUnionIds` (tối đa 5 liên kết còn lại); `before.rows` có `union` + `moreUnions`. Rules kiểm CHẶT từng phần tử của `moreUnionIds` bằng chỉ số cố định (không có vòng lặp): liên kết phải thật sự được ghi trong lô này (`deletedAt`/`restoredAt == request.time`), nên trần là 6 (3 truy cập nền + 5 `getAfter` < giới hạn 10 của một yêu cầu). Dữ liệu thật hiện tối đa 3 vợ/chồng mỗi người (đếm chỉ đọc 2026-11-12). Trên 6 thì chưa ẩn được (báo rõ). Nhật ký cũ chỉ có `union` vẫn khôi phục được (khôi phục dựa vào nhật ký ở phía client; rules chỉ dựa vào `deletedWith`).
+- Giới hạn truy cập tài liệu của rules (10/yêu cầu, 20/lô) chưa kiểm chứng trên Firestore thật; emulator đạt với 6 vợ/chồng. Thứ tự hiển thị vợ/chồng sau khôi phục có thể đổi (liên kết được thêm vào cuối).
+- Thứ tự phát hành: deploy RULES trước, rồi frontend (frontend mới gửi `moreUnionIds`, rules cũ sẽ từ chối mọi lần ẩn). Deploy rules prod cần người dùng duyệt.
 - Chưa thử trên Firestore thật (chỉ emulator).
 
 ## Kiểm thử

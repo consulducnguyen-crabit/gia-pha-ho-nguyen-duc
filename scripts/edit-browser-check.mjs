@@ -24,6 +24,13 @@ const source = [
   "P|a|Giả Văn An|M|CLAN|II|I|b=1927;d=1973|ghi chú giả",
   "P|b|Giả Thị Bình|F|CLAN|II|I|b=1930|",
   "P|z|Giả Văn Lạc|M|CLAN|IV|I|b=1950/1951|CẦN XÁC MINH (giả)",
+  "P|q|Giả Văn Quý|M|CLAN|IV|I|b=1950|",
+  "P|q1|Vợ Một Quý|F|SPOUSE|||b=1952|",
+  "P|q2|Vợ Hai Quý|F|SPOUSE|||b=1955|",
+  "P|q3|Vợ Ba Quý|F|SPOUSE|||b=1958|",
+  "U|q|q1|1||",
+  "U|q|q2|2||",
+  "U|q|q3|3||",
   "K|ts|-|a,b",
   "B|I|Chi Một|ts||",
 ].join("\n");
@@ -393,7 +400,33 @@ try {
     encoding: "utf8",
     env: { ...process.env, FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080" },
   });
-  if (rec.status !== 0) throw Error("Đối soát lệch: " + rec.stdout + rec.stderr);
+  if (rec.status !== 0)
+    throw Error("Đối soát lệch: " + rec.stdout + rec.stderr);
+
+  stage = "hide and restore a person with three spouses";
+  const unionDeleted = async (id) =>
+    (await db.doc(`unions/${id}`).get()).data()?.deleted === true;
+  await page.goto(`${URL}/#/person/q`);
+  await page.getByRole("button", { name: "Ẩn người này khỏi cây" }).click();
+  await expect(page.getByText(/Sẽ ẩn 3 quan hệ vợ\/chồng với/)).toBeVisible();
+  await page.getByLabel(/Tôi xác nhận ẩn/).check();
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(page.getByText(/Đã ẩn Giả Văn Quý khỏi cây/)).toBeVisible();
+  for (const u of ["u-q-q1", "u-q-q2", "u-q-q3"])
+    if (!(await unionDeleted(u))) throw Error(`${u} phải được ẩn`);
+  const hideMessage = await page
+    .getByText(/Đã ẩn Giả Văn Quý khỏi cây/)
+    .innerText();
+  const hiddenAt = /số (\d+)/.exec(hideMessage)?.[1];
+  if (!hiddenAt) throw Error("Thông báo ẩn phải nêu số phiên bản");
+  await page.getByRole("button", { name: "Khôi phục người đã ẩn" }).click();
+  await page.getByLabel("Mã người cần khôi phục").fill("q");
+  await page.getByLabel("Số phiên bản nhật ký của lần ẩn").fill(hiddenAt);
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(page.getByText("Đã khôi phục người đã ẩn")).toBeVisible();
+  for (const u of ["u-q-q1", "u-q-q2", "u-q-q3"])
+    if (await unionDeleted(u)) throw Error(`${u} phải được khôi phục`);
+  await expect(page.getByRole("link", { name: "Vợ Ba Quý" })).toBeVisible();
 
   stage = "version conflict is reported, nothing written";
   await page.goto(`${URL}/#/person/b`);
