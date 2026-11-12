@@ -52,7 +52,7 @@ function good(): ReconcileInput {
         } as Record<string, unknown>,
       ],
     ]),
-    unions: new Map([["u-a-b", { partnerIds: ["a", "b"] }]]),
+    unions: new Map([["u-a-b", { partnerIds: ["a", "b"], order: "1" }]]),
     edits: [
       { id: "edit-1", editVersion: 1, event: "PERSON_EDITED" },
       { id: "edit-2", editVersion: 2, event: "PERSON_ADDED" },
@@ -84,6 +84,70 @@ describe("đối soát snapshot", () => {
     const u = good();
     u.unions.clear();
     expect(codes(u)).toContain("SNAPSHOT_UNION_NOT_LIVE");
+  });
+  it("liên kết vợ/chồng đã gỡ: trạng thái đúng thì đạt, sai trạng thái bị bắt", () => {
+    const ok = good();
+    // Gỡ liên kết: không còn trong snapshot, unions/{id} ẩn + removedAtVersion, deletedWith null.
+    const t = tree();
+    t.unions = [];
+    setData(ok, t);
+    ok.unions.set("u-a-b", {
+      partnerIds: ["a", "b"],
+      deleted: true,
+      removedAtVersion: 3,
+      deletedWith: null,
+    });
+    // Chưa có nhật ký UNION_REMOVED tương ứng thì bị bắt.
+    expect(codes(ok)).toContain("UNION_REMOVED_BAD_STATE");
+    ok.snapshot!.editVersion = 3;
+    ok.edits.push({ id: "edit-3", editVersion: 3, event: "UNION_REMOVED" });
+    expect(codes(ok)).toEqual([]);
+    ok.edits[2].event = "PERSON_EDITED";
+    expect(codes(ok)).toContain("UNION_REMOVED_BAD_STATE");
+    const live = good();
+    live.unions.get("u-a-b")!.removedAtVersion = 3;
+    expect(codes(live)).toContain("UNION_REMOVED_BAD_STATE");
+    const withPerson = good();
+    withPerson.unions.set("u-a-b", {
+      partnerIds: ["a", "b"],
+      deleted: true,
+      removedAtVersion: 3,
+      deletedWith: "a",
+    });
+    const t2 = tree();
+    t2.unions = [];
+    setData(withPerson, t2);
+    expect(codes(withPerson)).toContain("UNION_REMOVED_BAD_STATE");
+    // Liên kết ẩn cùng người (không có dấu gỡ) vẫn hợp lệ.
+    const hidden = good();
+    hidden.unions.set("u-a-b", {
+      partnerIds: ["a", "b"],
+      deleted: true,
+      deletedWith: "a",
+    });
+    setData(hidden, t2);
+    expect(codes(hidden)).not.toContain("UNION_REMOVED_BAD_STATE");
+  });
+  it("bắt dòng vợ/chồng trùng, tự nối và lệch thứ tự", () => {
+    const d = good();
+    const t = tree();
+    t.unions = [
+      ["a", "b", "1"],
+      ["b", "a", "1"],
+    ];
+    setData(d, t);
+    expect(codes(d)).toContain("SNAPSHOT_UNION_DUPLICATE");
+    const self = good();
+    const t2 = tree();
+    t2.unions = [["a", "a", "1"]];
+    setData(self, t2);
+    expect(codes(self)).toContain("UNION_SELF");
+    const o = good();
+    o.unions.get("u-a-b")!.order = "2";
+    expect(codes(o)).toContain("UNION_ORDER_MISMATCH");
+    const nul = good();
+    nul.unions.get("u-a-b")!.order = null;
+    expect(codes(nul)).toContain("UNION_ORDER_MISMATCH");
   });
   it("bắt tên, loại, quan hệ khác nhau và bản thành viên lệch", () => {
     const g = good();

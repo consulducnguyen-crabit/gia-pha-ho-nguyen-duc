@@ -19,3 +19,5 @@ lỗi gần trường, không tràn ngang ở 360/768/1280, lưu thật qua rule
 
     CHROMIUM_PATH=... npx firebase emulators:exec --project demo-gia-pha --only auth,firestore \
       "node scripts/edit-browser-check.mjs"
+
+Gỡ/khôi phục liên kết vợ/chồng (mục "Quan hệ vợ/chồng (quản trị)" và "Thêm vợ/chồng"): xem IN_APP_EDIT_UNIONS.md.

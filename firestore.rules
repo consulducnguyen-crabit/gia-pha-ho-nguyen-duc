@@ -27,6 +27,10 @@ service cloud.firestore {
   //  - PARENT_REMOVED: hide ONE non-lineage parent relation (removedRelationIds, deleted + removedAtVersion == n);
   //    PARENT_REMOVAL_UNDONE: bring it back (relationIds, revertsVersion = the PARENT_REMOVED audit, removedAtVersion
   //    must equal it and is cleared). A removed relation is never revived by any other flow (removedAtVersion != null).
+  //  - UNION_REMOVED: hide ONE spouse link entered by mistake (unions/{unionId}: deleted + removedAtVersion == n, deletedWith
+  //    cleared); UNION_REMOVAL_UNDONE brings it back (revertsVersion = the UNION_REMOVED audit == removedAtVersion, cleared on
+  //    restore, both people must be live). Exactly three writes: the union, treeSnapshots/main and the audit; persons,
+  //    memberProfiles and relations are untouched. A removed union is never revived by PERSON_RESTORED (removedAtVersion != null).
   //  - PERSON_DELETED / PERSON_RESTORED: soft delete (persons.deleted, its parent relations and up to six
   //    unions: unionId + moreUnionIds, each proven written in the same batch by auditCreateOk); memberProfiles is deleted (hidden from members) and recreated on restore.
   // Rules cannot parse the snapshot JSON, so its content stays the trusted client's (applyEdit/applyAdd)
@@ -101,7 +105,15 @@ service cloud.firestore {
          && getAfter(personDoc(a.personId)).data.deleted == false
          && !exists(profileDoc(a.personId)) && existsAfter(profileDoc(a.personId))
          && (a.relationIds.size() == 0 || getAfter(relationDoc(a.relationIds[0])).data.get('deleted', false) == false)
-         && (a.get('unionId', null) == null || getAfter(unionDoc(a.unionId)).data.get('deleted', false) == false)));
+         && (a.get('unionId', null) == null || getAfter(unionDoc(a.unionId)).data.get('deleted', false) == false))
+     || (a.event == 'UNION_REMOVED'
+         && get(unionDoc(a.unionId)).data.get('deleted', false) == false
+         && getAfter(unionDoc(a.unionId)).data.get('deleted', false) == true
+         && getAfter(unionDoc(a.unionId)).data.get('removedAtVersion', null) == n)
+     || (a.event == 'UNION_REMOVAL_UNDONE'
+         && get(unionDoc(a.unionId)).data.get('deleted', false) == true
+         && getAfter(unionDoc(a.unionId)).data.get('deleted', false) == false
+         && getAfter(unionDoc(a.unionId)).data.get('restoredAt', null) == request.time));
   }
   function lifecycleGate(personId, ev) {
    let n = nextEditVersion();
@@ -190,7 +202,7 @@ service cloud.firestore {
   match /auditLogs/{id} {
    // Account/invitation audits stay closed to every client; managers read only edit audits, by id.
    allow get: if manager()
-    && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'PARENT_REVERTED', 'PARENT_REMOVED', 'PARENT_REMOVAL_UNDONE', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED'];
+    && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'PARENT_REVERTED', 'PARENT_REMOVED', 'PARENT_REMOVAL_UNDONE', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED', 'UNION_REMOVED', 'UNION_REMOVAL_UNDONE'];
    allow create: if manager() && auditCreateOk(id);
   }
   // The first union (audit.unionId) plus up to five extra ones. Each listed union must have been written in THIS batch:
@@ -219,9 +231,10 @@ service cloud.firestore {
    return d.keys().hasOnly(['event', 'actorUid', 'target', 'personId', 'createdPersonIds', 'relationIds',
         'removedRelationIds', 'unionId', 'moreUnionIds', 'revertsVersion', 'editVersion', 'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
     && d.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'PARENT_REVERTED',
-        'PARENT_REMOVED', 'PARENT_REMOVAL_UNDONE', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED']
+        'PARENT_REMOVED', 'PARENT_REMOVAL_UNDONE', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED',
+        'UNION_REMOVED', 'UNION_REMOVAL_UNDONE']
     && (d.event in ['PARENT_CHANGED', 'PARENT_REVERTED', 'PARENT_REMOVED'] || d.get('removedRelationIds', []).size() == 0)
-    && (d.event in ['PARENT_REVERTED', 'PARENT_REMOVAL_UNDONE'] || d.get('revertsVersion', null) == null)
+    && (d.event in ['PARENT_REVERTED', 'PARENT_REMOVAL_UNDONE', 'UNION_REMOVAL_UNDONE'] || d.get('revertsVersion', null) == null)
     && d.schemaVersion == 1
     && moreUnionsOk(d)
     && d.fields is list && d.before is map && d.after is map
@@ -261,6 +274,17 @@ service cloud.firestore {
      || (d.event == 'RELATION_TYPE_CHANGED' && d.createdPersonIds == []
          && d.relationIds is list && d.relationIds.size() == 1
          && d.get('unionId', null) == null)
+     || (d.event == 'UNION_REMOVED' && d.createdPersonIds == []
+         && d.relationIds == [] && d.get('moreUnionIds', []) == []
+         && d.unionId is string
+         && d.before.removed is map && d.before.removed.spouseId is string
+         && d.before.removed.spouseId != d.personId
+         && (d.before.removed.get('order', null) == null || d.before.removed.order is string))
+     || (d.event == 'UNION_REMOVAL_UNDONE' && d.createdPersonIds == []
+         && d.relationIds == [] && d.get('moreUnionIds', []) == []
+         && d.unionId is string
+         && d.revertsVersion is int && d.revertsVersion >= 1 && d.revertsVersion < d.editVersion
+         && d.after.spouseId is string && d.after.spouseId != d.personId)
      || (d.event in ['PERSON_DELETED', 'PERSON_RESTORED'] && d.createdPersonIds == []
          && d.relationIds is list && d.relationIds.size() <= 2
          && (d.get('unionId', null) == null || d.unionId is string)));
@@ -398,11 +422,26 @@ service cloud.firestore {
     && getAfter(snapshotPath()).data.editVersion == n
     && a.actorUid == request.auth.uid
     && (id == a.get('unionId', null) || id in a.get('moreUnionIds', [])) && a.personId in resource.data.partnerIds
-    && ((live && a.event == 'PERSON_DELETED'
+    && ((live && a.event == 'UNION_REMOVED'
+         && a.before.removed.spouseId in resource.data.partnerIds
+         && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'deletedWith', 'removedAtVersion'])
+         && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
+         && d.deletedWith == null && d.removedAtVersion == n)
+     || (!live && a.event == 'UNION_REMOVAL_UNDONE'
+         && resource.data.get('removedAtVersion', null) == a.revertsVersion
+         && resource.data.get('deletedWith', null) == null
+         && a.after.spouseId in resource.data.partnerIds
+         && get(personDoc(resource.data.partnerIds[0])).data.get('deleted', false) == false
+         && get(personDoc(resource.data.partnerIds[1])).data.get('deleted', false) == false
+         && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'removedAtVersion', 'restoredAt', 'restoredBy'])
+         && d.deleted == false && d.get('removedAtVersion', null) == null
+         && d.restoredAt == request.time && d.restoredBy == request.auth.uid)
+     || (live && a.event == 'PERSON_DELETED'
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'deletedWith'])
          && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
          && d.deletedWith == a.personId)
      || (!live && a.event == 'PERSON_RESTORED' && resource.data.get('deletedWith', '') == a.personId
+         && resource.data.get('removedAtVersion', null) == null
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'restoredAt', 'restoredBy'])
          && d.deleted == false && d.restoredAt == request.time && d.restoredBy == request.auth.uid));
   }
@@ -413,6 +452,8 @@ service cloud.firestore {
    allow update: if relationUpdateOk(id);
   }
   match /unions/{id} {
+   // Managers read a union by id (to see its removal mark inside the edit transaction); no listing, members still cannot read.
+   allow get: if manager();
    allow create: if unionCreateOk(id);
    allow update: if unionLifecycleOk(id);
   }

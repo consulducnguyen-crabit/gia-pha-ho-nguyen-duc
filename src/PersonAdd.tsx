@@ -3,7 +3,8 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { DuplicateNote } from "./DuplicateNote";
 import { useNavigate } from "react-router-dom";
 import { db } from "./firebase";
-import { commitAdd } from "./editClient";
+import { commitAdd, commitUnion, findRemovedUnion } from "./editClient";
+import { latestRequest } from "./latestRequest";
 import { newPersonId, type AddOp } from "./editAdd";
 import { EditError, NAME_MAX, NOTE_MAX } from "./editCore";
 import { saveErrorMessage } from "./editForm";
@@ -131,6 +132,8 @@ export function AddPanel({
   onCancel,
   onReload,
   errors,
+  submitLabel = "Lưu",
+  submitDisabled = false,
   children,
 }: {
   title: string;
@@ -142,6 +145,10 @@ export function AddPanel({
   onCancel: () => void;
   onReload: () => void;
   errors: AddErrors;
+  /** Nhãn nút gửi (mặc định "Lưu"). */
+  submitLabel?: string;
+  /** Khóa nút gửi (ví dụ đang tra liên kết cũ). */
+  submitDisabled?: boolean;
   children: React.ReactNode;
 }) {
   const rootRef = useRef<HTMLElement | null>(null);
@@ -180,8 +187,12 @@ export function AddPanel({
           </div>
         )}
         <div className="edit-actions">
-          <button type="submit" className="primary" disabled={busy}>
-            {busy ? "Đang lưu…" : "Lưu"}
+          <button
+            type="submit"
+            className="primary"
+            disabled={busy || submitDisabled}
+          >
+            {busy ? "Đang lưu…" : submitLabel}
           </button>
           <button type="button" disabled={busy} onClick={onCancel}>
             Hủy
@@ -203,16 +214,15 @@ function useSubmit(
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
   const navigate = useNavigate();
-  async function submit(op: AddOp, message: string) {
+  async function run(
+    save: () => Promise<{ focusId: string }>,
+    message: string,
+  ) {
     setBusy(true);
     setSaveError(null);
     setConflict(false);
     try {
-      const result = await commitAdd(db!, {
-        op,
-        expectedVersion: index.snapshot.editVersion,
-        actorUid: uid,
-      });
+      const result = await save();
       close();
       onSaved(message, result.focusId);
       if (result.focusId !== p.id) navigate(`/person/${result.focusId}`);
@@ -225,7 +235,37 @@ function useSubmit(
       setBusy(false);
     }
   }
-  return { busy, saveError, conflict, submit };
+  const submit = (op: AddOp, message: string) =>
+    run(
+      () =>
+        commitAdd(db!, {
+          op,
+          expectedVersion: index.snapshot.editVersion,
+          actorUid: uid,
+        }),
+      message,
+    );
+  // Khôi phục liên kết vợ/chồng đã gỡ (UNION_REMOVED) giữa người đang xem và spouseId.
+  const restoreUnion = (
+    spouseId: string,
+    removeVersion: number,
+    message: string,
+  ) =>
+    run(
+      () =>
+        commitUnion(db!, {
+          op: {
+            type: "restoreRemovedUnion",
+            personId: p.id,
+            spouseId,
+            removeVersion,
+          },
+          expectedVersion: index.snapshot.editVersion,
+          actorUid: uid,
+        }),
+      message,
+    );
+  return { busy, saveError, conflict, submit, restoreUnion };
 }
 
 function ChildPanel({
@@ -446,13 +486,44 @@ function SpousePanel({
   });
   const [search, setSearch] = useState("");
   const [errors, setErrors] = useState<AddErrors>({});
-  const { busy, saveError, conflict, submit } = useSubmit(
+  const { busy, saveError, conflict, submit, restoreUnion } = useSubmit(
     uid,
     index,
     p,
     onSaved,
     close,
   );
+  // Cặp này từng bị GỠ liên kết: tạo mới sẽ bị chặn (liên kết đã tồn tại, chỉ ẩn), nên đổi sang nút khôi phục.
+  const [removedUnion, setRemovedUnion] = useState<{
+    removeVersion: number;
+  } | null>(null);
+  // Tra liên kết cũ: khi chưa xong hoặc lỗi thì khóa gửi (không coi như "không có liên kết cũ").
+  const [lookupState, setLookupState] = useState<
+    "idle" | "checking" | "failed" | "done"
+  >("idle");
+  const [lookup] = useState(latestRequest);
+  const existingId = values.kind === "existing" ? values.existingId : "";
+  useEffect(() => {
+    setRemovedUnion(null);
+    if (!existingId) {
+      setLookupState("idle");
+      return;
+    }
+    setLookupState("checking");
+    const isLatest = lookup.start();
+    findRemovedUnion(db!, p.id, existingId)
+      .then((r) => {
+        if (!isLatest()) return;
+        setRemovedUnion(r);
+        setLookupState("done");
+      })
+      .catch(() => {
+        if (!isLatest()) return;
+        setRemovedUnion(null);
+        setLookupState("failed");
+      });
+    return () => lookup.invalidate();
+  }, [existingId, p.id, lookup]);
   const set = <K extends keyof SpouseForm>(k: K, v: SpouseForm[K]) =>
     setValues({ ...values, [k]: v });
   const taken = new Set([p.id, ...index.spouses(p.id)]);
@@ -461,14 +532,25 @@ function SpousePanel({
   return (
     <AddPanel
       title="Thêm vợ/chồng"
-      hint={`Thêm quan hệ vợ/chồng cho ${p.name}. Chỉ thêm mới; mọi lần lưu đều được ghi nhật ký.`}
+      hint={`Thêm quan hệ vợ/chồng cho ${p.name}. Thêm liên kết mới, hoặc khôi phục liên kết đã gỡ nếu hai người từng có; không đổi quan hệ đã có. Mọi lần lưu đều được ghi nhật ký.`}
       busy={busy}
       saveError={saveError}
       conflict={conflict}
       errors={errors}
       onReload={onReload}
       onCancel={close}
+      submitLabel={removedUnion ? "Khôi phục liên kết đã gỡ" : "Lưu"}
+      submitDisabled={lookupState === "checking" || lookupState === "failed"}
       onSubmit={() => {
+        if (removedUnion && existingId) {
+          setErrors({});
+          void restoreUnion(
+            existingId,
+            removedUnion.removeVersion,
+            "Đã khôi phục liên kết vợ/chồng đã gỡ và ghi nhật ký.",
+          );
+          return;
+        }
         const result = buildSpouseOp(p.id, values, { newId });
         if ("errors" in result) return setErrors(result.errors);
         setErrors({});
@@ -526,6 +608,24 @@ function SpousePanel({
               </span>
             )}
           </label>
+          {lookupState === "checking" && (
+            <p className="edit-note" role="status">
+              Đang kiểm tra liên kết cũ giữa hai người…
+            </p>
+          )}
+          {lookupState === "failed" && (
+            <p className="edit-error" role="alert">
+              Không kiểm tra được liên kết cũ; chọn lại người này hoặc tải lại
+              hồ sơ rồi thử lại.
+            </p>
+          )}
+          {removedUnion && (
+            <p className="edit-note" role="status">
+              Hai người này từng có liên kết vợ/chồng đã bị gỡ (lần gỡ số{" "}
+              {removedUnion.removeVersion}). Bấm "Khôi phục liên kết đã gỡ" để
+              đưa lại đúng liên kết đó; thứ tự và các thông tin khác không đổi.
+            </p>
+          )}
         </>
       ) : (
         <>
@@ -554,6 +654,7 @@ function SpousePanel({
         Thứ tự (ví dụ 1, 2; có thể để trống)
         <input
           className="form-field"
+          disabled={removedUnion !== null}
           value={values.order}
           maxLength={20}
           onChange={(e) => set("order", e.target.value)}

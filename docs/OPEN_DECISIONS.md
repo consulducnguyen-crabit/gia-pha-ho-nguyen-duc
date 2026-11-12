@@ -8,4 +8,6 @@ Thông tin phục vụ định cỡ: số hồ sơ và truy cập đồng thời
 
 Ngày âm: lưu nguyên lịch, độ chính xác và tháng nhuận; không tự chuyển khi thiếu thông tin. Chưa cần chốt cách chuyển đổi để lưu đúng dữ liệu gốc.
 
+Đã chốt 2026-11-12 (gỡ liên kết vợ/chồng, PR-6): Q1=A admin `get` unions theo mã (không liệt kê); Q2=A cho gỡ khi người kia mồ côi (cảnh báo); Q3=A cho gỡ khi có con chung (cảnh báo kèm số con); Q4=A không sửa thứ tự/trạng thái/ghi chú, không thêm năm kết hôn. Xem IN_APP_EDIT_UNIONS.md.
+
 Codex được tự lập phương án kỹ thuật, dùng agent độc lập phản biện, sửa và kiểm thử theo AGENTS.md. Các quyết định vượt thẩm quyền cần câu hỏi có ít nhất ba phương án, đánh dấu đề xuất. Tiếp tục phần độc lập khi chờ trả lời.

@@ -13,6 +13,8 @@ export const EDIT_EVENTS = [
   "RELATION_TYPE_CHANGED",
   "PERSON_DELETED",
   "PERSON_RESTORED",
+  "UNION_REMOVED",
+  "UNION_REMOVAL_UNDONE",
 ];
 
 export interface ReplaceCheck {

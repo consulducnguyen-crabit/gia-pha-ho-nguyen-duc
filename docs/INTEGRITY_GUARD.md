@@ -13,7 +13,7 @@ Số lần sửa = lớn nhất của `treeSnapshots/main.editVersion` và `edit
 | dev / emulator | như cũ          | cần thêm `--discard-app-edits`, nếu không thì cấm   |
 
 Cần quay lại dữ liệu cũ trên prod thì dùng khôi phục từ sao lưu (`gia-pha:backup`), không dùng `--replace`.
-Danh sách sự kiện nhật ký dùng chung (`EDIT_EVENTS`); trước đây bản trong script thiếu sự kiện ẩn/khôi phục. Nay gồm cả `PARENT_REMOVED` và `PARENT_REMOVAL_UNDONE` (gỡ/khôi phục quan hệ cha/mẹ). Quan hệ đã gỡ có `deleted: true` nên đối soát bỏ qua đúng (không phải "không còn trong snapshot").
+Danh sách sự kiện nhật ký dùng chung (`EDIT_EVENTS`); trước đây bản trong script thiếu sự kiện ẩn/khôi phục. Nay gồm cả `PARENT_REMOVED` và `PARENT_REMOVAL_UNDONE` (gỡ/khôi phục quan hệ cha/mẹ) và `UNION_REMOVED` / `UNION_REMOVAL_UNDONE` (gỡ/khôi phục liên kết vợ/chồng). Quan hệ đã gỡ có `deleted: true` nên đối soát bỏ qua đúng (không phải "không còn trong snapshot").
 
 ## 2. Đối soát (`npm run gia-pha:reconcile`, CHỈ ĐỌC)
 
@@ -25,7 +25,7 @@ Kết quả chỉ gồm **mã lỗi và mã tài liệu**, không in tên hay gh
 Kiểm tra: người trong snapshot ↔ `persons` chưa ẩn (hai chiều), tên/loại/chi khớp, `memberProfiles` tồn tại cho người
 chưa ẩn và không còn cho người đã ẩn; quan hệ cha/mẹ ↔ `relations` chưa ẩn (hai chiều, vai trò, nuôi/ruột,
 truyền dòng); không có hai cha/mẹ cùng vai trò và cùng loại (ruột/nuôi, như quy tắc nạp); không tự làm cha mẹ; không vòng lặp; đúng một thủy tổ và đời khớp tính lại;
-năm sinh/mất và cờ cần kiểm tra khớp `memberProfiles`/`persons`; vợ/chồng ↔ `unions` (đầu mút, `partnerIds`); `editVersion` của snapshot khớp số lớn nhất trong nhật ký, nhật ký liên tục từ 1, không trùng số.
+năm sinh/mất và cờ cần kiểm tra khớp `memberProfiles`/`persons`; vợ/chồng ↔ `unions` (đầu mút, `partnerIds`); liên kết đã gỡ (`removedAtVersion` khác null) phải có `deleted: true` và không `deletedWith` (mã `UNION_REMOVED_BAD_STATE`); `editVersion` của snapshot khớp số lớn nhất trong nhật ký, nhật ký liên tục từ 1, không trùng số.
 
 Kiểm thử: `tests/reconcile.test.ts`, `tests/replaceGuard.test.ts`, và `scripts/edit-browser-check.mjs` chạy đối soát
 sau một chuỗi sửa thật (thêm con/vợ chồng, đổi cha mẹ, ẩn, khôi phục): phải ĐẠT.

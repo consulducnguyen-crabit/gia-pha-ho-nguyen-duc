@@ -33,6 +33,7 @@ import {
   relationReads,
   type RelationOp,
 } from "../src/editRelation";
+import { applyUnion, unionReads, type UnionOp } from "../src/editUnion";
 
 let env: RulesTestEnvironment;
 
@@ -2168,5 +2169,440 @@ describe("gỡ cha/mẹ: rules", () => {
     ];
     await assertFails(commit(db, revive(false)));
     await assertFails(commit(db, revive(true)));
+  });
+});
+
+async function planUnion(db: Firestore, op: UnionOp, expectedVersion: number) {
+  const snap = await getDoc(doc(db, "treeSnapshots", "main"));
+  const reads = unionReads(op);
+  const docs: Record<string, Record<string, unknown> | null> = {};
+  for (const id of reads.persons) {
+    const d = await getDoc(doc(db, "persons", id));
+    docs[id] = d.exists() ? d.data() : null;
+  }
+  const u = await getDoc(doc(db, "unions", reads.unionId));
+  let audit: Record<string, unknown> | null = null;
+  if (reads.audit) {
+    const a = await getDoc(doc(db, "auditLogs", reads.audit));
+    audit = a.exists() ? a.data() : null;
+  }
+  return applyUnion(
+    {
+      snapshot: snap.data()!,
+      docs,
+      union: u.exists() ? u.data() : null,
+      audit,
+    },
+    { op, expectedVersion, actorUid: "admin" },
+  );
+}
+
+describe("gỡ vợ/chồng: rules", () => {
+  // b có vợ/chồng m (liên kết u-b-m, edit-1).
+  const addMarriage = (): AddOp => ({
+    type: "addSpouse",
+    personId: "b",
+    order: "1",
+    spouse: { kind: "existing", id: "m" },
+  });
+  const removeUnion = (): UnionOp => ({
+    type: "removeUnion",
+    personId: "b",
+    spouseId: "m",
+    confirm: true,
+  });
+  const restoreUnion = (removeVersion: number): UnionOp => ({
+    type: "restoreRemovedUnion",
+    personId: "b",
+    spouseId: "m",
+    removeVersion,
+  });
+  const auditOf = (w: Writes, extra: Record<string, unknown>): Writes =>
+    tweakWrite(w, w.find((x) => x.path.startsWith("auditLogs/"))!.path, extra);
+  const setRaw = async (path: string, extra: Record<string, unknown>) =>
+    env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), path), extra, { merge: true });
+    });
+  const readRaw = async (path: string) => {
+    let data: Record<string, unknown> = {};
+    await env.withSecurityRulesDisabled(async (c) => {
+      data = (await getDoc(doc(c.firestore(), path))).data() ?? {};
+    });
+    return data;
+  };
+  const member = () =>
+    env.authenticatedContext("member").firestore() as unknown as Firestore;
+  async function married() {
+    const db = admin();
+    await assertSucceeds(commit(db, (await planAdd(db, addMarriage())).writes));
+    return db;
+  }
+  async function removed() {
+    const db = await married();
+    await assertSucceeds(
+      commit(db, (await planUnion(db, removeUnion(), 1)).writes),
+    );
+    return db;
+  }
+  // Viết lại lô gỡ sang phiên bản khác: hợp lệ về hình thức, chỉ sai trạng thái của liên kết.
+  const retarget = (w: Writes, from: number, to: number): Writes =>
+    w.map((x) =>
+      x.path === `auditLogs/edit-${from}`
+        ? {
+            ...x,
+            path: `auditLogs/edit-${to}`,
+            data: { ...x.data, editVersion: to },
+          }
+        : x.path === "treeSnapshots/main"
+          ? { ...x, data: { ...x.data, editVersion: to } }
+          : x.path === "unions/u-b-m"
+            ? { ...x, data: { ...x.data, removedAtVersion: to } }
+            : x,
+    );
+
+  it("gỡ rồi khôi phục: thành công, dấu gỡ được xóa, gỡ lại được; persons không đổi", async () => {
+    const db = await married();
+    const before = (await getDoc(doc(db, "persons", "m"))).data();
+    await assertSucceeds(
+      commit(db, (await planUnion(db, removeUnion(), 1)).writes),
+    );
+    expect(await readRaw("unions/u-b-m")).toMatchObject({
+      deleted: true,
+      removedAtVersion: 2,
+      deletedWith: null,
+    });
+    expect(
+      JSON.parse((await getDoc(doc(db, "treeSnapshots", "main"))).data()!.data)
+        .unions,
+    ).toEqual([]);
+    expect((await getDoc(doc(db, "auditLogs", "edit-2"))).data()!.event).toBe(
+      "UNION_REMOVED",
+    );
+    expect((await getDoc(doc(db, "persons", "m"))).data()).toEqual(before);
+    await assertSucceeds(
+      commit(db, (await planUnion(db, restoreUnion(2), 2)).writes),
+    );
+    const back = await readRaw("unions/u-b-m");
+    expect(back.deleted).toBe(false);
+    expect(back.removedAtVersion ?? null).toBeNull();
+    expect(
+      JSON.parse((await getDoc(doc(db, "treeSnapshots", "main"))).data()!.data)
+        .unions,
+    ).toEqual([["b", "m", "1"]]);
+    expect((await getDoc(doc(db, "auditLogs", "edit-3"))).data()).toMatchObject(
+      { event: "UNION_REMOVAL_UNDONE", revertsVersion: 2 },
+    );
+    // Gỡ lại được sau khi khôi phục.
+    await assertSucceeds(
+      commit(db, (await planUnion(db, removeUnion(), 3)).writes),
+    );
+    expect((await readRaw("unions/u-b-m")).removedAtVersion).toBe(4);
+  });
+
+  it("admin đọc union theo mã (không liệt kê); thành viên thường và ẩn danh không đọc được", async () => {
+    const db = await married();
+    await assertSucceeds(getDoc(doc(db, "unions", "u-b-m")));
+    await assertFails(getDocs(collection(db, "unions")));
+    await assertFails(getDoc(doc(member(), "unions", "u-b-m")));
+    await assertFails(getDocs(collection(member(), "unions")));
+    const anon = env
+      .unauthenticatedContext()
+      .firestore() as unknown as Firestore;
+    await assertFails(getDoc(doc(anon, "unions", "u-b-m")));
+  });
+
+  it("thành viên thường và ẩn danh không gỡ được; thiếu một trong ba ghi hoặc phát lại: bị chặn", async () => {
+    const db = await married();
+    const r = await planUnion(db, removeUnion(), 1);
+    await assertFails(commit(member(), r.writes));
+    await assertFails(
+      commit(
+        env.unauthenticatedContext().firestore() as unknown as Firestore,
+        r.writes,
+      ),
+    );
+    for (const skip of [
+      "unions/u-b-m",
+      "treeSnapshots/main",
+      "auditLogs/edit-2",
+    ])
+      await assertFails(commit(db, without(r.writes, skip)));
+    await assertSucceeds(commit(db, r.writes));
+    await assertFails(commit(db, r.writes));
+  });
+
+  it("gỡ: khóa lạ, removedAtVersion sai, giữ deletedWith, nhật ký khai sai hình: bị chặn", async () => {
+    const db = await married();
+    const r = await planUnion(db, removeUnion(), 1);
+    const u = "unions/u-b-m";
+    for (const extra of [
+      { partnerIds: ["b", "c"] },
+      { order: "9" },
+      { status: "X" },
+      { removedAtVersion: 9 },
+      { removedAtVersion: null },
+      { deletedWith: "b" },
+      { deletedBy: "member" },
+      { deletedAt: new Date(0) },
+      { deleted: false },
+    ])
+      await assertFails(commit(db, tweakWrite(r.writes, u, extra)));
+    for (const extra of [
+      // người xem không thuộc cặp
+      { personId: "a", target: "persons/a" },
+      // spouseId khai sai, trùng người xem hoặc thiếu
+      { before: { removed: { spouseId: "c", order: "1" } } },
+      { before: { removed: { spouseId: "b", order: "1" } } },
+      { before: { removed: { order: "1" } } },
+      { before: {} },
+      { moreUnionIds: ["u-a-b"] },
+      { relationIds: ["r-a-b"] },
+      { removedRelationIds: ["r-a-b"] },
+      { createdPersonIds: ["m"] },
+      { revertsVersion: 1 },
+      { unionId: "u-a-b" },
+      { unionId: null },
+      { event: "UNION_REMOVAL_UNDONE" },
+      { event: "PERSON_EDITED" },
+      { actorUid: "member" },
+    ])
+      await assertFails(commit(db, auditOf(r.writes, extra)));
+    await assertSucceeds(commit(db, r.writes));
+  });
+
+  it("gỡ liên kết đã ẩn (đã gỡ, hoặc ẩn cùng người): bị chặn", async () => {
+    const db = await married();
+    const first = await planUnion(db, removeUnion(), 1);
+    await assertSucceeds(commit(db, first.writes));
+    // Lô gỡ phát lại ở phiên bản kế tiếp: liên kết đã ẩn nên không còn "đang hiện".
+    await assertFails(commit(db, retarget(first.writes, 2, 3)));
+  });
+
+  it("gỡ liên kết còn dấu deletedWith cũ (sau ẩn/khôi phục người): thành công và dấu được xóa", async () => {
+    const db = await married();
+    const del = (): DeleteOp => ({
+      type: "deletePerson",
+      personId: "m",
+      confirm: true,
+    });
+    await assertSucceeds(commit(db, (await planDel(db, del(), 1)).writes));
+    await assertSucceeds(
+      commit(
+        db,
+        (
+          await planDel(
+            db,
+            { type: "restorePerson", personId: "m", deleteVersion: 2 },
+            2,
+          )
+        ).writes,
+      ),
+    );
+    expect((await readRaw("unions/u-b-m")).deletedWith).toBe("m");
+    await assertSucceeds(
+      commit(db, (await planUnion(db, removeUnion(), 3)).writes),
+    );
+    expect(await readRaw("unions/u-b-m")).toMatchObject({
+      deleted: true,
+      deletedWith: null,
+      removedAtVersion: 4,
+    });
+  });
+
+  it("khôi phục: thiếu ghi, phát lại, thành viên thường: bị chặn", async () => {
+    const db = await removed();
+    const r = await planUnion(db, restoreUnion(2), 2);
+    await assertFails(commit(member(), r.writes));
+    for (const skip of [
+      "unions/u-b-m",
+      "treeSnapshots/main",
+      "auditLogs/edit-3",
+    ])
+      await assertFails(commit(db, without(r.writes, skip)));
+    await assertSucceeds(commit(db, r.writes));
+    await assertFails(commit(db, r.writes));
+  });
+
+  it("khôi phục: revertsVersion sai, khóa lạ, giữ dấu gỡ, nhật ký sai hình: bị chặn", async () => {
+    const db = await removed();
+    const r = await planUnion(db, restoreUnion(2), 2);
+    const u = "unions/u-b-m";
+    for (const extra of [
+      { revertsVersion: 1 },
+      { revertsVersion: 3 },
+      { revertsVersion: "2" },
+      { revertsVersion: null },
+      { personId: "a", target: "persons/a" },
+      { after: { spouseId: "c", order: "1" } },
+      { after: { spouseId: "b", order: "1" } },
+      { after: {} },
+      { relationIds: ["r-a-b"] },
+      { moreUnionIds: ["u-a-b"] },
+      { unionId: "u-a-b" },
+      { event: "UNION_REMOVED" },
+    ])
+      await assertFails(commit(db, auditOf(r.writes, extra)));
+    for (const extra of [
+      { removedAtVersion: 2 },
+      { partnerIds: ["b", "c"] },
+      { restoredBy: "member" },
+      { restoredAt: new Date(0) },
+      { deleted: true },
+      { order: "7" },
+    ])
+      await assertFails(commit(db, tweakWrite(r.writes, u, extra)));
+    await assertSucceeds(commit(db, r.writes));
+  });
+
+  it.each([
+    [
+      "liên kết bị ẩn cùng người (deletedWith)",
+      "unions/u-b-m",
+      { deletedWith: "b" },
+    ],
+    [
+      "dấu gỡ không khớp revertsVersion",
+      "unions/u-b-m",
+      { removedAtVersion: 1 },
+    ],
+    [
+      "liên kết chỉ ẩn, không có dấu gỡ",
+      "unions/u-b-m",
+      { removedAtVersion: null },
+    ],
+    [
+      "liên kết đang hiện (không ở trạng thái đã gỡ)",
+      "unions/u-b-m",
+      { deleted: false },
+    ],
+    ["một người đang ẩn (m)", "persons/m", { deleted: true }],
+    ["một người đang ẩn (b)", "persons/b", { deleted: true }],
+  ])("khôi phục bị chặn khi %s", async (_name, path, extra) => {
+    const db = await removed();
+    const r = await planUnion(db, restoreUnion(2), 2);
+    await setRaw(path, extra);
+    await assertFails(commit(db, r.writes));
+  });
+
+  it("gỡ liên kết của người đã bị ẩn cùng liên kết (deletedWith): bị chặn", async () => {
+    const db = await married();
+    const first = await planUnion(db, removeUnion(), 1);
+    // Ẩn m (v2): liên kết u-b-m bị ẩn cùng người (deletedWith = m).
+    await assertSucceeds(
+      commit(
+        db,
+        (
+          await planDel(
+            db,
+            { type: "deletePerson", personId: "m", confirm: true },
+            1,
+          )
+        ).writes,
+      ),
+    );
+    expect((await readRaw("unions/u-b-m")).deletedWith).toBe("m");
+    await assertFails(commit(db, retarget(first.writes, 2, 3)));
+  });
+
+  it("chuỗi hồi sinh chéo: PERSON_RESTORED không đưa lại liên kết đã gỡ (dù deletedWith bị can thiệp)", async () => {
+    const db = await removed();
+    // Ẩn m (v3): liên kết đã gỡ không có trong snapshot nên không bị đụng tới.
+    await assertSucceeds(
+      commit(
+        db,
+        (
+          await planDel(
+            db,
+            { type: "deletePerson", personId: "m", confirm: true },
+            2,
+          )
+        ).writes,
+      ),
+    );
+    const legit = await planDel(
+      db,
+      { type: "restorePerson", personId: "m", deleteVersion: 3 },
+      3,
+    );
+    const cur = await readRaw("unions/u-b-m");
+    expect(cur.deleted).toBe(true);
+    expect(cur.removedAtVersion).toBe(2);
+    const sneaky: Writes = [
+      ...auditOf(legit.writes, { unionId: "u-b-m" }),
+      {
+        path: "unions/u-b-m",
+        mode: "merge" as const,
+        data: { deleted: false, restoredAt: SERVER_TIME, restoredBy: "admin" },
+      },
+    ];
+    await assertFails(commit(db, sneaky));
+    // Dù deletedWith bị can thiệp cho khớp, dấu removedAtVersion vẫn chặn hồi sinh.
+    await setRaw("unions/u-b-m", { deletedWith: "m" });
+    await assertFails(commit(db, sneaky));
+    await assertSucceeds(commit(db, legit.writes));
+    expect((await readRaw("unions/u-b-m")).deleted).toBe(true);
+  });
+
+  it("SPOUSE_ADDED trên liên kết đã gỡ bị chặn (không ghi đè, không hồi sinh)", async () => {
+    const db = await removed();
+    const r = await planAdd(db, addMarriage(), 2);
+    await assertFails(commit(db, r.writes));
+    expect((await readRaw("unions/u-b-m")).deleted).toBe(true);
+  });
+
+  it("gỡ/khôi phục khi người có nhiều vợ/chồng: lô nằm trong giới hạn truy cập của rules", async () => {
+    const db = admin();
+    for (let i = 0; i < 6; i++) {
+      const op = addMarriage() as Extract<AddOp, { type: "addSpouse" }>;
+      op.spouse = {
+        kind: "new",
+        newId: `p-sp${i}`,
+        category: "SPOUSE",
+        person: {
+          name: `Vợ ${i}`,
+          sex: "F",
+          birthYear: null,
+          deathYear: null,
+          note: "",
+        },
+      };
+      op.order = String(i + 1);
+      await assertSucceeds(commit(db, (await planAdd(db, op, i)).writes));
+    }
+    await assertSucceeds(
+      commit(
+        db,
+        (
+          await planUnion(
+            db,
+            {
+              type: "removeUnion",
+              personId: "b",
+              spouseId: "p-sp3",
+              confirm: true,
+            },
+            6,
+          )
+        ).writes,
+      ),
+    );
+    await assertSucceeds(
+      commit(
+        db,
+        (
+          await planUnion(
+            db,
+            {
+              type: "restoreRemovedUnion",
+              personId: "b",
+              spouseId: "p-sp3",
+              removeVersion: 7,
+            },
+            7,
+          )
+        ).writes,
+      ),
+    );
+    expect((await readRaw("unions/u-b-p-sp3")).deleted).toBe(false);
   });
 });

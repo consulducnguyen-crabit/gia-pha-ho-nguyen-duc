@@ -27,6 +27,7 @@ không sửa được và không được chọn làm cha/mẹ (quan hệ mới 
   `deletedAtVersion` ở nhật ký, khôi phục khi cha/mẹ hay vợ/chồng còn đang ẩn, `normalizedName`/năm của bản thành viên tạo lại.
 - Khi khôi phục, các trường `deletedAt/By/With/AtVersion` cũ vẫn còn: chỉ `deleted` là nguồn sự thật. Rules chặn khôi phục
   quan hệ đã bị THAY THẾ (`replacedBy`), và không cho tạo vợ/chồng mới với người đang ẩn.
+- **Vá (PR-6)**: nhánh `PERSON_RESTORED` của `unionLifecycleOk` nay yêu cầu `resource.removedAtVersion == null`, giống quan hệ cha/mẹ: liên kết vợ/chồng đã GỠ (`UNION_REMOVED`, xem IN_APP_EDIT_UNIONS.md) không bị hồi sinh chéo khi khôi phục một người, kể cả khi `deletedWith` bị can thiệp cho khớp.
 - Người có hơn hai quan hệ cha/mẹ (ruột + nuôi + mẹ) chưa ẩn được (thông báo rõ từ lõi).
 - Sau khi ẩn, app chuyển tới cha/mẹ, vợ/chồng hoặc thủy tổ để hiện thông báo kèm mã người và số phiên bản.
 - Khi mở "Khôi phục người đã ẩn", app tải tối đa 100 người đang ẩn (`persons` có `deleted == true`, quản trị viên đã có quyền đọc, rules không đổi), sắp theo lần ẩn gần nhất; bấm một người thì mã và số phiên bản tự điền. Vẫn nhập tay được nếu danh sách không tải được. Quá 100 người ẩn thì phải nhập tay.
