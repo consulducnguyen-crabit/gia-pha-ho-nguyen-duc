@@ -6,6 +6,7 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { formatVnTime } from "./auditView";
 
 interface Row {
   id: string;
@@ -15,18 +16,6 @@ interface Row {
   admin: boolean;
   reviewer: boolean;
   approvedAt: string;
-}
-
-function formatTime(value: unknown): string {
-  if (value && typeof value === "object" && "toDate" in value) {
-    const date = (value as { toDate(): Date }).toDate();
-    return new Intl.DateTimeFormat("vi-VN", {
-      dateStyle: "short",
-      timeStyle: "short",
-      timeZone: "Asia/Ho_Chi_Minh",
-    }).format(date);
-  }
-  return "";
 }
 
 export function UsersPage() {
@@ -51,7 +40,7 @@ export function UsersPage() {
               enabled: data.enabled === true,
               admin: data.canManageMembership === true,
               reviewer: data.canReviewChanges === true,
-              approvedAt: formatTime(data.approvedAt),
+              approvedAt: formatVnTime(data.approvedAt),
             };
           })
           .sort((a, b) =>

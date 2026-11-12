@@ -74,3 +74,8 @@
 - `applyUnion`, `commitUnion`, mục "Quan hệ vợ/chồng (quản trị)", khôi phục qua "Thêm vợ/chồng"; rules cho `UNION_REMOVED` và `UNION_REMOVAL_UNDONE`; admin `get` unions theo mã (không liệt kê).
 - Vá rules: `PERSON_RESTORED` không hồi sinh liên kết đã gỡ (`removedAtVersion != null`).
 - Đối soát thêm `UNION_REMOVED_BAD_STATE`; `EDIT_EVENTS` thêm hai sự kiện. Xem IN_APP_EDIT_UNIONS.md. Chưa deploy rules lên prod.
+
+# Trang nhật ký chỉnh sửa (PR-7, 2026-11-12)
+
+- Route `#/audit` chỉ cho quản trị viên: đọc `auditLogs/edit-{n}` theo mã, phân trang 20 bản, lọc trong bản đã tải, nhãn tiếng Việt cho 12 sự kiện, bảo vệ dữ liệu không tin cậy và quyền riêng tư (chỉ hiện năm, ghi chú chỉ độ dài). Không đổi rules.
+- `formatVnTime` dùng chung (dd/mm/yyyy HH:mm, giờ VN), `Users.tsx` dùng lại. Thêm test rules đọc nhật ký và kiểm tra trình duyệt (`test:browser:audit`). Xem AUDIT_LOG_UI.md.

@@ -41,6 +41,9 @@ function load(uid: string, force: boolean): Promise<TreeIndex | null> {
   return promise;
 }
 
+// Dùng chung với trang nhật ký (AuditLog.tsx): cùng một lần đọc ảnh chụp để lấy editVersion và tra tên người.
+export { load as loadTreeIndex };
+
 function useTree(uid: string): { state: TreeState; reload: () => void } {
   const [state, setState] = useState<TreeState>({ status: "loading" });
   const run = useCallback(

@@ -2606,3 +2606,89 @@ describe("gỡ vợ/chồng: rules", () => {
     expect((await readRaw("unions/u-b-p-sp3")).deleted).toBe(false);
   });
 });
+
+describe("đọc nhật ký (auditLogs): chỉ quản trị viên, theo mã", () => {
+  const EVENTS = [
+    "PERSON_EDITED",
+    "PERSON_ADDED",
+    "SPOUSE_ADDED",
+    "PARENT_CHANGED",
+    "PARENT_REVERTED",
+    "PARENT_REMOVED",
+    "PARENT_REMOVAL_UNDONE",
+    "RELATION_TYPE_CHANGED",
+    "PERSON_DELETED",
+    "PERSON_RESTORED",
+    "UNION_REMOVED",
+    "UNION_REMOVAL_UNDONE",
+  ];
+  const as = (uid: string) =>
+    env.authenticatedContext(uid).firestore() as unknown as Firestore;
+  async function seedAudits() {
+    await env.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      for (const [i, event] of EVENTS.entries())
+        await setDoc(doc(db, "auditLogs", `edit-${i + 1}`), { event });
+      await setDoc(doc(db, "auditLogs", "other-event"), {
+        event: "INVITATION_CREATED",
+      });
+      await setDoc(doc(db, "users", "off-admin"), {
+        enabled: false,
+        canManageMembership: true,
+        roleIds: ["member"],
+        accessVersion: 1,
+        schemaVersion: 1,
+      });
+    });
+  }
+
+  it("admin đọc được đủ 12 loại sự kiện theo mã", async () => {
+    await seedAudits();
+    for (const i of EVENTS.keys())
+      await assertSucceeds(
+        getDoc(doc(as("admin"), "auditLogs", `edit-${i + 1}`)),
+      );
+  });
+
+  it("mã không tồn tại bị từ chối (permission-denied, không phải not-found)", async () => {
+    await seedAudits();
+    await assertFails(getDoc(doc(as("admin"), "auditLogs", "edit-999")));
+  });
+
+  it("nhật ký tài khoản/lời mời và liệt kê cả bộ sưu tập vẫn bị chặn với admin", async () => {
+    await seedAudits();
+    await assertFails(getDoc(doc(as("admin"), "auditLogs", "other-event")));
+    await assertFails(getDocs(collection(as("admin"), "auditLogs")));
+  });
+
+  it("admin bị tắt, thành viên không có canManageMembership và ẩn danh không đọc được", async () => {
+    await seedAudits();
+    await assertFails(getDoc(doc(as("off-admin"), "auditLogs", "edit-1")));
+    await assertFails(getDoc(doc(as("member"), "auditLogs", "edit-1")));
+    await assertFails(
+      getDoc(
+        doc(
+          env.unauthenticatedContext().firestore() as unknown as Firestore,
+          "auditLogs",
+          "edit-1",
+        ),
+      ),
+    );
+  });
+
+  it("danh sách sự kiện của allow get khớp với auditCreateOk (bắt lệch khi thêm sự kiện mới)", () => {
+    const rules = readFileSync("firestore.rules", "utf8");
+    const get =
+      /allow get: if manager\(\)\s*&& resource\.data\.event in \[([^\]]+)\]/.exec(
+        rules,
+      );
+    const create =
+      /d\.event in \[([^\]]+)\]\s*&& \(d\.event in \['PARENT_CHANGED'/.exec(
+        rules,
+      );
+    const names = (m: RegExpExecArray | null) =>
+      [...(m?.[1] ?? "").matchAll(/'([A-Z_]+)'/g)].map((x) => x[1]).sort();
+    expect(names(get)).toEqual([...EVENTS].sort());
+    expect(names(create)).toEqual([...EVENTS].sort());
+  });
+});

@@ -847,3 +847,63 @@ textarea {
   font-size: 0.9rem;
   overflow-wrap: anywhere;
 }
+
+/* Nhật ký chỉnh sửa (quản trị viên): tái dùng .users-table; bảng cuộn ngang trong vùng của nó */
+.audit-table {
+  min-width: 860px;
+}
+.audit-table caption {
+  text-align: left;
+}
+.audit-version {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.audit-summary {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.audit-summary li {
+  margin: var(--space-1) 0;
+}
+.audit-details {
+  margin-top: var(--space-2);
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+.audit-details summary {
+  cursor: pointer;
+}
+.audit-status {
+  margin: var(--space-3) 0;
+}
+.audit-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-4);
+}
+.audit-more p {
+  flex-basis: 100%;
+  margin: 0;
+}
+/* Chỉ cột nội dung dài được ngắt tùy ý; các cột còn lại giữ nguyên từ để không vỡ giữa âm tiết tiếng Việt. */
+.audit-table td {
+  overflow-wrap: normal;
+}
+.audit-table td:nth-child(2) {
+  white-space: nowrap;
+}
+.audit-table td:nth-child(3),
+.audit-table td:nth-child(4) {
+  min-width: 120px;
+}
+.audit-table td:nth-child(5) {
+  min-width: 140px;
+  overflow-wrap: anywhere;
+}
+.audit-table td:nth-child(6) {
+  min-width: 280px;
+  overflow-wrap: anywhere;
+}
