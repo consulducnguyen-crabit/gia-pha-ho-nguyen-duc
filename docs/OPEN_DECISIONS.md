@@ -12,4 +12,6 @@ Ngày âm: lưu nguyên lịch, độ chính xác và tháng nhuận; không t�
 
 Chưa chốt (trang nhật ký, PR-7; mặc định thận trọng đang áp dụng): (1) mức hiển thị ngày đầy đủ (ngày/tháng, âm lịch) trong nhật ký: A chỉ hiện năm ở bảng, ngày đầy đủ trong "Chi tiết" (đang dùng, đề xuất); B ẩn hẳn; C hiện thẳng trong bảng. (2) chính sách lưu giữ nhật ký (nhật ký giữ vĩnh viễn dữ liệu người đã ẩn; SECURITY_RULES mục 13): A giữ vĩnh viễn như hiện nay (đang dùng); B tự động ẩn/ẩn danh hóa nội dung sau một thời hạn; C cho quản trị viên xóa theo yêu cầu có sao lưu và dry run (đề xuất bàn sau). Xem AUDIT_LOG_UI.md.
 
+Chưa chốt (ghi chú chi `note`, PR-9): `note` của chi nằm trong ảnh chụp cây mà mọi thành viên đọc được; giao diện chỉ hiện cho quản trị viên nên đây KHÔNG phải kiểm soát bảo mật. Phương án: A giữ nguyên, ẩn ở giao diện và ghi rõ giới hạn trong tài liệu (đang dùng, đề xuất); B bỏ `note` khỏi ảnh chụp chung và đưa vào tài liệu chỉ quản trị viên đọc (cần đổi bước dựng ảnh chụp, định dạng và script nạp); C hiển thị cho mọi thành viên (thừa nhận ghi chú không nhạy cảm). Cho đến khi chốt, không ghi thông tin nhạy cảm vào ghi chú chi. Xem TREE_UI.md.
+
 Codex được tự lập phương án kỹ thuật, dùng agent độc lập phản biện, sửa và kiểm thử theo AGENTS.md. Các quyết định vượt thẩm quyền cần câu hỏi có ít nhất ba phương án, đánh dấu đề xuất. Tiếp tục phần độc lập khi chờ trả lời.
