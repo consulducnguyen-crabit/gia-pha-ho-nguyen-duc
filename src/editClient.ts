@@ -191,6 +191,32 @@ export async function findRevertCandidate(
   return { parentId: removed.parentId, changeVersion: version };
 }
 
+/**
+ * Tìm quan hệ cha/mẹ đã bị GỠ giữa hai người (đọc ngoài giao dịch, chỉ để hiển thị nút khôi phục; giao dịch khôi
+ * phục kiểm lại mọi điều kiện). Trả null nếu không có quan hệ đã gỡ.
+ */
+export async function findRemovedParent(
+  db: Firestore,
+  childId: string,
+  parentId: string,
+): Promise<{ role: "FATHER" | "MOTHER"; removeVersion: number } | null> {
+  if (!SAFE_ID.test(parentId) || !SAFE_ID.test(childId)) return null;
+  const d = (
+    await getDoc(doc(db, "relations", `r-${parentId}-${childId}`))
+  ).data();
+  const v = d?.removedAtVersion;
+  if (
+    !d ||
+    d.deleted !== true ||
+    typeof v !== "number" ||
+    !Number.isInteger(v) ||
+    v < 1 ||
+    (d.parentRole !== "FATHER" && d.parentRole !== "MOTHER")
+  )
+    return null;
+  return { role: d.parentRole, removeVersion: v };
+}
+
 /** Ẩn (xóa mềm) hoặc khôi phục một người. Đọc và ghi trong CÙNG một giao dịch. */
 export async function commitDelete(
   db: Firestore,

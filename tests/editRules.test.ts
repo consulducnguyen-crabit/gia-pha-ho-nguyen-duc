@@ -1672,3 +1672,501 @@ describe("ẩn và khôi phục người: rules", () => {
     await expect(planDel(db, restoreB(1), 2)).rejects.toBeInstanceOf(EditError);
   });
 });
+
+describe("gỡ cha/mẹ: rules", () => {
+  const removeMother = (): RelationOp => ({
+    type: "removeParent",
+    childId: "b",
+    role: "MOTHER",
+    parentId: "m",
+    confirm: true,
+  });
+  const restoreMother = (removeVersion: number): RelationOp => ({
+    type: "restoreRemovedParent",
+    childId: "b",
+    role: "MOTHER",
+    parentId: "m",
+    removeVersion,
+  });
+  const auditOf = (w: Writes, extra: Record<string, unknown>): Writes =>
+    tweakWrite(w, w.find((x) => x.path.startsWith("auditLogs/"))!.path, extra);
+  const setRaw = async (path: string, extra: Record<string, unknown>) =>
+    env.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), path), extra, { merge: true });
+    });
+
+  // b có mẹ m (edit-1, không theo dòng); sau đó gỡ mẹ (edit-2).
+  async function withMother() {
+    const db = admin();
+    await assertSucceeds(commit(db, (await planRel(db, addMother())).writes));
+    return db;
+  }
+  async function removed() {
+    const db = await withMother();
+    await assertSucceeds(
+      commit(db, (await planRel(db, removeMother(), 1)).writes),
+    );
+    return db;
+  }
+
+  it("gỡ mẹ rồi khôi phục: thành công, dấu gỡ được xóa khi khôi phục", async () => {
+    const db = await removed();
+    const rel = (await getDoc(doc(db, "relations", "r-m-b"))).data()!;
+    expect(rel.deleted).toBe(true);
+    expect(rel.removedAtVersion).toBe(2);
+    expect(rel.deletedWith ?? null).toBeNull();
+    let rows = JSON.parse(
+      (await getDoc(doc(db, "treeSnapshots", "main"))).data()!.data,
+    ).relations;
+    expect(rows).not.toContainEqual(["m", "b", "M", "B", 0]);
+    expect((await getDoc(doc(db, "auditLogs", "edit-2"))).data()!.event).toBe(
+      "PARENT_REMOVED",
+    );
+    await assertSucceeds(
+      commit(db, (await planRevert(db, restoreMother(2), 2)).writes),
+    );
+    const back = (await getDoc(doc(db, "relations", "r-m-b"))).data()!;
+    expect(back.deleted).toBe(false);
+    expect(back.removedAtVersion ?? null).toBeNull();
+    rows = JSON.parse(
+      (await getDoc(doc(db, "treeSnapshots", "main"))).data()!.data,
+    ).relations;
+    expect(rows).toContainEqual(["m", "b", "M", "B", 0]);
+    expect((await getDoc(doc(db, "auditLogs", "edit-3"))).data()!.event).toBe(
+      "PARENT_REMOVAL_UNDONE",
+    );
+    // Quản trị viên gỡ lại được sau khi đã khôi phục.
+    await assertSucceeds(
+      commit(db, (await planRel(db, removeMother(), 3)).writes),
+    );
+  });
+
+  it("thành viên thường không gỡ được; thiếu một trong ba ghi, hoặc phát lại: bị chặn", async () => {
+    const db = await withMother();
+    const r = await planRel(db, removeMother(), 1);
+    const member = env
+      .authenticatedContext("member")
+      .firestore() as unknown as Firestore;
+    await assertFails(commit(member, r.writes));
+    for (const skip of [
+      "relations/r-m-b",
+      "treeSnapshots/main",
+      "auditLogs/edit-2",
+    ])
+      await assertFails(commit(db, without(r.writes, skip)));
+    await assertSucceeds(commit(db, r.writes));
+    await assertFails(commit(db, r.writes));
+  });
+
+  it("gỡ: khóa lạ, removedAtVersion sai, giữ deletedWith, before.removed khai sai, relationIds khác rỗng, quan hệ khác: bị chặn", async () => {
+    const db = await withMother();
+    const r = await planRel(db, removeMother(), 1);
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "relations/r-m-b", { parentId: "c" })),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-m-b", { removedAtVersion: 9 }),
+      ),
+    );
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "relations/r-m-b", { deletedWith: "b" })),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-m-b", { deletedBy: "member" }),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        auditOf(r.writes, {
+          before: {
+            removed: {
+              parentId: "a",
+              role: "MOTHER",
+              relationType: "BIOLOGICAL",
+              lineageTransmission: false,
+            },
+          },
+        }),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        auditOf(r.writes, {
+          before: {
+            removed: {
+              parentId: "m",
+              role: "FATHER",
+              relationType: "BIOLOGICAL",
+              lineageTransmission: false,
+            },
+          },
+        }),
+      ),
+    );
+    await assertFails(
+      commit(db, auditOf(r.writes, { relationIds: ["r-m-b"] })),
+    );
+    await assertFails(
+      commit(db, auditOf(r.writes, { removedRelationIds: [] })),
+    );
+    await assertFails(
+      commit(db, auditOf(r.writes, { removedRelationIds: ["r-m-b", "r-a-b"] })),
+    );
+    await assertFails(
+      commit(db, auditOf(r.writes, { removedRelationIds: ["r-a-b"] })),
+    );
+    await assertFails(commit(db, auditOf(r.writes, { revertsVersion: 1 })));
+    await assertFails(commit(db, auditOf(r.writes, { unionId: "u-x" })));
+    await assertSucceeds(commit(db, r.writes));
+  });
+
+  it("gỡ quan hệ cha theo dòng (lineageTransmission) hoặc quan hệ đã ẩn: bị chặn", async () => {
+    const db = admin();
+    const craft = async (
+      relId: string,
+      parentId: string,
+      child: string,
+      v: number,
+      relVersion: number,
+    ): Promise<Writes> => {
+      const snap = (await getDoc(doc(db, "treeSnapshots", "main"))).data()!;
+      return [
+        {
+          path: `relations/${relId}`,
+          mode: "merge",
+          data: {
+            deleted: true,
+            deletedAt: SERVER_TIME,
+            deletedBy: "admin",
+            deletedWith: null,
+            removedAtVersion: v,
+            version: relVersion,
+          },
+        },
+        {
+          path: "treeSnapshots/main",
+          mode: "merge",
+          data: { data: snap.data, editVersion: v },
+        },
+        {
+          path: `auditLogs/edit-${v}`,
+          mode: "create",
+          data: {
+            event: "PARENT_REMOVED",
+            actorUid: "admin",
+            target: `persons/${child}`,
+            personId: child,
+            createdPersonIds: [],
+            relationIds: [],
+            removedRelationIds: [relId],
+            unionId: null,
+            editVersion: v,
+            fields: ["parent"],
+            before: {
+              removed: {
+                parentId,
+                role: "FATHER",
+                relationType: "BIOLOGICAL",
+                lineageTransmission: false,
+              },
+            },
+            after: { removed: true },
+            timestamp: SERVER_TIME,
+            schemaVersion: 1,
+          },
+        },
+      ];
+    };
+    // Cha của c (r-a-c) là quan hệ truyền dòng: cấm gỡ dù nhật ký khai lineage false.
+    await assertFails(commit(db, await craft("r-a-c", "a", "c", 1, 2)));
+    // Quan hệ đã ẩn do thay cha không gỡ lại được.
+    await assertSucceeds(
+      commit(db, (await planRel(db, replaceFather())).writes),
+    );
+    await assertFails(commit(db, await craft("r-a-b", "a", "b", 2, 3)));
+  });
+
+  it("PERSON_RESTORED không hồi sinh quan hệ đã gỡ (deletedWith cũ còn sót)", async () => {
+    const db = await withMother();
+    await assertSucceeds(commit(db, (await planDel(db, delB(), 1)).writes));
+    await assertSucceeds(
+      commit(db, (await planDel(db, restoreB(2), 2)).writes),
+    );
+    // r-m-b còn deletedWith "b" từ lần ẩn trước; gỡ phải xóa dấu đó.
+    await assertSucceeds(
+      commit(db, (await planRel(db, removeMother(), 3)).writes),
+    );
+    await assertSucceeds(commit(db, (await planDel(db, delB(), 4)).writes));
+    const legit = await planDel(db, restoreB(5), 5);
+    const cur = (await getDoc(doc(db, "relations", "r-m-b"))).data()!;
+    expect(cur.deleted).toBe(true);
+    expect(cur.deletedWith ?? null).toBeNull();
+    const sneaky: Writes = [
+      ...legit.writes.map((w) =>
+        w.path.startsWith("auditLogs/")
+          ? { ...w, data: { ...w.data, relationIds: ["r-a-b", "r-m-b"] } }
+          : w,
+      ),
+      {
+        path: "relations/r-m-b",
+        mode: "merge" as const,
+        data: {
+          deleted: false,
+          version: (cur.version as number) + 1,
+          restoredAt: SERVER_TIME,
+          restoredBy: "admin",
+        },
+      },
+    ];
+    await assertFails(commit(db, sneaky));
+    // Dù deletedWith bị can thiệp cho khớp, dấu removedAtVersion vẫn chặn hồi sinh.
+    await setRaw("relations/r-m-b", { deletedWith: "b" });
+    await assertFails(commit(db, sneaky));
+    await assertSucceeds(commit(db, legit.writes));
+    expect((await getDoc(doc(db, "relations", "r-m-b"))).data()!.deleted).toBe(
+      true,
+    );
+  });
+
+  it("khôi phục việc gỡ: thiếu ghi, phát lại, thành viên thường: bị chặn", async () => {
+    const db = await removed();
+    const r = await planRevert(db, restoreMother(2), 2);
+    const member = env
+      .authenticatedContext("member")
+      .firestore() as unknown as Firestore;
+    await assertFails(commit(member, r.writes));
+    for (const skip of [
+      "relations/r-m-b",
+      "treeSnapshots/main",
+      "auditLogs/edit-3",
+    ])
+      await assertFails(commit(db, without(r.writes, skip)));
+    await assertSucceeds(commit(db, r.writes));
+    await assertFails(commit(db, r.writes));
+  });
+
+  it("khôi phục việc gỡ: revertsVersion sai, khóa lạ, giữ removedAtVersion, nhật ký sai hình: bị chặn", async () => {
+    const db = await removed();
+    const r = await planRevert(db, restoreMother(2), 2);
+    await assertFails(commit(db, auditOf(r.writes, { revertsVersion: 1 })));
+    await assertFails(commit(db, auditOf(r.writes, { revertsVersion: 3 })));
+    await assertFails(commit(db, auditOf(r.writes, { revertsVersion: "2" })));
+    await assertFails(
+      commit(db, auditOf(r.writes, { removedRelationIds: ["r-m-b"] })),
+    );
+    await assertFails(commit(db, auditOf(r.writes, { relationIds: [] })));
+    await assertFails(
+      commit(db, auditOf(r.writes, { relationIds: ["r-m-b", "r-a-b"] })),
+    );
+    await assertFails(
+      commit(db, auditOf(r.writes, { relationIds: ["r-a-b"] })),
+    );
+    await assertFails(commit(db, auditOf(r.writes, { unionId: "u-x" })));
+    await assertFails(
+      commit(db, tweakWrite(r.writes, "relations/r-m-b", { parentId: "c" })),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-m-b", { removedAtVersion: 2 }),
+      ),
+    );
+    await assertFails(
+      commit(
+        db,
+        tweakWrite(r.writes, "relations/r-m-b", { restoredBy: "member" }),
+      ),
+    );
+    await assertSucceeds(commit(db, r.writes));
+  });
+
+  it.each([
+    { replacedBy: "r-x-b" },
+    { revertedAtVersion: 1 },
+    { deletedWith: "b" },
+    { removedAtVersion: 5 },
+    { lineageTransmission: true },
+  ])(
+    "khôi phục việc gỡ bị chặn khi quan hệ có thêm %j (ẩn vì lý do khác)",
+    async (extra) => {
+      const db = await removed();
+      const r = await planRevert(db, restoreMother(2), 2);
+      await setRaw("relations/r-m-b", extra);
+      await assertFails(commit(db, r.writes));
+    },
+  );
+
+  it.each(["m", "b"])(
+    "khôi phục việc gỡ bị chặn khi người %s đang bị ẩn",
+    async (who) => {
+      const db = await removed();
+      const r = await planRevert(db, restoreMother(2), 2);
+      await setRaw(`persons/${who}`, { deleted: true });
+      await assertFails(commit(db, r.writes));
+    },
+  );
+
+  // Dựng người z (họ ngoại, không thuộc dòng họ) có cha a KHÔNG truyền dòng: cha của z gỡ được.
+  async function externalChild() {
+    await env.withSecurityRulesDisabled(async (c) => {
+      const f = c.firestore();
+      const ref = doc(f, "treeSnapshots", "main");
+      const data = JSON.parse((await getDoc(ref)).data()!.data);
+      data.persons.z = ["Z", null, null, null, "E", null, []];
+      data.relations.push(["a", "z", "F", "B", 0]);
+      await setDoc(ref, { data: JSON.stringify(data) }, { merge: true });
+      await setDoc(doc(f, "persons", "z"), {
+        displayName: "z",
+        normalizedName: "z",
+        sex: "M",
+        category: "EXTERNAL",
+        profileVersion: 1,
+      });
+      await setDoc(doc(f, "relations", "r-a-z"), {
+        parentId: "a",
+        childId: "z",
+        parentRole: "FATHER",
+        relationType: "BIOLOGICAL",
+        lineageTransmission: false,
+        verificationStatus: "APPROVED",
+        version: 1,
+        schemaVersion: 1,
+      });
+    });
+  }
+  const replaceZ = (): RelationOp => ({
+    type: "setParent",
+    childId: "z",
+    role: "FATHER",
+    parentId: "c",
+    adoptive: false,
+    confirmReplace: true,
+  });
+  const removeZ = (): RelationOp => ({
+    type: "removeParent",
+    childId: "z",
+    role: "FATHER",
+    parentId: "c",
+    confirm: true,
+  });
+
+  it("chuỗi a->c, gỡ c, khôi phục việc gỡ, hoàn tác thay về a: thành công", async () => {
+    await externalChild();
+    const db = admin();
+    await assertSucceeds(commit(db, (await planRel(db, replaceZ())).writes));
+    await assertSucceeds(commit(db, (await planRel(db, removeZ(), 1)).writes));
+    await assertSucceeds(
+      commit(
+        db,
+        (
+          await planRevert(
+            db,
+            {
+              type: "restoreRemovedParent",
+              childId: "z",
+              role: "FATHER",
+              parentId: "c",
+              removeVersion: 2,
+            },
+            2,
+          )
+        ).writes,
+      ),
+    );
+    await assertSucceeds(
+      commit(
+        db,
+        (
+          await planRevert(
+            db,
+            {
+              type: "revertParent",
+              childId: "z",
+              role: "FATHER",
+              parentId: "a",
+              changeVersion: 1,
+            },
+            3,
+          )
+        ).writes,
+      ),
+    );
+    const old = (await getDoc(doc(db, "relations", "r-a-z"))).data()!;
+    expect(old.deleted).toBe(false);
+    const cur = (await getDoc(doc(db, "relations", "r-c-z"))).data()!;
+    expect(cur.deleted).toBe(true);
+    expect(cur.revertedAtVersion).toBe(4);
+  });
+
+  it("PARENT_REVERTED không hồi sinh quan hệ cũ khi quan hệ thay thế đã bị gỡ", async () => {
+    await externalChild();
+    const db = admin();
+    await assertSucceeds(commit(db, (await planRel(db, replaceZ())).writes));
+    await assertSucceeds(commit(db, (await planRel(db, removeZ(), 1)).writes));
+    const snap = (await getDoc(doc(db, "treeSnapshots", "main"))).data()!;
+    const oldDoc = (await getDoc(doc(db, "relations", "r-a-z"))).data()!;
+    const curDoc = (await getDoc(doc(db, "relations", "r-c-z"))).data()!;
+    const revive = (withCur: boolean): Writes => [
+      {
+        path: "relations/r-a-z",
+        mode: "merge",
+        data: {
+          deleted: false,
+          replacedBy: null,
+          restoredAt: SERVER_TIME,
+          restoredBy: "admin",
+          version: (oldDoc.version as number) + 1,
+        },
+      },
+      ...(withCur
+        ? [
+            {
+              path: "relations/r-c-z",
+              mode: "merge" as const,
+              data: {
+                deleted: true,
+                deletedAt: SERVER_TIME,
+                deletedBy: "admin",
+                revertedAtVersion: 3,
+                version: (curDoc.version as number) + 1,
+              },
+            },
+          ]
+        : []),
+      {
+        path: "treeSnapshots/main",
+        mode: "merge",
+        data: { data: snap.data, editVersion: 3 },
+      },
+      {
+        path: "auditLogs/edit-3",
+        mode: "create",
+        data: {
+          event: "PARENT_REVERTED",
+          actorUid: "admin",
+          target: "persons/z",
+          personId: "z",
+          createdPersonIds: [],
+          relationIds: ["r-a-z"],
+          removedRelationIds: ["r-c-z"],
+          revertsVersion: 1,
+          unionId: null,
+          editVersion: 3,
+          fields: ["parent"],
+          before: {},
+          after: {},
+          timestamp: SERVER_TIME,
+          schemaVersion: 1,
+        },
+      },
+    ];
+    await assertFails(commit(db, revive(false)));
+    await assertFails(commit(db, revive(true)));
+  });
+});

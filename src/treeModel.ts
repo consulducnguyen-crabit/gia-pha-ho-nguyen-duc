@@ -206,9 +206,12 @@ export interface TreeIndex {
   /** Mọi con (cả con của con gái), theo thứ tự trong gia phả. */
   children(id: string): string[];
   /** Cha/mẹ của một người, kèm loại quan hệ. */
-  parents(
-    id: string,
-  ): Array<{ id: string; role: SnapRelation["role"]; adoptive: boolean }>;
+  parents(id: string): Array<{
+    id: string;
+    role: SnapRelation["role"];
+    adoptive: boolean;
+    lineage: boolean;
+  }>;
   spouses(id: string): string[];
   siblings(id: string): string[];
   /** Chuỗi tổ tiên theo dòng từ thủy tổ xuống tới người đó (gồm cả người đó). */
@@ -272,6 +275,7 @@ export function buildIndex(snapshot: Snapshot): TreeIndex {
         id: r.parentId,
         role: r.role,
         adoptive: r.adoptive,
+        lineage: r.lineage,
       })),
     spouses: (id) => spouseMap.get(id) ?? [],
     siblings: (id) => {

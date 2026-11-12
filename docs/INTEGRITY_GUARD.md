@@ -13,7 +13,7 @@ Số lần sửa = lớn nhất của `treeSnapshots/main.editVersion` và `edit
 | dev / emulator | như cũ          | cần thêm `--discard-app-edits`, nếu không thì cấm   |
 
 Cần quay lại dữ liệu cũ trên prod thì dùng khôi phục từ sao lưu (`gia-pha:backup`), không dùng `--replace`.
-Danh sách sự kiện nhật ký dùng chung (`EDIT_EVENTS`); trước đây bản trong script thiếu sự kiện ẩn/khôi phục.
+Danh sách sự kiện nhật ký dùng chung (`EDIT_EVENTS`); trước đây bản trong script thiếu sự kiện ẩn/khôi phục. Nay gồm cả `PARENT_REMOVED` và `PARENT_REMOVAL_UNDONE` (gỡ/khôi phục quan hệ cha/mẹ). Quan hệ đã gỡ có `deleted: true` nên đối soát bỏ qua đúng (không phải "không còn trong snapshot").
 
 ## 2. Đối soát (`npm run gia-pha:reconcile`, CHỈ ĐỌC)
 
