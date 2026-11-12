@@ -1,5 +1,6 @@
 // Ẩn người khỏi cây (xóa mềm) và khôi phục — chỉ quản trị viên thấy; ghi qua commitDelete (lô nguyên tử có nhật ký).
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { collection, getDocs, limit, query, where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { db } from "./firebase";
 import { commitDelete } from "./editClient";
@@ -16,6 +17,47 @@ interface Props {
   onSaved: (message: string, focusId: string) => void;
   onReload: () => void;
   onStart: () => void;
+}
+
+interface HiddenPerson {
+  id: string;
+  name: string;
+  version: number;
+}
+
+function useHiddenPeople() {
+  const [list, setList] = useState<HiddenPerson[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    getDocs(
+      query(
+        collection(db!, "persons"),
+        where("deleted", "==", true),
+        limit(100),
+      ),
+    )
+      .then((snap) => {
+        if (!alive) return;
+        const rows: HiddenPerson[] = [];
+        for (const d of snap.docs) {
+          const x = d.data();
+          if (typeof x.deletedAtVersion !== "number") continue;
+          rows.push({
+            id: d.id,
+            name: typeof x.displayName === "string" ? x.displayName : d.id,
+            version: x.deletedAtVersion,
+          });
+        }
+        rows.sort((a, b) => b.version - a.version);
+        setList(rows);
+      })
+      .catch(() => alive && setFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return { list, failed };
 }
 
 function usePanel(
@@ -140,6 +182,7 @@ function RestorePanel(props: Props & { close: () => void }) {
   const [pid, setPid] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const version = /^\d{1,9}$/.test(text.trim()) ? Number(text.trim()) : 0;
+  const hidden = useHiddenPeople();
   const panel = usePanel(
     props,
     async () => {
@@ -160,7 +203,7 @@ function RestorePanel(props: Props & { close: () => void }) {
   return (
     <AddPanel
       title="Khôi phục người đã ẩn"
-      hint="Nhập mã người (dạng p-… hoặc mã trong dữ liệu) và số ghi trong thông báo khi ẩn (số phiên bản nhật ký). Cha/mẹ và vợ/chồng của người đó phải đang có trong cây."
+      hint="Chọn một người trong danh sách (mã và số phiên bản tự điền), hoặc nhập tay. Cha/mẹ và vợ/chồng của người đó phải đang có trong cây."
       busy={panel.busy}
       saveError={panel.saveError}
       conflict={panel.conflict}
@@ -177,6 +220,33 @@ function RestorePanel(props: Props & { close: () => void }) {
         void panel.submit();
       }}
     >
+      <fieldset className="hidden-people">
+        <legend>Người đã ẩn</legend>
+        {hidden.failed ? (
+          <p>Không tải được danh sách; nhập mã và số phiên bản bên dưới.</p>
+        ) : hidden.list === null ? (
+          <p role="status">Đang tải danh sách…</p>
+        ) : hidden.list.length === 0 ? (
+          <p>Chưa có người nào đang bị ẩn.</p>
+        ) : (
+          <ul>
+            {hidden.list.map((h) => (
+              <li key={h.id}>
+                <button
+                  type="button"
+                  aria-pressed={pid === h.id}
+                  onClick={() => {
+                    setPid(h.id);
+                    setText(String(h.version));
+                  }}
+                >
+                  {h.name} (ẩn ở phiên bản {h.version})
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </fieldset>
       <label>
         Mã người cần khôi phục
         <input
