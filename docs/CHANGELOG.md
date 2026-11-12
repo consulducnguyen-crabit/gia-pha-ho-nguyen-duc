@@ -91,3 +91,9 @@
 
 - Đối soát thêm cảnh báo chỉ-đọc `BRANCH_FOUNDER_MISMATCH` (`reconcileWarnings`), in phần "CẢNH BÁO" riêng, không đổi mã thoát. Chỉ mã + mã người, không tên.
 - Không đổi chi hàng loạt trong app; không đổi rules/src/schema/snapshot. Ghi quyết định Q1–Q4 vào OPEN_DECISIONS.md.
+
+# PR-3 — Dọn kỹ thuật — 2026-11-12
+
+- Gom `SNAPSHOT_MAX_BYTES` (850000) và `exceedsSnapshotLimit()` vào `src/editCore.ts` (bỏ 4 bản trùng và 5 chỗ kiểm lặp; thông báo/mã lỗi giữ nguyên). Ghi chú đồng bộ với giới hạn `< 900000` trong firestore.rules (không đổi rules). Thêm test ngưỡng và ký tự nhiều byte.
+- Tách vendor trong `vite.config.ts` (`manualChunks`): `react` 260.05 kB, `firebase` 559.06 kB, chunk ứng dụng 136.36 kB (trước đó một chunk 958.72 kB). Thử tách riêng `@firebase/firestore` nhưng bản build bị lỗi chạy "Cannot access ... before initialization" (phụ thuộc vòng giữa hai chunk; phát hiện khi mở bản build bằng `vite preview`, browser check dùng Vite dev nên không bắt được) nên bỏ. `chunkSizeWarningLimit` đặt 600 có chủ đích vì SDK Firebase không tách an toàn. Thử lazy-load Proposals/Membership nhưng bỏ vì trang quá nhỏ, không giảm chunk chính.
+- `pages.yml` chỉ phát hành sau khi workflow "CI" thành công trên push main (chi tiết: DEPLOYMENT.md).

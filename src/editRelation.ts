@@ -5,6 +5,7 @@ import {
   EditError,
   SERVER_TIME,
   currentEditVersion,
+  exceedsSnapshotLimit,
   invalid,
   type EditWrite,
 } from "./editCore";
@@ -87,7 +88,6 @@ export interface RelationResult {
 }
 
 const ID = /^[A-Za-z0-9_-]{1,100}$/;
-const SNAPSHOT_MAX_BYTES = 850000;
 const rid = (parent: string, child: string) => `r-${parent}-${child}`;
 const ROLE_CODE = { FATHER: "F", MOTHER: "M" } as const;
 const ROLE_LABEL = { FATHER: "cha", MOTHER: "mẹ" } as const;
@@ -421,8 +421,7 @@ export function applyRelation(
   }
 
   const json = JSON.stringify(data);
-  if (new TextEncoder().encode(json).length > SNAPSHOT_MAX_BYTES)
-    invalid("Ảnh chụp cây đã quá lớn.");
+  if (exceedsSnapshotLimit(json)) invalid("Ảnh chụp cây đã quá lớn.");
   writes.push({
     path: "treeSnapshots/main",
     mode: "merge",
@@ -563,8 +562,7 @@ function applyRevert(
   ]);
   recomputeGenerations(data);
   const json = JSON.stringify(data);
-  if (new TextEncoder().encode(json).length > SNAPSHOT_MAX_BYTES)
-    invalid("Ảnh chụp cây đã quá lớn.");
+  if (exceedsSnapshotLimit(json)) invalid("Ảnh chụp cây đã quá lớn.");
   const writes: EditWrite[] = [
     {
       path: `relations/${oldId}`,
@@ -827,8 +825,7 @@ function applyRestoreRemoved(
   // Không truyền dòng nên không đổi đời; cố ý không gọi recomputeGenerations.
   data.relations.push([op.parentId, op.childId, role, adoptive ? "A" : "B", 0]);
   const json = JSON.stringify(data);
-  if (new TextEncoder().encode(json).length > SNAPSHOT_MAX_BYTES)
-    invalid("Ảnh chụp cây đã quá lớn.");
+  if (exceedsSnapshotLimit(json)) invalid("Ảnh chụp cây đã quá lớn.");
   const writes: EditWrite[] = [
     {
       path: `relations/${relId}`,

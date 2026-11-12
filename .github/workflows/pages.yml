@@ -1,6 +1,10 @@
 name: Frontend preview on GitHub Pages
+# Chỉ phát hành khi workflow "CI" thành công trên push vào main (không chạy song song với CI).
+# workflow_run luôn chạy bản workflow ở nhánh mặc định; checkout ghim đúng commit đã qua CI.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 permissions:
@@ -10,11 +14,16 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
+    # Bỏ qua CI thất bại, CI của pull request (kể cả từ fork) hoặc CI bị hủy.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     env:
       # Giá trị lấy từ GitHub Actions Variables (cấu hình web công khai, không phải bí mật).
       # Để trống thì trang chỉ hiển thị "Sẵn sàng kết nối".
-      VITE_USE_EMULATORS: 'false'
+      VITE_USE_EMULATORS: "false"
       VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY || '' }}
       VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN || '' }}
       VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID || '' }}
@@ -22,6 +31,8 @@ jobs:
       VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID || '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24

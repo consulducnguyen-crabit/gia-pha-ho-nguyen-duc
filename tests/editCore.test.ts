@@ -245,3 +245,19 @@ describe("applyEdit", () => {
     expect(JSON.stringify(s)).toBe(before);
   });
 });
+
+describe("exceedsSnapshotLimit", () => {
+  it("đúng ngưỡng 850000 byte", async () => {
+    const { SNAPSHOT_MAX_BYTES, exceedsSnapshotLimit } =
+      await import("../src/editCore");
+    expect(SNAPSHOT_MAX_BYTES).toBe(850000);
+    expect(exceedsSnapshotLimit("a".repeat(850000))).toBe(false);
+    expect(exceedsSnapshotLimit("a".repeat(850001))).toBe(true);
+  });
+  it("đếm theo byte UTF-8, không theo ký tự", async () => {
+    const { exceedsSnapshotLimit } = await import("../src/editCore");
+    // "ệ" = 3 byte: 283334 ký tự = 850002 byte nhưng chỉ ~283k ký tự.
+    expect(exceedsSnapshotLimit("ệ".repeat(283333))).toBe(false);
+    expect(exceedsSnapshotLimit("ệ".repeat(283334))).toBe(true);
+  });
+});

@@ -4,6 +4,16 @@
 import { FLAG_ORDER, type FlagCode } from "./treeModel";
 import { normalizeName } from "./domain";
 
+/**
+ * Trần kích thước JSON ảnh chụp cây (byte UTF-8). Phải nhỏ hơn giới hạn
+ * `data.size() < 900000` của treeSnapshots/main trong firestore.rules (chừa biên cho
+ * phần siêu dữ liệu); đổi một nơi phải đổi nơi kia.
+ */
+export const SNAPSHOT_MAX_BYTES = 850000;
+/** Đếm byte UTF-8 (không phải số ký tự) vì rules/Firestore tính theo byte. */
+export const exceedsSnapshotLimit = (json: string) =>
+  new TextEncoder().encode(json).length > SNAPSHOT_MAX_BYTES;
+
 export class EditError extends Error {
   constructor(
     public code:

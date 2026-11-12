@@ -8,6 +8,7 @@ import {
   EditError,
   SERVER_TIME,
   currentEditVersion,
+  exceedsSnapshotLimit,
   invalid,
   type EditWrite,
 } from "./editCore";
@@ -54,7 +55,6 @@ export interface UnionResult {
 }
 
 const ID = /^[A-Za-z0-9_-]{1,100}$/;
-const SNAPSHOT_MAX_BYTES = 850000;
 export const unionIdOf = (a: string, b: string) =>
   `u-${[a, b].sort().join("-")}`;
 const isNum = (v: unknown): v is number => Number.isInteger(v);
@@ -291,8 +291,7 @@ export function applyUnion(state: UnionState, input: UnionInput): UnionResult {
   }
 
   const json = JSON.stringify(data);
-  if (new TextEncoder().encode(json).length > SNAPSHOT_MAX_BYTES)
-    invalid("Ảnh chụp cây đã quá lớn.");
+  if (exceedsSnapshotLimit(json)) invalid("Ảnh chụp cây đã quá lớn.");
   writes.push({
     path: "treeSnapshots/main",
     mode: "merge",

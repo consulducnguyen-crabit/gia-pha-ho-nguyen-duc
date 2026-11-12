@@ -34,5 +34,17 @@ Các báo cáo UI/proposals cũ ghi trạng thái chưa commit ở thời điể
 thái commit/push hiện tại theo mục này và lịch sử Git, không suy ra deploy đã đạt.
 
 ## Cập nhật 2026-11-11
+
 Pages đã đổi nguồn sang **GitHub Actions** (trước đó là "Deploy from a branch: main /", nên trang phục vụ `index.html` gốc của mã nguồn và ứng dụng không chạy). Workflow `pages.yml` đã chạy thành công và trang phục vụ bản build. Quy trình đưa lên Firebase dev: xem DEPLOY_DEV.md.
 
+## Pages chờ CI — 2026-11-12
+
+`pages.yml` không còn chạy trực tiếp khi push main. Trigger là `workflow_run` của workflow **"CI"** (`ci.yml`, chạy trên `pull_request` và `push` main) với `types: [completed]`, `branches: [main]`; vẫn giữ `workflow_dispatch` để chạy tay.
+Job `build` chỉ chạy khi chạy tay, hoặc khi CI kết luận `success` và sự kiện gốc là `push` (loại PR/fork/CI hỏng/bị hủy). Checkout ghim `ref` = `workflow_run.head_sha` (đúng commit đã qua CI; chạy tay dùng `github.sha`). `deploy` chỉ chạy khi `build` thành công (job bị bỏ qua thì deploy cũng bị bỏ qua).
+Quyền không đổi: `contents: read`; deploy có thêm `pages: write`, `id-token: write`; concurrency group `pages`; không thêm secrets.
+Lưu ý: Pages vẫn nối biến `VITE_FIREBASE_PROJECT_ID` (đang trỏ PROD) và các biến VITE_* khác; PR này không đổi biến. Frontend Pages vẫn là tài sản công khai.
+Chưa kiểm chứng trên GitHub: workflow_run chỉ chạy được sau khi file nằm trên nhánh mặc định, nên lần merge đầu tiên cần theo dõi tab Actions (CI xong rồi Pages mới chạy). Chỉ rà YAML thủ công/actionlint cục bộ.
+
+## Tách vendor khi build — 2026-11-12
+
+`vite.config.ts` dùng `build.rollupOptions.output.manualChunks` tách `react` và `firebase` khỏi chunk ứng dụng (958.72 kB một chunk, nay 136.36 kB + 260.05 + 559.06 kB). Không tách riêng `@firebase/firestore`: bản build bị lỗi chạy do phụ thuộc vòng giữa chunk. Vì vậy `chunkSizeWarningLimit` = 600. Sau mỗi thay đổi `manualChunks` phải mở bản build (`npm run build && npx vite preview`) và xác nhận trang tải được, vì browser check chạy bằng Vite dev nên không bắt lỗi này. Tên file có hash nội dung; Pages (đường dẫn tương đối) không cần cấu hình thêm.
