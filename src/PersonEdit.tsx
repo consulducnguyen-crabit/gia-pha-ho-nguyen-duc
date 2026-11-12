@@ -299,9 +299,9 @@ export function PersonEdit({
               />
               Tôi xác nhận thay văn bản ngày gốc (không rõ/mâu thuẫn) bằng năm
               mới; giá trị cũ vẫn lưu trong nhật ký.
-              {err("replaceRawDate")}
             </label>
           )}
+          {rawNeedsConfirm && err("replaceRawDate")}
           <label>
             Giới tính
             <select

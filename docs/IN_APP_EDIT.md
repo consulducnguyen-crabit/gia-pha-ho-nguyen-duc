@@ -70,3 +70,8 @@ member/anonymous bị chặn, thiếu nhật ký/snapshot, sai target/actor, nh�
 ## Xem nhật ký
 
 Trang `#/audit` (chỉ quản trị viên) đọc `auditLogs/edit-{n}` theo mã để xem lại mọi lần sửa; không đổi rules. Xem AUDIT_LOG_UI.md.
+
+## Tài liệu liên quan
+
+- [IN_APP_EDIT_UI.md](IN_APP_EDIT_UI.md) (biểu mẫu), [IN_APP_EDIT_ADD.md](IN_APP_EDIT_ADD.md) (thêm con/vợ chồng), [IN_APP_EDIT_RELATIONS.md](IN_APP_EDIT_RELATIONS.md) (cha/mẹ), [IN_APP_EDIT_DELETE.md](IN_APP_EDIT_DELETE.md) (ẩn/khôi phục), [IN_APP_EDIT_UNIONS.md](IN_APP_EDIT_UNIONS.md) (liên kết vợ/chồng).
+- [AUDIT_LOG_UI.md](AUDIT_LOG_UI.md) (nhật ký), [INTEGRITY_GUARD.md](INTEGRITY_GUARD.md) (đối soát), [PROD_ROLLOUT.md](PROD_ROLLOUT.md) (phát hành prod), [ACCEPTANCE_CHECKLIST.md](ACCEPTANCE_CHECKLIST.md) (nghiệm thu).

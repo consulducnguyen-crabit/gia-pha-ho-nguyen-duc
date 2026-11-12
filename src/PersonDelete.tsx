@@ -165,12 +165,13 @@ function HidePanel(props: Props & { close: () => void }) {
             {spouseNames.join(", ")}. Khôi phục sẽ đưa lại đủ.
           </span>
         )}
-        {errors.confirm && (
-          <span id={`${uniq}-err`} role="alert" className="edit-error">
-            {errors.confirm}
-          </span>
-        )}
       </label>
+      {/* Lỗi nằm ngoài nhãn: trong nhãn flex nó bị ép thành cột hẹp, ngắt từng chữ ở 360px. */}
+      {errors.confirm && (
+        <span id={`${uniq}-err`} role="alert" className="edit-error">
+          {errors.confirm}
+        </span>
+      )}
     </AddPanel>
   );
 }

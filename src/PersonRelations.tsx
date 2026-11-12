@@ -240,12 +240,13 @@ function SetParentPanel({
           Tôi xác nhận thay {ROLE_LABEL[role as "FATHER" | "MOTHER"]} hiện có (
           {existingName}); quan hệ cũ được ẩn và ghi vào nhật ký. Nếu thay nhầm,
           dùng nút “Hoàn tác lần thay” ở mục Quan hệ cha mẹ.
-          {errors.confirm && (
-            <span role="alert" className="edit-error">
-              {errors.confirm}
-            </span>
-          )}
         </label>
+      )}
+      {/* Lỗi nằm ngoài nhãn flex để không bị ép thành cột hẹp ở 360px. */}
+      {existing && errors.confirm && (
+        <span role="alert" className="edit-error">
+          {errors.confirm}
+        </span>
       )}
     </AddPanel>
   );
@@ -468,52 +469,56 @@ export function PersonRelations(props: Props) {
                     {p.name}: quan hệ được ẩn, ghi vào nhật ký và khôi phục
                     được.
                     {removeAsk.hadReplace &&
-                      ` Quan hệ này có được do một lần thay trước đó; ${ROLE_LABEL[x.role].toLowerCase()} cũ chỉ đưa lại được bằng cách khôi phục quan hệ đã gỡ rồi dùng "Hoàn tác lần thay".`}{" "}
-                    <button
-                      type="button"
-                      className="danger"
-                      ref={confirmRef}
-                      disabled={busy}
-                      onClick={() => void confirmRemove()}
-                    >
-                      {busy ? "Đang lưu…" : "Xác nhận gỡ quan hệ"}
-                    </button>{" "}
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        setRestoreFocus(true);
-                        setRemoveAsk(null);
-                      }}
-                    >
-                      Hủy
-                    </button>
+                      ` Quan hệ này có được do một lần thay trước đó; ${ROLE_LABEL[x.role].toLowerCase()} cũ chỉ đưa lại được bằng cách khôi phục quan hệ đã gỡ rồi dùng "Hoàn tác lần thay".`}
+                    <span className="edit-actions">
+                      <button
+                        type="button"
+                        className="danger"
+                        ref={confirmRef}
+                        disabled={busy}
+                        onClick={() => void confirmRemove()}
+                      >
+                        {busy ? "Đang lưu…" : "Xác nhận gỡ quan hệ"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          setRestoreFocus(true);
+                          setRemoveAsk(null);
+                        }}
+                      >
+                        Hủy
+                      </button>
+                    </span>
                   </span>
                 ) : revertAsk && revertAsk.role === x.role ? (
                   <span className="edit-note">
                     Đưa {revertAsk.oldName} trở lại làm{" "}
                     {ROLE_LABEL[x.role].toLowerCase()}, thay {revertAsk.curName}
                     . Nếu loại con (nuôi/ruột) của quan hệ hiện tại đã đổi sau
-                    lần thay đó, thay đổi ấy không được giữ.{" "}
-                    <button
-                      type="button"
-                      className="primary"
-                      ref={confirmRef}
-                      disabled={busy}
-                      onClick={() => void confirmRevert()}
-                    >
-                      {busy ? "Đang lưu…" : "Xác nhận hoàn tác"}
-                    </button>{" "}
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        setRestoreFocus(true);
-                        setRevertAsk(null);
-                      }}
-                    >
-                      Hủy
-                    </button>
+                    lần thay đó, thay đổi ấy không được giữ.
+                    <span className="edit-actions">
+                      <button
+                        type="button"
+                        className="primary"
+                        ref={confirmRef}
+                        disabled={busy}
+                        onClick={() => void confirmRevert()}
+                      >
+                        {busy ? "Đang lưu…" : "Xác nhận hoàn tác"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          setRestoreFocus(true);
+                          setRevertAsk(null);
+                        }}
+                      >
+                        Hủy
+                      </button>
+                    </span>
                   </span>
                 ) : (
                   <>
