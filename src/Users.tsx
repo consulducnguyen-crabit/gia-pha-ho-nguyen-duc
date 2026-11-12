@@ -83,6 +83,9 @@ export function UsersPage() {
       {rows && (
         <div className="users-table-wrap">
           <table className="users-table">
+            <caption className="sr-only">
+              Danh sách tài khoản đã được cấp hoặc thu hồi quyền
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Họ tên</th>

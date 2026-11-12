@@ -58,3 +58,43 @@ Cancel review giữ ghi chú/trạng thái và không POST review; cancel disabl
 UID/quyền/trạng thái và không POST disable. UUID chỉ được tạo sau Confirm.
 Các nhánh cancel submit/revoke đã review mã, chưa có ca browser riêng.
 Không sửa backend, payload, ACL hoặc dữ liệu production.
+
+# Rà soát theo HTML Standard + WCAG 2.2 AA — 13/11/2026
+
+Công cụ: scripts/ui-standards-audit.mjs (Playwright + Chrome, emulator, dữ liệu giả). axe-core không có
+trong node_modules nên không dùng. Phạm vi: đăng nhập, chờ cấp quyền, và với quản trị/thành viên các route
+tổng quan, cây, hồ sơ, tra cứu, cần kiểm tra, đề xuất, hộp duyệt, tài khoản, lời mời, nhật ký, tiến độ, 404;
+cộng 6 panel sửa của hồ sơ (mở, bấm Lưu khi trống để bật lỗi). Mỗi trạng thái đo ở 320/360/768/1280.
+
+Tiêu chí đã kiểm tự động: lang, title theo route (2.4.2), một h1 và không nhảy cấp heading, một main, nhãn và
+tên truy cập (2.5.3), alt, id trùng, caption bảng, skip link (2.4.1), Tab qua từng phần tử (271 điểm dừng): viền
+focus nhìn thấy, không bị overflow cắt, không bẫy focus (2.4.7), vùng bấm 24px (2.5.8) và 44px,
+tràn ngang 320/360/768/1280 (1.4.10), phóng tương đương 200% (viewport 640px) và 1.4.12 ép khoảng cách chữ
+(không tràn/cắt), tương phản chữ tính theo màu thực của từng đoạn chữ và các cặp token (chữ 4.5:1, viền
+control/focus 3:1).
+
+Trước khi sửa (21 nhóm lỗi): thiếu main ở đăng nhập; title không đổi theo route; không có skip link; bảng
+tài khoản thiếu caption; heading h1 -> h3 ở tra cứu (và h3 nằm trong button); tên truy cập nút cây không khớp
+chữ hiển thị; vùng bấm <24px ở checkbox cây, tên người trong cây/hồ sơ/cần kiểm tra, liên kết quay lại, nhãn
+"Cần kiểm tra"; viền control 2,91-2,97:1 trên hero/story; nav 32px; focus rơi về body sau Hủy panel ẩn người.
+
+Sau khi sửa: 0 nhóm lỗi, 9 nhóm cảnh báo (còn lại): tên người trong cây/danh sách cao 27-29px (đạt 24px, chưa
+44px) và nút mở/thu gọn nhánh 32x44 ở chuột; với màn hình cảm ứng (pointer: coarse) đã nâng lên 44px nhưng chưa
+đo trên thiết bị thật. Ghi chú: ở 360px nav xuống nhiều dòng (mỗi mục 44px) nên khối đầu trang cao hơn trước.
+
+Lệnh đã chạy đạt: tsc, eslint, npm test (238), npm run test:rules, build, vite preview (chỉ 404 favicon),
+edit/audit/branch-info browser check, responsive-shots.
+
+Chưa kiểm: trình đọc màn hình thật (NVDA/VoiceOver), thiết bị cảm ứng thật, phóng chữ trình duyệt thật 200%/400%,
+Safari/Firefox, các trạng thái của đề xuất/hộp duyệt/lời mời có dữ liệu, tương phản của nền gradient/ảnh (không
+có). Chỉ xem mắt các ảnh trong phiên này: ho-so 360 (trước/sau), cây 360 (trước/sau), tổng quan 1280, tra cứu 768,
+đăng nhập 360/1280. Không tuyên bố tuân thủ WCAG tổng thể.
+
+## Hạn chế đã biết (chưa sửa)
+
+- Skip link giữ `href="#main"` (có onClick chặn mặc định) nên Ctrl+click hoặc "Sao chép liên kết" ra URL `/#main`,
+  HashRouter hiểu là route không tồn tại (404).
+- Khi đổi route, focus được đưa vào `<main>`; chưa kiểm với trình đọc màn hình (mẫu khác: đưa focus vào h1).
+- Nav xuống 4-5 dòng ở 320/360px cho quản trị trên emulator nên đẩy nội dung xuống.
+- Title nay đặt trong phần tử của từng `<Route>` (component `Titled`) và theo trạng thái ở màn hình cổng;
+  audit kiểm title khớp h1 và route chặn/không có trả "Không tìm thấy trang".
