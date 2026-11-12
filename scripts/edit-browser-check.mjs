@@ -334,6 +334,23 @@ try {
   const audit7 = (await db.doc("auditLogs/edit-7").get()).data();
   if (audit7.event !== "RELATION_TYPE_CHANGED") throw Error("Nhật ký 7 sai");
 
+  stage = "reject a parent change that would create a cycle";
+  await page.goto(`${URL}/#/person/a`);
+  await page.getByRole("button", { name: "Đặt hoặc đổi cha/mẹ" }).click();
+  await page.getByLabel("Cha", { exact: true }).check();
+  await page.getByLabel("Tìm theo tên").fill("giả văn lạc");
+  await page.getByLabel("Chọn người").selectOption("z");
+  const confirm = page.getByLabel(/Tôi xác nhận thay Cha hiện có/);
+  if (await confirm.count()) await confirm.check();
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "vòng lặp" }),
+  ).toBeVisible();
+  if ((await db.doc("relations/r-z-a").get()).exists)
+    throw Error("Đã tạo quan hệ vòng lặp");
+  if ((await db.doc("auditLogs/edit-8").get()).exists)
+    throw Error("Ca vòng lặp không được ghi nhật ký");
+
   stage = "hide a person (soft delete) then restore it";
   await page.goto(`${URL}/#/person/z`);
   await page.getByRole("button", { name: "Ẩn người này khỏi cây" }).click();
@@ -363,8 +380,13 @@ try {
   await expect(
     page.getByRole("alert").filter({ hasText: "mã người hợp lệ" }),
   ).toBeVisible();
-  await page.getByLabel("Mã người cần khôi phục").fill("z");
-  await page.getByLabel("Số phiên bản nhật ký của lần ẩn").fill("8");
+  await page
+    .getByRole("button", { name: /Giả Văn Lạc \(ẩn ở phiên bản 8\)/ })
+    .click();
+  await expect(page.getByLabel("Mã người cần khôi phục")).toHaveValue("z");
+  await expect(page.getByLabel("Số phiên bản nhật ký của lần ẩn")).toHaveValue(
+    "8",
+  );
   await page.getByRole("button", { name: "Lưu", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Giả Văn Lạc", level: 1 }),
