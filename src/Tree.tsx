@@ -174,7 +174,7 @@ function Node({
             aria-label={`${open ? "Thu gọn" : "Mở"} con cháu của ${p.name}`}
             onClick={() => toggle(id)}
           >
-            {open ? "−" : "+"}
+            <span aria-hidden="true">{open ? "−" : "+"}</span>
           </button>
         ) : (
           <span className="tree-toggle tree-leaf" aria-hidden="true" />

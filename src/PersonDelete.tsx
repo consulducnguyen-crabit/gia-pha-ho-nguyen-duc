@@ -1,5 +1,5 @@
 // Ẩn người khỏi cây (xóa mềm) và khôi phục — chỉ quản trị viên thấy; ghi qua commitDelete (lô nguyên tử có nhật ký).
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { collection, getDocs, limit, query, where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { db } from "./firebase";
@@ -286,14 +286,24 @@ function RestorePanel(props: Props & { close: () => void }) {
 export function PersonDelete(props: Props) {
   const [mode, setMode] = useState<"hide" | "restore" | null>(null);
   const close = () => setMode(null);
+  // Đóng panel (Hủy hoặc xong việc): trả focus về nút đã mở để không rơi về đầu trang.
+  const opener = useRef<"hide" | "restore" | null>(null);
+  const hideBtn = useRef<HTMLButtonElement | null>(null);
+  const restoreBtn = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (mode === null && opener.current)
+      (opener.current === "hide" ? hideBtn : restoreBtn).current?.focus();
+  }, [mode]);
   if (mode === "hide") return <HidePanel {...props} close={close} />;
   if (mode === "restore") return <RestorePanel {...props} close={close} />;
   return (
     <p className="edit-actions">
       <button
         type="button"
+        ref={hideBtn}
         onClick={() => {
           props.onStart();
+          opener.current = "hide";
           setMode("hide");
         }}
       >
@@ -301,8 +311,10 @@ export function PersonDelete(props: Props) {
       </button>
       <button
         type="button"
+        ref={restoreBtn}
         onClick={() => {
           props.onStart();
+          opener.current = "restore";
           setMode("restore");
         }}
       >

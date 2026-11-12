@@ -108,3 +108,10 @@
 
 - Rules sửa trong app đã deploy lên prod (commit a8c740a); sửa thử một người (c2-thai-son) ĐẠT, nhật ký `edit-1`, `edit-2` hiện đúng ở `#/audit`.
 - Người dùng bỏ yêu cầu xây dựng/cấu hình sao lưu khỏi phạm vi dự án: sao lưu không còn là điều kiện trước deploy rules hay sửa thử. Chỉ cập nhật tài liệu; không đổi code/rules/công cụ (cổng `--backup-dir` của import/restore-ghi-đè trên prod giữ nguyên).
+
+# Rà soát giao diện theo chuẩn web — 2026-11-13
+
+- Thêm scripts/ui-standards-audit.mjs (dữ liệu giả, emulator): kiểm lang/title/h1/landmark/heading, nhãn và tên truy cập, vùng bấm, tràn ngang 320/360/768/1280, tab-order và viền focus, 1.4.12, tương phản chữ và token.
+- Sửa: skip link, `<main>` cho trang đăng nhập/chờ cấp quyền, title theo route, chuyển focus vào nội dung khi đổi route, nav cao >= 44px, vùng bấm >= 24px cho tên trong cây/danh sách, ô chọn/radio 24px với nhãn cao >= 44px, bỏ h3 trong button, caption bảng tài khoản, icon trang trí aria-hidden, lỗi đăng nhập gắn aria-describedby, trả focus khi đóng panel ẩn/khôi phục người và hồ sơ tra cứu, viền control đủ 3:1 trên nền hero/story, cỡ chữ nhãn nhỏ nhất 11px.
+- Không đổi nghiệp vụ, API, quyền, route hay dữ liệu.
+- Title đặt theo từng Route (kể cả 404/route bị chặn) và theo trạng thái cổng; `.person-name` giữ diện mạo cũ của thẻ tra cứu; đóng hồ sơ tra cứu focus ô tìm kiếm nếu thẻ đã mất.

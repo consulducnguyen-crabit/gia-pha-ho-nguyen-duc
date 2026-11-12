@@ -14,7 +14,7 @@
   --color-text: #273f33;
   --color-text-muted: #526458;
   --color-border: #d1ddd2;
-  --color-control-border: #7b8e7e;
+  --color-control-border: #788b7b;
   --color-primary: #315b43;
   --color-primary-hover: #25452e;
   --color-focus: #315b43;
@@ -125,7 +125,7 @@ p {
   display: block;
   margin-top: var(--space-7);
   letter-spacing: 2px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .tree-mark {
   font-size: 100px;
@@ -136,6 +136,7 @@ p {
   padding: 10vw 7vw;
   max-width: 650px;
   align-self: center;
+  margin: 0; /* .login là <main>: bỏ margin:auto của quy tắc main toàn cục */
 }
 .login h2 {
   font-size: 36px;
@@ -192,17 +193,20 @@ aside {
   font-size: 32px;
 }
 .brand small {
-  font: 8px var(--font-body);
+  font: 10px var(--font-body);
   display: block;
   letter-spacing: 2px;
   margin-top: var(--space-1);
 }
 .nav-label {
   margin-top: var(--space-7);
-  font-size: 9px;
+  font-size: 11px;
 }
 nav a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1); /* flex làm mất khoảng trắng giữa biểu tượng và chữ */
+  min-height: var(--control-height);
   padding: var(--space-3);
   margin-top: var(--space-1);
   text-decoration: none;
@@ -212,6 +216,7 @@ nav a {
 nav a.active {
   background: var(--color-active);
   color: var(--color-primary-hover);
+  font-weight: 600; /* dấu hiệu trang hiện tại ngoài màu nền */
 }
 .aside-foot {
   margin-top: auto;
@@ -273,7 +278,7 @@ main {
   text-align: left;
 }
 .cards article span {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 2px;
   color: var(--color-text-muted);
 }
@@ -314,8 +319,19 @@ main {
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.person-name {
+  display: block;
+  margin: var(--space-5) 0 var(--space-2); /* như `.cards h3` trước khi đổi sang span */
+  font-family: var(--font-heading);
+  font-size: 23px;
+  font-weight: 500;
 }
 @media (max-width: 800px) {
   .gate {
@@ -462,8 +478,8 @@ textarea,
 }
 input[type="checkbox"] {
   display: inline-block;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   min-height: 0;
   margin: 0 var(--space-2) 0 0;
   vertical-align: middle;
@@ -639,6 +655,10 @@ textarea {
   padding-top: var(--space-1);
 }
 .tree-name {
+  display: inline-block;
+  padding-block: var(
+    --space-1
+  ); /* vùng bấm >= 24px (2.5.8) cho tên trong danh sách */
   font-weight: 600;
   text-decoration-color: var(--color-mark);
   text-underline-offset: 3px;
@@ -658,6 +678,9 @@ textarea {
   margin-left: var(--space-1);
 }
 .tree-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px; /* nhãn "Cần kiểm tra" là liên kết: vùng bấm >= 24px */
   font-size: 12px;
   padding: 1px var(--space-2);
   border-radius: var(--radius-sm);
@@ -689,6 +712,11 @@ textarea {
 }
 .tree-back {
   margin: 0;
+}
+.tree-back a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
 }
 .link-button {
   border: 0;
@@ -837,8 +865,8 @@ textarea {
 .edit-panel input[type="radio"] {
   display: inline-block;
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   min-height: 0;
   margin: 0 var(--space-2) 0 0;
   padding: 0;
@@ -950,4 +978,46 @@ textarea {
 .branch-merged {
   overflow-wrap: anywhere;
   white-space: pre-line;
+}
+
+/* Chuẩn web (HTML Standard + WCAG 2.2 AA, đợt rà soát 13/11/2026) */
+.skip-link {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-surface);
+  text-decoration: none;
+  transform: translateY(-200%); /* ẩn khỏi màn hình, vẫn nằm trong thứ tự Tab */
+}
+.skip-link:focus {
+  transform: none;
+}
+/* Vùng nội dung/tiêu đề chỉ nhận focus bằng mã (đổi route, mở hồ sơ): không vẽ viền vì không thao tác được */
+main:focus,
+.detail h2:focus {
+  outline: none;
+}
+/* Ô chọn/radio: nhãn bọc quanh là vùng bấm, cao >= 44px */
+label:has(> input[type="checkbox"]),
+label:has(> input[type="radio"]) {
+  min-height: var(--control-height);
+  padding-block: 10px;
+}
+@media (pointer: coarse) {
+  .tree-toggle {
+    width: var(--control-height);
+    height: var(--control-height);
+  }
+  .tree-name {
+    min-height: var(--control-height);
+    padding-block: 10px;
+    box-sizing: border-box;
+  }
 }
