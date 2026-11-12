@@ -24,6 +24,9 @@ service cloud.firestore {
   //  - PARENT_REVERTED: undo the LATEST parent replacement of a role: the replaced relation (listed in relationIds) is
   //    revived with replacedBy cleared, the replacing one (removedRelationIds) is hidden; revertsVersion = the
   //    PARENT_CHANGED audit that made it (must equal the hidden relation's sourceRefs).
+  //  - PARENT_REMOVED: hide ONE non-lineage parent relation (removedRelationIds, deleted + removedAtVersion == n);
+  //    PARENT_REMOVAL_UNDONE: bring it back (relationIds, revertsVersion = the PARENT_REMOVED audit, removedAtVersion
+  //    must equal it and is cleared). A removed relation is never revived by any other flow (removedAtVersion != null).
   //  - PERSON_DELETED / PERSON_RESTORED: soft delete (persons.deleted, its parent relations and up to six
   //    unions: unionId + moreUnionIds, each proven written in the same batch by auditCreateOk); memberProfiles is deleted (hidden from members) and recreated on restore.
   // Rules cannot parse the snapshot JSON, so its content stays the trusted client's (applyEdit/applyAdd)
@@ -77,6 +80,14 @@ service cloud.firestore {
          && get(relationDoc(a.relationIds[0])).data.get('deleted', false) == true
          && getAfter(relationDoc(a.relationIds[0])).data.get('deleted', false) == false
          && getAfter(relationDoc(a.removedRelationIds[0])).data.get('revertedAtVersion', null) == n)
+     || (a.event == 'PARENT_REMOVED'
+         && get(relationDoc(a.removedRelationIds[0])).data.get('deleted', false) == false
+         && getAfter(relationDoc(a.removedRelationIds[0])).data.get('deleted', false) == true
+         && getAfter(relationDoc(a.removedRelationIds[0])).data.get('removedAtVersion', null) == n)
+     || (a.event == 'PARENT_REMOVAL_UNDONE'
+         && get(relationDoc(a.relationIds[0])).data.get('deleted', false) == true
+         && getAfter(relationDoc(a.relationIds[0])).data.get('deleted', false) == false
+         && getAfter(relationDoc(a.relationIds[0])).data.get('restoredAt', null) == request.time)
      || (a.event == 'RELATION_TYPE_CHANGED'
          && getAfter(relationDoc(a.relationIds[0])).data.version == get(relationDoc(a.relationIds[0])).data.version + 1)
      || (a.event == 'PERSON_DELETED'
@@ -179,7 +190,7 @@ service cloud.firestore {
   match /auditLogs/{id} {
    // Account/invitation audits stay closed to every client; managers read only edit audits, by id.
    allow get: if manager()
-    && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'PARENT_REVERTED', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED'];
+    && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'PARENT_REVERTED', 'PARENT_REMOVED', 'PARENT_REMOVAL_UNDONE', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED'];
    allow create: if manager() && auditCreateOk(id);
   }
   // The first union (audit.unionId) plus up to five extra ones. Each listed union must have been written in THIS batch:
@@ -208,9 +219,9 @@ service cloud.firestore {
    return d.keys().hasOnly(['event', 'actorUid', 'target', 'personId', 'createdPersonIds', 'relationIds',
         'removedRelationIds', 'unionId', 'moreUnionIds', 'revertsVersion', 'editVersion', 'fields', 'before', 'after', 'timestamp', 'schemaVersion'])
     && d.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'PARENT_REVERTED',
-        'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED']
-    && (d.event in ['PARENT_CHANGED', 'PARENT_REVERTED'] || d.get('removedRelationIds', []).size() == 0)
-    && (d.event == 'PARENT_REVERTED' || d.get('revertsVersion', null) == null)
+        'PARENT_REMOVED', 'PARENT_REMOVAL_UNDONE', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED']
+    && (d.event in ['PARENT_CHANGED', 'PARENT_REVERTED', 'PARENT_REMOVED'] || d.get('removedRelationIds', []).size() == 0)
+    && (d.event in ['PARENT_REVERTED', 'PARENT_REMOVAL_UNDONE'] || d.get('revertsVersion', null) == null)
     && d.schemaVersion == 1
     && moreUnionsOk(d)
     && d.fields is list && d.before is map && d.after is map
@@ -235,6 +246,16 @@ service cloud.firestore {
      || (d.event == 'PARENT_REVERTED' && d.createdPersonIds == []
          && d.relationIds is list && d.relationIds.size() == 1
          && d.removedRelationIds is list && d.removedRelationIds.size() == 1
+         && d.revertsVersion is int && d.revertsVersion >= 1 && d.revertsVersion < d.editVersion
+         && d.get('unionId', null) == null)
+     || (d.event == 'PARENT_REMOVED' && d.createdPersonIds == []
+         && d.relationIds == []
+         && d.removedRelationIds is list && d.removedRelationIds.size() == 1
+         && d.before.removed is map
+         && d.get('unionId', null) == null)
+     || (d.event == 'PARENT_REMOVAL_UNDONE' && d.createdPersonIds == []
+         && d.relationIds is list && d.relationIds.size() == 1
+         && d.removedRelationIds == []
          && d.revertsVersion is int && d.revertsVersion >= 1 && d.revertsVersion < d.editVersion
          && d.get('unionId', null) == null)
      || (d.event == 'RELATION_TYPE_CHANGED' && d.createdPersonIds == []
@@ -320,6 +341,7 @@ service cloud.firestore {
          && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
          && d.replacedBy == a.relationIds[0])
      || (!live && a.event == 'PARENT_REVERTED' && id in a.relationIds
+         && resource.data.get('removedAtVersion', null) == null
          && resource.data.get('replacedBy', null) == a.removedRelationIds[0]
          && getAfter(relationDoc(a.removedRelationIds[0])).data.get('revertedAtVersion', null) == n
          && get(personDoc(resource.data.parentId)).data.get('deleted', false) == false
@@ -334,6 +356,27 @@ service cloud.firestore {
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'revertedAtVersion', 'version'])
          && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
          && d.revertedAtVersion == n)
+     || (live && a.event == 'PARENT_REMOVED' && id in a.removedRelationIds
+         && resource.data.get('replacedBy', null) == null
+         && resource.data.get('lineageTransmission', false) != true
+         && a.before.removed.parentId == resource.data.parentId
+         && a.before.removed.role == resource.data.parentRole
+         && a.before.removed.relationType == resource.data.relationType
+         && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'deletedWith', 'removedAtVersion', 'version'])
+         && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
+         && d.deletedWith == null && d.removedAtVersion == n)
+     || (!live && a.event == 'PARENT_REMOVAL_UNDONE' && id in a.relationIds
+         && resource.data.get('removedAtVersion', null) == a.revertsVersion
+         && resource.data.get('replacedBy', null) == null
+         && resource.data.get('revertedAtVersion', null) == null
+         && resource.data.get('deletedWith', null) == null
+         && resource.data.get('lineageTransmission', false) != true
+         && get(personDoc(resource.data.parentId)).data.get('deleted', false) == false
+         && get(personDoc(resource.data.childId)).data.get('deleted', false) == false
+         && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'version', 'restoredAt', 'restoredBy', 'removedAtVersion'])
+         && d.deleted == false && d.get('removedAtVersion', null) == null
+         && a.after.parentId == resource.data.parentId && a.after.role == resource.data.parentRole
+         && d.restoredAt == request.time && d.restoredBy == request.auth.uid)
      || (live && a.event == 'PERSON_DELETED' && id in a.relationIds
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'deletedBy', 'deletedWith', 'version'])
          && d.deleted == true && d.deletedAt == request.time && d.deletedBy == request.auth.uid
@@ -342,6 +385,7 @@ service cloud.firestore {
          && resource.data.get('deletedWith', '') == a.personId
          && resource.data.get('replacedBy', null) == null
          && resource.data.get('revertedAtVersion', null) == null
+         && resource.data.get('removedAtVersion', null) == null
          && d.diff(resource.data).affectedKeys().hasOnly(['deleted', 'version', 'restoredAt', 'restoredBy'])
          && d.deleted == false && d.restoredAt == request.time && d.restoredBy == request.auth.uid));
   }

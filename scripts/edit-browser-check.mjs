@@ -468,6 +468,49 @@ try {
   ).toBeVisible();
   await page.goto(`${URL}/#/person/ts`);
 
+  stage = "remove a mother with confirmation, then restore the removal";
+  await page.goto(`${URL}/#/person/a`);
+  await page.getByRole("button", { name: "Đặt hoặc đổi cha/mẹ" }).click();
+  await page.getByLabel("Mẹ", { exact: true }).check();
+  await page.getByLabel("Tìm theo tên").fill("giả thị bình");
+  await page.getByLabel("Chọn người").selectOption("b");
+  await page.getByRole("button", { name: "Lưu", exact: true }).click();
+  await expect(
+    page.getByText("Đã cập nhật quan hệ cha/mẹ và ghi nhật ký."),
+  ).toBeVisible();
+  // Cha theo dòng không có nút gỡ; chỉ mẹ (không truyền dòng) có đúng một nút.
+  await expect(page.getByRole("button", { name: "Gỡ quan hệ" })).toHaveCount(1);
+  await expect(page.getByText(/chỉ thay được, không gỡ được/)).toBeVisible();
+  await page.getByRole("button", { name: "Gỡ quan hệ" }).click();
+  await expect(
+    page.getByText(/quan hệ được ẩn, ghi vào nhật ký/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Xác nhận gỡ quan hệ" }).click();
+  await expect(page.getByText(/Đã gỡ mẹ Giả Thị Bình/)).toBeVisible();
+  await expect
+    .poll(async () => (await db.doc("relations/r-b-a").get()).data()?.deleted)
+    .toBe(true);
+  const removedRel = (await db.doc("relations/r-b-a").get()).data();
+  if (!Number.isInteger(removedRel.removedAtVersion))
+    throw Error("removedAtVersion phải được ghi");
+  const removedAudit = await db
+    .collection("auditLogs")
+    .where("event", "==", "PARENT_REMOVED")
+    .get();
+  if (removedAudit.size !== 1) throw Error("phải có đúng một nhật ký gỡ");
+  await page.getByRole("button", { name: "Đặt hoặc đổi cha/mẹ" }).click();
+  await page.getByLabel("Tìm theo tên").fill("giả thị bình");
+  await page.getByLabel("Chọn người").selectOption("b");
+  await page.getByRole("button", { name: "Khôi phục quan hệ đã gỡ" }).click();
+  await expect(
+    page.getByText("Đã khôi phục quan hệ cha/mẹ đã gỡ và ghi nhật ký."),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await db.doc("relations/r-b-a").get()).data()?.deleted)
+    .toBe(false);
+  if ((await db.doc("relations/r-b-a").get()).data().removedAtVersion != null)
+    throw Error("removedAtVersion phải được xóa khi khôi phục");
+
   stage = "reconcile again after multi-spouse hide/restore and parent revert";
   const rec2 = spawnSync("node scripts/gia-pha/reconcile.ts", {
     shell: true,

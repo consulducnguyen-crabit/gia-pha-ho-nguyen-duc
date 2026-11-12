@@ -44,10 +44,34 @@ tại bị ẩn (`deleted`, `revertedAtVersion`), snapshot, và nhật ký `PARE
 - Không có "làm lại" sau khi hoàn tác (quan hệ mới đã tồn tại thì không tạo lại bằng luồng đổi cha/mẹ).
 - Thứ tự phát hành: deploy RULES trước, rồi frontend. Deploy rules prod cần người dùng duyệt.
 
+## Gỡ quan hệ cha/mẹ nhập sai và khôi phục (PARENT_REMOVED / PARENT_REMOVAL_UNDONE)
+
+Nút **Gỡ quan hệ** ở từng dòng cha/mẹ (mục "Quan hệ cha mẹ (quản trị)") ẩn một quan hệ nhập sai mà KHÔNG thay bằng người khác.
+
+- Quyết định: **không gỡ được quan hệ truyền dòng** (`lineageTransmission`; cha theo dòng chỉ thay được) vì sẽ đứt dòng và
+  đời của cả nhánh. Giao diện ẩn nút và giải thích. Mẹ, cha họ ngoại... (không truyền dòng) gỡ được.
+- Cần xác nhận (`CONFIRM_REQUIRED`). Lô nguyên tử 3 ghi: quan hệ (`deleted`, `deletedAt/By`, `deletedWith: null`,
+  `removedAtVersion = n`), snapshot (bỏ dòng; KHÔNG tính lại đời), nhật ký `PARENT_REMOVED` (`removedRelationIds` = quan hệ,
+  `relationIds` = [], `before.removed` = người/vai trò/loại).
+- Quan hệ có được do một lần thay (`replacedBy` ở quan hệ cũ) vẫn gỡ được; cha/mẹ cũ chỉ đưa lại được bằng cách khôi phục
+  quan hệ đã gỡ rồi "Hoàn tác lần thay" (giao diện cảnh báo trước khi gỡ).
+- **Khôi phục**: trong "Đặt hoặc đổi cha/mẹ", chọn đúng người đã bị gỡ -> nút **Khôi phục quan hệ đã gỡ** (giao diện đọc
+  `removedAtVersion` từ quan hệ theo mã; admin được `get` theo mã). Lõi (`restoreRemovedParent`) đọc nhật ký `edit-{removeVersion}`
+  và kiểm: đúng sự kiện/người/quan hệ, quan hệ còn đúng trạng thái "đã gỡ" (không `replacedBy`/`revertedAtVersion`/`deletedWith`),
+  chỗ cha/mẹ của vai trò đó đang TRỐNG, cha/mẹ và con không bị ẩn, không vòng lặp, giới tính khớp, không có vai trò kia.
+  Ghi: quan hệ (`deleted: false`, `removedAtVersion` xóa, `restoredAt/By`), snapshot (thêm dòng, không truyền dòng), nhật ký
+  `PARENT_REMOVAL_UNDONE` (`revertsVersion`).
+- Rules: mỗi tài liệu tự chứng minh bằng nhật ký trong lô; `removedAtVersion == n` (gỡ) và `== revertsVersion` (khôi phục);
+  không gỡ quan hệ `lineageTransmission == true` hay đã ẩn; ngân sách <10 truy cập tài liệu mỗi yêu cầu.
+- **Lỗ hổng đã vá**: nhánh `PERSON_RESTORED` trước đây chỉ kiểm `deletedWith == người`, nên quan hệ đã gỡ còn `deletedWith` cũ
+  có thể bị hồi sinh. Nay (1) khi gỡ ghi `deletedWith: null`, (2) mọi nhánh hồi sinh (`PERSON_RESTORED`, `PARENT_REVERTED`)
+  yêu cầu `removedAtVersion == null`; khôi phục việc gỡ xóa `removedAtVersion` để quan hệ về trạng thái bình thường.
+- Chuỗi a->c, gỡ c, khôi phục việc gỡ, "Hoàn tác lần thay" về a: chạy được (có test rules).
+
 ## Giới hạn đã biết
 
 - Đổi cha sang người thuộc chi khác KHÔNG tự đổi chi của người con và cháu; cần sửa chi bằng form sửa hồ sơ.
-- Quan hệ đã ẩn do thay cha/mẹ chỉ đưa lại bằng "Hoàn tác lần thay" (không khôi phục tùy ý); `functions/src/proposals.ts` (chỉ emulator) chưa lọc
+- Quan hệ đã ẩn do thay cha/mẹ chỉ đưa lại bằng "Hoàn tác lần thay" (không khôi phục tùy ý); quan hệ đã GỠ chỉ khôi phục bằng nút riêng; `functions/src/proposals.ts` (chỉ emulator) chưa lọc
   `deleted` khi kiểm đồ thị; `counts.relations` của snapshot không được cập nhật khi thêm/ẩn quan hệ.
 
 - Rules không kiểm nội dung JSON snapshot và không kiểm hai vai trò trong một lô; script đối soát (PR D).
@@ -57,4 +81,4 @@ tại bị ẩn (`deleted`, `revertedAtVersion`), snapshot, và nhật ký `PARE
 ## Kiểm thử
 
 `tests/editRelation.test.ts`, `tests/editRules.test.ts` (nhóm "đổi cha/mẹ và loại con"),
-`scripts/edit-browser-check.mjs` (đặt cha cho người chưa nối, thay cha có xác nhận, đổi sang con nuôi).
+`scripts/edit-browser-check.mjs` (đặt cha cho người chưa nối, thay cha có xác nhận, đổi sang con nuôi, gỡ mẹ có xác nhận rồi khôi phục).

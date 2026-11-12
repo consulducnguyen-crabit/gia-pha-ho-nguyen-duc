@@ -6,6 +6,7 @@
 - `relations/{relationId}`: parentId, childId, relationType, lineageTransmission, verificationStatus, sourceRefs, version.
 - `unions/{unionId}`: partnerIds, status, eventDate, sourceRefs.
 - `relations/{id}` bị ẩn khi hoàn tác thay cha/mẹ có `revertedAtVersion`; `auditLogs` sự kiện `PARENT_REVERTED` có `revertsVersion` (xem IN_APP_EDIT_RELATIONS.md).
+- `relations/{id}` bị gỡ (cha/mẹ nhập sai) có `deleted`, `removedAtVersion` = số edit của sự kiện `PARENT_REMOVED`; khôi phục (`PARENT_REMOVAL_UNDONE`, `revertsVersion` = số đó) đặt `deleted: false` và đặt `removedAtVersion` về `null`. Quan hệ còn `removedAtVersion` không bị hồi sinh bởi luồng nào khác.
 - `auditLogs/edit-N` (ẩn/khôi phục người): `unionId` = liên kết vợ/chồng đầu, `moreUnionIds` = tối đa 5 liên kết còn lại (xem IN_APP_EDIT_DELETE.md).
 - `branches/{branchId}`: name, founderPersonId, parentBranchId, status, mergedFrom (ghi chú nguồn gốc nếu nhánh hợp nhất từ dòng khác; không tách gốc riêng).
 - `generationOverrides/{overrideId}`: personId, generation, reason, approvedBy, approvedAt.

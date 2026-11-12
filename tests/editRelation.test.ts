@@ -607,3 +607,305 @@ describe("revertParent (hoàn tác lần thay cha/mẹ gần nhất)", () => {
     );
   });
 });
+
+describe("removeParent (gỡ quan hệ cha/mẹ nhập sai)", () => {
+  const motherDoc = {
+    version: 1,
+    parentRole: "MOTHER",
+    relationType: "BIOLOGICAL",
+    lineageTransmission: false,
+  };
+  const fatherDoc = {
+    version: 1,
+    parentRole: "FATHER",
+    relationType: "BIOLOGICAL",
+    lineageTransmission: true,
+  };
+  const remove = (
+    over: Partial<Extract<RelationOp, { type: "removeParent" }>> = {},
+  ): RelationOp => ({
+    type: "removeParent",
+    childId: "k",
+    role: "MOTHER",
+    parentId: "b",
+    confirm: true,
+    ...over,
+  });
+  const withMother = (extra: Record<string, unknown> = {}) =>
+    state({ relations: { "r-b-k": { ...motherDoc, ...extra } } });
+
+  it("gỡ mẹ: ẩn quan hệ, bỏ dòng snapshot, không đổi đời, ghi nhật ký PARENT_REMOVED", () => {
+    const r = run(remove(), withMother({ deletedWith: "b" }));
+    const w = byPath(r);
+    expect(r.nextVersion).toBe(6);
+    expect(w["relations/r-b-k"]).toMatchObject({
+      mode: "merge",
+      data: {
+        deleted: true,
+        deletedBy: "admin",
+        deletedWith: null,
+        removedAtVersion: 6,
+        version: 2,
+      },
+    });
+    const d = snap(r);
+    expect(d.relations).not.toContainEqual(["b", "k", "M", "B", 0]);
+    expect(d.persons.k[3]).toBe(3);
+    expect(d.persons.g[3]).toBe(4);
+    expect(w["auditLogs/edit-6"].data).toMatchObject({
+      event: "PARENT_REMOVED",
+      personId: "k",
+      createdPersonIds: [],
+      relationIds: [],
+      removedRelationIds: ["r-b-k"],
+      unionId: null,
+      fields: ["parent"],
+      before: {
+        removed: {
+          parentId: "b",
+          role: "MOTHER",
+          relationType: "BIOLOGICAL",
+          lineageTransmission: false,
+        },
+      },
+      after: { removed: true },
+    });
+    expect(Object.keys(w).sort()).toEqual([
+      "auditLogs/edit-6",
+      "relations/r-b-k",
+      "treeSnapshots/main",
+    ]);
+  });
+
+  it("thiếu xác nhận, cha theo dòng, không có quan hệ", () => {
+    expect(code(() => run(remove({ confirm: false }), withMother()))).toBe(
+      "CONFIRM_REQUIRED",
+    );
+    expect(
+      code(() =>
+        run(
+          remove({ role: "FATHER", parentId: "a" }),
+          state({ relations: { "r-a-k": fatherDoc } }),
+        ),
+      ),
+    ).toBe("INVALID");
+    expect(code(() => run(remove({ parentId: "a2" }), withMother()))).toBe(
+      "NOT_FOUND",
+    );
+    // đúng người nhưng sai vai trò
+    expect(code(() => run(remove({ role: "FATHER" }), withMother()))).toBe(
+      "NOT_FOUND",
+    );
+  });
+
+  it("tài liệu quan hệ lệch ảnh chụp: BAD_STATE", () => {
+    for (const extra of [
+      { deleted: true },
+      { replacedBy: "r-x-k" },
+      { relationType: "ADOPTIVE" },
+      { removedAtVersion: 3 },
+      { parentRole: "FATHER" },
+      { lineageTransmission: null },
+    ])
+      expect(code(() => run(remove(), withMother(extra)))).toBe("BAD_STATE");
+    expect(
+      code(() => run(remove(), state({ relations: { "r-b-k": null } }))),
+    ).toBe("BAD_STATE");
+    expect(
+      code(() => run(remove(), withMother({ lineageTransmission: true }))),
+    ).toBe("INVALID");
+  });
+
+  it("khóa phiên bản; người bị ẩn; không sửa đầu vào", () => {
+    expect(code(() => run(remove(), withMother(), 4))).toBe("VERSION_CONFLICT");
+    const hidden = withMother();
+    hidden.docs.b = { sex: "F", deleted: true };
+    expect(code(() => run(remove(), hidden))).toBe("INVALID");
+    const s = withMother();
+    const before = JSON.stringify(s);
+    run(remove(), s);
+    expect(JSON.stringify(s)).toBe(before);
+    expect(relationReads(s.snapshot, remove())).toEqual({
+      persons: ["b", "k"],
+      relations: ["r-b-k"],
+    });
+  });
+});
+
+describe("restoreRemovedParent (khôi phục việc gỡ cha/mẹ)", () => {
+  // Gỡ mẹ b của k (edit-6) rồi dựng trạng thái sau đó.
+  function afterRemove(tweak: (s: RelationState) => void = () => {}) {
+    const removed = run(
+      {
+        type: "removeParent",
+        childId: "k",
+        role: "MOTHER",
+        parentId: "b",
+        confirm: true,
+      },
+      state({
+        relations: {
+          "r-b-k": {
+            version: 1,
+            parentRole: "MOTHER",
+            relationType: "BIOLOGICAL",
+            lineageTransmission: false,
+          },
+        },
+      }),
+    );
+    const s = state({
+      snapshot: {
+        schemaVersion: 1,
+        dataVersion: "x",
+        editVersion: 6,
+        data: String(
+          (
+            removed.writes.find((w) => w.path === "treeSnapshots/main")!
+              .data as { data: string }
+          ).data,
+        ),
+      },
+    });
+    s.relations = {
+      "r-b-k": {
+        version: 2,
+        deleted: true,
+        deletedWith: null,
+        removedAtVersion: 6,
+        parentRole: "MOTHER",
+        relationType: "BIOLOGICAL",
+        lineageTransmission: false,
+      },
+    };
+    s.audit = removed.writes.find((w) => w.path === "auditLogs/edit-6")!
+      .data as Record<string, unknown>;
+    tweak(s);
+    return s;
+  }
+  const restore = (
+    over: Partial<Extract<RelationOp, { type: "restoreRemovedParent" }>> = {},
+  ): RelationOp => ({
+    type: "restoreRemovedParent",
+    childId: "k",
+    role: "MOTHER",
+    parentId: "b",
+    removeVersion: 6,
+    ...over,
+  });
+  const go = (s: RelationState, op = restore(), v = 6) => run(op, s, v);
+  const patchRel = (s: RelationState, extra: Record<string, unknown>) => {
+    s.relations["r-b-k"] = { ...s.relations["r-b-k"], ...extra };
+  };
+  const addRow = (s: RelationState, row: unknown[]) => {
+    const d = JSON.parse(String(s.snapshot.data));
+    d.relations.push(row);
+    s.snapshot = { ...s.snapshot, data: JSON.stringify(d) };
+  };
+
+  it("đưa quan hệ lại: dòng snapshot, xóa dấu gỡ, nhật ký PARENT_REMOVAL_UNDONE, không đổi đời", () => {
+    const r = go(afterRemove());
+    const w = byPath(r);
+    expect(r.nextVersion).toBe(7);
+    expect(w["relations/r-b-k"].data).toMatchObject({
+      deleted: false,
+      removedAtVersion: null,
+      restoredBy: "admin",
+      version: 3,
+    });
+    const d = snap(r);
+    expect(d.relations).toContainEqual(["b", "k", "M", "B", 0]);
+    expect(d.persons.k[3]).toBe(3);
+    expect(w["auditLogs/edit-7"].data).toMatchObject({
+      event: "PARENT_REMOVAL_UNDONE",
+      relationIds: ["r-b-k"],
+      removedRelationIds: [],
+      revertsVersion: 6,
+      unionId: null,
+    });
+  });
+
+  it("mẹ ruột đã gỡ vẫn khôi phục được khi người con đang có mẹ nuôi (chỉ chặn trùng cả vai trò lẫn loại)", () => {
+    const r = go(afterRemove((s) => addRow(s, ["x", "k", "M", "A", 0])));
+    expect(snap(r).relations).toContainEqual(["b", "k", "M", "B", 0]);
+  });
+
+  it("từ chối: chỗ mẹ đã có người, vòng lặp, giới tính trái", () => {
+    expect(
+      code(() => go(afterRemove((s) => addRow(s, ["x", "k", "M", "B", 0])))),
+    ).toBe("INVALID");
+    expect(
+      code(() => go(afterRemove((s) => addRow(s, ["k", "b", "F", "B", 0])))),
+    ).toBe("INVALID");
+    expect(code(() => go(afterRemove((s) => (s.docs.b = { sex: "M" }))))).toBe(
+      "INVALID",
+    );
+  });
+
+  it("từ chối: nhật ký sai, quan hệ không ở trạng thái đã gỡ, người bị ẩn", () => {
+    expect(
+      code(() =>
+        go(
+          afterRemove(
+            (s) => (s.audit = { ...s.audit!, event: "PARENT_CHANGED" }),
+          ),
+        ),
+      ),
+    ).toBe("BAD_STATE");
+    expect(
+      code(() =>
+        go(afterRemove((s) => (s.audit = { ...s.audit!, personId: "g" }))),
+      ),
+    ).toBe("BAD_STATE");
+    expect(code(() => go(afterRemove((s) => (s.audit = null))))).toBe(
+      "BAD_STATE",
+    );
+    expect(code(() => go(afterRemove(), restore({ removeVersion: 5 })))).toBe(
+      "BAD_STATE",
+    );
+    for (const extra of [
+      { deleted: false },
+      { removedAtVersion: 3 },
+      { removedAtVersion: null },
+      { replacedBy: "r-x-k" },
+      { revertedAtVersion: 4 },
+      { deletedWith: "b" },
+      { relationType: "ADOPTIVE" },
+      { lineageTransmission: true },
+    ])
+      expect(code(() => go(afterRemove((s) => patchRel(s, extra))))).toBe(
+        "BAD_STATE",
+      );
+    expect(
+      code(() =>
+        go(afterRemove((s) => (s.docs.b = { sex: "F", deleted: true }))),
+      ),
+    ).toBe("INVALID");
+    expect(
+      code(() =>
+        go(afterRemove((s) => (s.docs.k = { sex: "M", deleted: true }))),
+      ),
+    ).toBe("INVALID");
+    expect(code(() => go(afterRemove(), restore({ removeVersion: 0 })))).toBe(
+      "INVALID",
+    );
+    expect(code(() => go(afterRemove(), restore({ removeVersion: 99 })))).toBe(
+      "INVALID",
+    );
+  });
+
+  it("khóa phiên bản; relationReads trả quan hệ + nhật ký; không sửa đầu vào", () => {
+    expect(code(() => go(afterRemove(), restore(), 5))).toBe(
+      "VERSION_CONFLICT",
+    );
+    const s = afterRemove();
+    expect(relationReads(s.snapshot, restore())).toEqual({
+      persons: ["b", "k"],
+      relations: ["r-b-k"],
+      audit: "edit-6",
+    });
+    const before = JSON.stringify(s);
+    go(s);
+    expect(JSON.stringify(s)).toBe(before);
+  });
+});

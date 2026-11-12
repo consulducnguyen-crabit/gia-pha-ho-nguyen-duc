@@ -28,5 +28,7 @@ describe("chặn --replace sau khi có sửa trong app", () => {
     expect(EDIT_EVENTS).toContain("PERSON_DELETED");
     expect(EDIT_EVENTS).toContain("PERSON_RESTORED");
     expect(EDIT_EVENTS).toContain("PARENT_REVERTED");
+    expect(EDIT_EVENTS).toContain("PARENT_REMOVED");
+    expect(EDIT_EVENTS).toContain("PARENT_REMOVAL_UNDONE");
   });
 });

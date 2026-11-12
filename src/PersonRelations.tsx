@@ -1,9 +1,14 @@
 // Quản trị quan hệ cha/mẹ của một người: đặt/đổi cha hoặc mẹ, đổi loại con nuôi/ruột. Chỉ quản trị viên thấy.
 import { useEffect, useId, useRef, useState } from "react";
 import { db } from "./firebase";
-import { commitRelation, findRevertCandidate } from "./editClient";
+import {
+  commitRelation,
+  findRemovedParent,
+  findRevertCandidate,
+} from "./editClient";
 import { EditError } from "./editCore";
 import { saveErrorMessage } from "./editForm";
+import { latestRequest } from "./latestRequest";
 import { AddPanel } from "./PersonAdd";
 import { yearsLabel, type SnapPerson, type TreeIndex } from "./treeModel";
 
@@ -44,6 +49,54 @@ function SetParentPanel({
     : "";
   const found = index.search(search).filter((x) => x.id !== p.id);
   const idOf = (k: string) => `${uniq}-${k}`;
+  // Người được chọn từng bị GỠ khỏi cha/mẹ của người này: đề nghị khôi phục thay vì đặt lại.
+  const [removedFound, setRemovedFound] = useState<{
+    role: "FATHER" | "MOTHER";
+    removeVersion: number;
+  } | null>(null);
+  const [lookup] = useState(latestRequest);
+  useEffect(() => {
+    setRemovedFound(null);
+    if (!parentId) return;
+    const isLatest = lookup.start();
+    findRemovedParent(db!, p.id, parentId)
+      .then((r) => {
+        if (isLatest()) setRemovedFound(r);
+      })
+      .catch(() => {
+        if (isLatest()) setRemovedFound(null);
+      });
+    return () => lookup.invalidate();
+  }, [parentId, p.id, lookup]);
+
+  async function restoreRemoved() {
+    if (!removedFound) return;
+    setBusy(true);
+    setSaveError(null);
+    setConflict(false);
+    try {
+      await commitRelation(db!, {
+        op: {
+          type: "restoreRemovedParent",
+          childId: p.id,
+          role: removedFound.role,
+          parentId,
+          removeVersion: removedFound.removeVersion,
+        },
+        expectedVersion: index.snapshot.editVersion,
+        actorUid: uid,
+      });
+      close();
+      onSaved("Đã khôi phục quan hệ cha/mẹ đã gỡ và ghi nhật ký.", p.id);
+    } catch (error) {
+      setSaveError(saveErrorMessage(error));
+      setConflict(
+        error instanceof EditError && error.code === "VERSION_CONFLICT",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit() {
     const e: Record<string, string> = {};
@@ -161,6 +214,21 @@ function SetParentPanel({
         />
         Con nuôi (vẫn tính đời theo dòng như con ruột)
       </label>
+      {removedFound && (
+        <p className="edit-note">
+          Người này từng được gỡ khỏi vai trò{" "}
+          {ROLE_LABEL[removedFound.role].toLowerCase()} của {p.name} (lần gỡ số{" "}
+          {removedFound.removeVersion}). Có thể khôi phục quan hệ đó thay vì đặt
+          lại.{" "}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void restoreRemoved()}
+          >
+            Khôi phục quan hệ đã gỡ
+          </button>
+        </p>
+      )}
       {existing && (
         <label className="checkbox-field">
           <input
@@ -194,6 +262,12 @@ export function PersonRelations(props: Props) {
     oldName: string;
     changeVersion: number;
   } | null>(null);
+  const [removeAsk, setRemoveAsk] = useState<{
+    id: string;
+    role: "FATHER" | "MOTHER";
+    name: string;
+    hadReplace: boolean;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restoreFocus, setRestoreFocus] = useState(false);
@@ -202,7 +276,9 @@ export function PersonRelations(props: Props) {
   const parents = index.parents(p.id);
   // Quản lý focus: tới nút xác nhận khi mở bước xác nhận; về tiêu đề mục khi hủy/đóng.
   const pending =
-    pendingType ?? (revertAsk ? `revert:${revertAsk.role}` : null);
+    pendingType ??
+    (revertAsk ? `revert:${revertAsk.role}` : null) ??
+    (removeAsk ? `remove:${removeAsk.role}` : null);
   useEffect(() => {
     if (pending) confirmRef.current?.focus();
   }, [pending]);
@@ -233,6 +309,55 @@ export function PersonRelations(props: Props) {
           index.snapshot.persons.get(found.parentId)?.name ?? found.parentId,
         changeVersion: found.changeVersion,
       });
+    } catch (e) {
+      setError(saveErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function startRemove(x: { id: string; role: "FATHER" | "MOTHER" }) {
+    props.onStart();
+    setBusy(true);
+    setError(null);
+    try {
+      // Quan hệ do một lần thay tạo ra: cha/mẹ cũ chỉ đưa lại được bằng đường vòng (xem cảnh báo).
+      const earlier = await findRevertCandidate(db!, p.id, x.id, x.role);
+      setRevertAsk(null);
+      setPendingType(null);
+      setRemoveAsk({
+        id: x.id,
+        role: x.role,
+        name: index.snapshot.persons.get(x.id)?.name ?? x.id,
+        hadReplace: earlier !== null,
+      });
+    } catch (e) {
+      setError(saveErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function confirmRemove() {
+    if (!removeAsk) return;
+    props.onStart();
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await commitRelation(db!, {
+        op: {
+          type: "removeParent",
+          childId: p.id,
+          role: removeAsk.role,
+          parentId: removeAsk.id,
+          confirm: true,
+        },
+        expectedVersion: index.snapshot.editVersion,
+        actorUid: uid,
+      });
+      setRemoveAsk(null);
+      onSaved(
+        `Đã gỡ ${ROLE_LABEL[removeAsk.role].toLowerCase()} ${removeAsk.name}. Để khôi phục, mở "Đặt hoặc đổi cha/mẹ" và chọn lại đúng người này (lần gỡ số ${result.nextVersion}).`,
+        p.id,
+      );
     } catch (e) {
       setError(saveErrorMessage(e));
     } finally {
@@ -335,6 +460,35 @@ export function PersonRelations(props: Props) {
                       Hủy
                     </button>
                   </>
+                ) : removeAsk &&
+                  removeAsk.id === x.id &&
+                  removeAsk.role === x.role ? (
+                  <span className="edit-note">
+                    Gỡ {ROLE_LABEL[x.role].toLowerCase()} {removeAsk.name} khỏi{" "}
+                    {p.name}: quan hệ được ẩn, ghi vào nhật ký và khôi phục
+                    được.
+                    {removeAsk.hadReplace &&
+                      ` Quan hệ này có được do một lần thay trước đó; ${ROLE_LABEL[x.role].toLowerCase()} cũ chỉ đưa lại được bằng cách khôi phục quan hệ đã gỡ rồi dùng "Hoàn tác lần thay".`}{" "}
+                    <button
+                      type="button"
+                      className="danger"
+                      ref={confirmRef}
+                      disabled={busy}
+                      onClick={() => void confirmRemove()}
+                    >
+                      {busy ? "Đang lưu…" : "Xác nhận gỡ quan hệ"}
+                    </button>{" "}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setRestoreFocus(true);
+                        setRemoveAsk(null);
+                      }}
+                    >
+                      Hủy
+                    </button>
+                  </span>
                 ) : revertAsk && revertAsk.role === x.role ? (
                   <span className="edit-note">
                     Đưa {revertAsk.oldName} trở lại làm{" "}
@@ -379,7 +533,21 @@ export function PersonRelations(props: Props) {
                       onClick={() => void startRevert(x)}
                     >
                       Hoàn tác lần thay {ROLE_LABEL[x.role].toLowerCase()}
-                    </button>
+                    </button>{" "}
+                    {x.lineage ? (
+                      <span className="tree-meta">
+                        Quan hệ theo dòng: chỉ thay được, không gỡ được.
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        aria-label={`Gỡ quan hệ ${ROLE_LABEL[x.role].toLowerCase()} ${name}`}
+                        onClick={() => void startRemove(x)}
+                      >
+                        Gỡ quan hệ
+                      </button>
+                    )}
                   </>
                 )}
               </li>

@@ -39,7 +39,32 @@ export interface RevertParentOp {
   parentId: string;
   changeVersion: number;
 }
-export type RelationOp = SetParentOp | SetRelationTypeOp | RevertParentOp;
+/**
+ * Gỡ quan hệ cha/mẹ nhập sai (không thay bằng người khác). Quan hệ KHÔNG bị xóa cứng: tài liệu được đánh dấu `deleted`
+ * + `removedAtVersion`. Cấm gỡ quan hệ truyền dòng (chỉ được thay) để không làm đứt dòng/đời.
+ */
+export interface RemoveParentOp {
+  type: "removeParent";
+  childId: string;
+  role: "FATHER" | "MOTHER";
+  parentId: string;
+  /** Bắt buộc true (người dùng đã xác nhận). */
+  confirm: boolean;
+}
+/** Khôi phục việc gỡ cha/mẹ; `removeVersion` = số phiên bản nhật ký (edit-N, PARENT_REMOVED) của lần gỡ. */
+export interface RestoreRemovedParentOp {
+  type: "restoreRemovedParent";
+  childId: string;
+  role: "FATHER" | "MOTHER";
+  parentId: string;
+  removeVersion: number;
+}
+export type RelationOp =
+  | SetParentOp
+  | SetRelationTypeOp
+  | RevertParentOp
+  | RemoveParentOp
+  | RestoreRemovedParentOp;
 
 export interface RelationState {
   snapshot: Doc;
@@ -47,7 +72,7 @@ export interface RelationState {
   docs: Record<string, Doc | null>;
   /** relations/{id} của quan hệ liên quan; quan hệ mới phải là null. */
   relations: Record<string, Doc | null>;
-  /** auditLogs/edit-{changeVersion}; chỉ cần khi hoàn tác. */
+  /** auditLogs/edit-{changeVersion | removeVersion}; chỉ cần khi hoàn tác thay hoặc khôi phục việc gỡ. */
   audit?: Doc | null;
 }
 export interface RelationInput {
@@ -99,6 +124,17 @@ export function relationReads(
   op: RelationOp,
 ): { persons: string[]; relations: string[]; audit?: string } {
   const data = parse(snapshot);
+  if (op.type === "removeParent")
+    return {
+      persons: [op.parentId, op.childId],
+      relations: [rid(op.parentId, op.childId)],
+    };
+  if (op.type === "restoreRemovedParent")
+    return {
+      persons: [op.parentId, op.childId],
+      relations: [rid(op.parentId, op.childId)],
+      audit: `edit-${op.removeVersion}`,
+    };
   if (op.type === "revertParent") {
     const cur = data.relations.find(
       (r) => r[1] === op.childId && r[2] === ROLE_CODE[op.role],
@@ -200,7 +236,9 @@ export function applyRelation(
   if (
     op.type !== "setParent" &&
     op.type !== "setRelationType" &&
-    op.type !== "revertParent"
+    op.type !== "revertParent" &&
+    op.type !== "removeParent" &&
+    op.type !== "restoreRemovedParent"
   )
     invalid("Loại thao tác chưa được hỗ trợ.");
   if (!input.actorUid) invalid("Thiếu người thực hiện.");
@@ -223,6 +261,18 @@ export function applyRelation(
     Array.isArray(data.persons[id]);
   if (op.type === "revertParent")
     return applyRevert(state, input, op, data, version, nextVersion, known);
+  if (op.type === "removeParent")
+    return applyRemove(state, input, op, data, nextVersion, known);
+  if (op.type === "restoreRemovedParent")
+    return applyRestoreRemoved(
+      state,
+      input,
+      op,
+      data,
+      version,
+      nextVersion,
+      known,
+    );
   if (typeof op.adoptive !== "boolean") invalid("Thiếu loại con (nuôi/ruột).");
   if (!known(op.childId) || !known(op.parentId))
     invalid("Người không có trong cây.");
@@ -571,6 +621,253 @@ function applyRevert(
           role: op.role,
           adoptive: oldAdoptive,
           lineageTransmission: oldLineage,
+        },
+        timestamp: SERVER_TIME,
+        schemaVersion: 1,
+      },
+    },
+  ];
+  return { writes, nextVersion, focusId: op.childId };
+}
+
+const isNum = (v: unknown): v is number => Number.isInteger(v);
+const empty = (v: unknown) => v === undefined || v === null;
+
+function applyRemove(
+  state: RelationState,
+  input: RelationInput,
+  op: RemoveParentOp,
+  data: Data,
+  nextVersion: number,
+  known: (id: unknown) => id is string,
+): RelationResult {
+  if (op.confirm !== true)
+    throw new EditError(
+      "CONFIRM_REQUIRED",
+      "Cần xác nhận gỡ quan hệ cha/mẹ này; quan hệ được ẩn và ghi vào nhật ký, có thể khôi phục.",
+    );
+  if (op.role !== "FATHER" && op.role !== "MOTHER")
+    invalid("Vai trò phải là cha hoặc mẹ.");
+  if (!known(op.childId) || !known(op.parentId))
+    invalid("Người không có trong cây.");
+  if (
+    state.docs[op.childId]?.deleted === true ||
+    state.docs[op.parentId]?.deleted === true
+  )
+    invalid("Người liên quan đang bị ẩn; hãy khôi phục trước.");
+  const row = data.relations.find(
+    (r) =>
+      r[0] === op.parentId &&
+      r[1] === op.childId &&
+      r[2] === ROLE_CODE[op.role],
+  );
+  if (!row) throw new EditError("NOT_FOUND", "Không thấy quan hệ này.");
+  // Quan hệ truyền dòng quyết định đời của cả nhánh: chỉ được thay bằng người khác, không được gỡ trống.
+  if (row[4] === 1)
+    invalid(
+      "Quan hệ cha theo dòng không gỡ được (sẽ đứt dòng); chỉ thay được bằng người khác.",
+    );
+  const relId = rid(op.parentId, op.childId);
+  const rel = state.relations[relId];
+  if (!rel || !isNum(rel.version))
+    throw new EditError("BAD_STATE", "Thiếu hoặc sai phiên bản quan hệ.");
+  if (rel.lineageTransmission === true)
+    invalid("Quan hệ cha theo dòng không gỡ được; chỉ thay được.");
+  if (
+    rel.deleted === true ||
+    rel.parentRole !== op.role ||
+    !empty(rel.replacedBy) ||
+    !empty(rel.removedAtVersion) ||
+    rel.relationType !== (row[3] === "A" ? "ADOPTIVE" : "BIOLOGICAL") ||
+    rel.lineageTransmission !== false
+  )
+    throw new EditError(
+      "BAD_STATE",
+      "Trạng thái quan hệ không khớp ảnh chụp cây; chạy đối soát trước.",
+    );
+  const relationType = row[3] === "A" ? "ADOPTIVE" : "BIOLOGICAL";
+  // Không truyền dòng nên không đổi đời; cố ý không gọi recomputeGenerations.
+  data.relations.splice(data.relations.indexOf(row), 1);
+  const writes: EditWrite[] = [
+    {
+      path: `relations/${relId}`,
+      mode: "merge",
+      data: {
+        deleted: true,
+        deletedAt: SERVER_TIME,
+        deletedBy: input.actorUid,
+        // Xóa dấu "ẩn cùng người" cũ còn sót để quan hệ đã gỡ không bị hồi sinh qua khôi phục người.
+        deletedWith: null,
+        removedAtVersion: nextVersion,
+        version: rel.version + 1,
+      },
+    },
+    {
+      path: "treeSnapshots/main",
+      mode: "merge",
+      data: { data: JSON.stringify(data), editVersion: nextVersion },
+    },
+    {
+      path: `auditLogs/edit-${nextVersion}`,
+      mode: "create",
+      data: {
+        event: "PARENT_REMOVED",
+        actorUid: input.actorUid,
+        target: `persons/${op.childId}`,
+        personId: op.childId,
+        createdPersonIds: [],
+        relationIds: [],
+        removedRelationIds: [relId],
+        unionId: null,
+        editVersion: nextVersion,
+        fields: ["parent"],
+        before: {
+          removed: {
+            parentId: op.parentId,
+            role: op.role,
+            relationType,
+            lineageTransmission: false,
+          },
+        },
+        after: { removed: true },
+        timestamp: SERVER_TIME,
+        schemaVersion: 1,
+      },
+    },
+  ];
+  return { writes, nextVersion, focusId: op.childId };
+}
+
+function applyRestoreRemoved(
+  state: RelationState,
+  input: RelationInput,
+  op: RestoreRemovedParentOp,
+  data: Data,
+  version: number,
+  nextVersion: number,
+  known: (id: unknown) => id is string,
+): RelationResult {
+  if (op.role !== "FATHER" && op.role !== "MOTHER")
+    invalid("Vai trò phải là cha hoặc mẹ.");
+  if (
+    !Number.isInteger(op.removeVersion) ||
+    op.removeVersion < 1 ||
+    op.removeVersion > version
+  )
+    invalid("Số phiên bản của lần gỡ không hợp lệ.");
+  if (!known(op.childId)) invalid("Người này không có trong cây.");
+  if (!known(op.parentId))
+    invalid(
+      "Cha/mẹ đã gỡ hiện không có trong cây; hãy khôi phục người đó trước.",
+    );
+  if (state.docs[op.childId]?.deleted === true)
+    invalid("Người này đang bị ẩn; hãy khôi phục trước.");
+  if (state.docs[op.parentId]?.deleted === true)
+    invalid("Cha/mẹ đã gỡ đang bị ẩn; hãy khôi phục người đó trước.");
+  const relId = rid(op.parentId, op.childId);
+  const rel = state.relations[relId];
+  const audit = state.audit;
+  if (!rel || !audit || !isNum(rel.version))
+    throw new EditError("BAD_STATE", "Thiếu dữ liệu quan hệ hoặc nhật ký.");
+  const removed = (audit.before as Doc | undefined)?.removed as
+    Doc | null | undefined;
+  if (
+    audit.event !== "PARENT_REMOVED" ||
+    audit.personId !== op.childId ||
+    audit.editVersion !== op.removeVersion ||
+    !Array.isArray(audit.removedRelationIds) ||
+    audit.removedRelationIds[0] !== relId ||
+    !removed ||
+    removed.parentId !== op.parentId ||
+    removed.role !== op.role ||
+    removed.lineageTransmission !== false
+  )
+    throw new EditError(
+      "BAD_STATE",
+      "Nhật ký không phải lần gỡ quan hệ này; không khôi phục được.",
+    );
+  if (
+    rel.deleted !== true ||
+    rel.removedAtVersion !== op.removeVersion ||
+    !empty(rel.replacedBy) ||
+    !empty(rel.revertedAtVersion) ||
+    !empty(rel.deletedWith) ||
+    rel.parentRole !== op.role ||
+    rel.lineageTransmission !== false ||
+    !["ADOPTIVE", "BIOLOGICAL"].includes(String(rel.relationType)) ||
+    rel.relationType !== removed.relationType
+  )
+    throw new EditError(
+      "BAD_STATE",
+      "Quan hệ không còn ở trạng thái đã gỡ khớp nhật ký; không khôi phục được.",
+    );
+  const role = ROLE_CODE[op.role];
+  // Một người có thể có một cha/mẹ ruột và một cha/mẹ nuôi cùng vai trò: chỉ chặn khi trùng cả vai trò lẫn loại.
+  const typeCode = rel.relationType === "ADOPTIVE" ? "A" : "B";
+  if (
+    data.relations.some(
+      (r) => r[1] === op.childId && r[2] === role && r[3] === typeCode,
+    )
+  )
+    invalid(
+      `Người này hiện đã có ${ROLE_LABEL[op.role]} cùng loại (ruột/nuôi); gỡ hoặc thay người đó trước khi khôi phục.`,
+    );
+  const sex = state.docs[op.parentId]?.sex;
+  if (op.role === "FATHER" && sex === "F")
+    invalid("Cha đã gỡ hiện đang ghi giới tính nữ.");
+  if (op.role === "MOTHER" && sex === "M")
+    invalid("Mẹ đã gỡ hiện đang ghi giới tính nam.");
+  if (data.relations.some((r) => r[0] === op.parentId && r[1] === op.childId))
+    invalid("Người này hiện đã là cha/mẹ của người con ở vai trò khác.");
+  if (descendants(data.relations, op.childId).has(op.parentId))
+    invalid(
+      "Không thể khôi phục: sẽ tạo vòng lặp (cha/mẹ đã gỡ nay là con cháu).",
+    );
+  const adoptive = rel.relationType === "ADOPTIVE";
+  // Không truyền dòng nên không đổi đời; cố ý không gọi recomputeGenerations.
+  data.relations.push([op.parentId, op.childId, role, adoptive ? "A" : "B", 0]);
+  const json = JSON.stringify(data);
+  if (new TextEncoder().encode(json).length > SNAPSHOT_MAX_BYTES)
+    invalid("Ảnh chụp cây đã quá lớn.");
+  const writes: EditWrite[] = [
+    {
+      path: `relations/${relId}`,
+      mode: "merge",
+      data: {
+        deleted: false,
+        // Xóa dấu gỡ để quan hệ sống lại hành xử như quan hệ thường (ẩn/khôi phục người, gỡ lại).
+        removedAtVersion: null,
+        restoredAt: SERVER_TIME,
+        restoredBy: input.actorUid,
+        version: rel.version + 1,
+      },
+    },
+    {
+      path: "treeSnapshots/main",
+      mode: "merge",
+      data: { data: json, editVersion: nextVersion },
+    },
+    {
+      path: `auditLogs/edit-${nextVersion}`,
+      mode: "create",
+      data: {
+        event: "PARENT_REMOVAL_UNDONE",
+        actorUid: input.actorUid,
+        target: `persons/${op.childId}`,
+        personId: op.childId,
+        createdPersonIds: [],
+        relationIds: [relId],
+        removedRelationIds: [],
+        revertsVersion: op.removeVersion,
+        unionId: null,
+        editVersion: nextVersion,
+        fields: ["parent"],
+        before: { removed: true },
+        after: {
+          parentId: op.parentId,
+          role: op.role,
+          adoptive,
+          lineageTransmission: false,
         },
         timestamp: SERVER_TIME,
         schemaVersion: 1,
