@@ -358,3 +358,252 @@ describe("chung", () => {
     ).toEqual(["r-b-a2"]);
   });
 });
+
+describe("revertParent (hoàn tác lần thay cha/mẹ gần nhất)", () => {
+  // Thay cha của k từ a sang a3 (edit-6), rồi dựng trạng thái sau đó để hoàn tác.
+  function afterReplace(tweak: (s: RelationState) => void = () => {}) {
+    const replaced = run(parent("k", "a3", { confirmReplace: true }));
+    const auditData = replaced.writes.find(
+      (w) => w.path === "auditLogs/edit-6",
+    )!.data as Record<string, unknown>;
+    const s = state({
+      snapshot: {
+        schemaVersion: 1,
+        dataVersion: "x",
+        editVersion: 6,
+        data: String(
+          (
+            replaced.writes.find((w) => w.path === "treeSnapshots/main")!
+              .data as {
+              data: string;
+            }
+          ).data,
+        ),
+      },
+    });
+    s.relations = {
+      "r-a3-k": {
+        version: 1,
+        parentRole: "FATHER",
+        relationType: "BIOLOGICAL",
+        lineageTransmission: true,
+        sourceRefs: ["auditLogs/edit-6"],
+      },
+      "r-a-k": {
+        version: 2,
+        deleted: true,
+        replacedBy: "r-a3-k",
+        parentRole: "FATHER",
+        relationType: "BIOLOGICAL",
+        lineageTransmission: true,
+      },
+    };
+    s.audit = auditData;
+    tweak(s);
+    return s;
+  }
+  const revert = (
+    over: Partial<Extract<RelationOp, { type: "revertParent" }>> = {},
+  ): RelationOp => ({
+    type: "revertParent",
+    childId: "k",
+    role: "FATHER",
+    parentId: "a",
+    changeVersion: 6,
+    ...over,
+  });
+  const go = (s: RelationState, op = revert(), v = 6) => run(op, s, v);
+
+  it("đảo đúng hai quan hệ, tính lại đời, ghi nhật ký PARENT_REVERTED", () => {
+    const r = go(afterReplace());
+    const w = byPath(r);
+    expect(w["relations/r-a-k"].data).toMatchObject({
+      deleted: false,
+      replacedBy: null,
+      version: 3,
+    });
+    expect(w["relations/r-a3-k"].data).toMatchObject({
+      deleted: true,
+      revertedAtVersion: 7,
+      version: 2,
+    });
+    expect(w["auditLogs/edit-7"].data).toMatchObject({
+      event: "PARENT_REVERTED",
+      relationIds: ["r-a-k"],
+      removedRelationIds: ["r-a3-k"],
+      revertsVersion: 6,
+      unionId: null,
+    });
+    const data = JSON.parse(
+      String((w["treeSnapshots/main"].data as { data: string }).data),
+    );
+    expect(data.relations).toContainEqual(["a", "k", "F", "B", 1]);
+    expect(data.relations).not.toContainEqual(["a3", "k", "F", "B", 1]);
+    expect(data.persons.k[3]).toBe(3);
+    expect(data.persons.g[3]).toBe(4);
+    expect(r.nextVersion).toBe(7);
+  });
+
+  it("từ chối khi không phải lần thay gần nhất hoặc nhật ký/quan hệ không khớp", () => {
+    expect(
+      code(() =>
+        go(
+          afterReplace(
+            (s) => (s.audit = { ...s.audit!, event: "PERSON_EDITED" }),
+          ),
+        ),
+      ),
+    ).toBe("BAD_STATE");
+    expect(
+      code(() =>
+        go(afterReplace((s) => (s.audit = { ...s.audit!, personId: "g" }))),
+      ),
+    ).toBe("BAD_STATE");
+    expect(
+      code(() =>
+        go(
+          afterReplace((s) => {
+            s.relations["r-a3-k"] = {
+              ...s.relations["r-a3-k"],
+              sourceRefs: ["auditLogs/edit-9"],
+            };
+          }),
+        ),
+      ),
+    ).toBe("BAD_STATE");
+    expect(
+      code(() =>
+        go(
+          afterReplace((s) => {
+            s.relations["r-a-k"] = { ...s.relations["r-a-k"], deleted: false };
+          }),
+        ),
+      ),
+    ).toBe("BAD_STATE");
+    expect(
+      code(() =>
+        go(
+          afterReplace((s) => {
+            s.relations["r-a-k"] = {
+              ...s.relations["r-a-k"],
+              replacedBy: "r-khac-k",
+            };
+          }),
+        ),
+      ),
+    ).toBe("BAD_STATE");
+    expect(
+      code(() =>
+        go(
+          afterReplace((s) => {
+            s.relations["r-a-k"] = {
+              ...s.relations["r-a-k"],
+              relationType: "ADOPTIVE",
+            };
+          }),
+        ),
+      ),
+    ).toBe("BAD_STATE");
+    expect(code(() => go(afterReplace((s) => (s.audit = null))))).toBe(
+      "BAD_STATE",
+    );
+    expect(code(() => go(afterReplace(), revert({ changeVersion: 5 })))).toBe(
+      "BAD_STATE",
+    );
+  });
+
+  it("từ chối: số phiên bản sai, cha cũ/con bị ẩn hoặc vắng, giới tính trái, vai trò khác, vòng lặp", () => {
+    expect(code(() => go(afterReplace(), revert({ changeVersion: 0 })))).toBe(
+      "INVALID",
+    );
+    expect(code(() => go(afterReplace(), revert({ changeVersion: 99 })))).toBe(
+      "INVALID",
+    );
+    expect(
+      code(() =>
+        go(afterReplace((s) => (s.docs.a = { sex: "M", deleted: true }))),
+      ),
+    ).toBe("INVALID");
+    expect(
+      code(() =>
+        go(afterReplace((s) => (s.docs.k = { sex: "M", deleted: true }))),
+      ),
+    ).toBe("INVALID");
+    expect(
+      code(() => go(afterReplace(), revert({ parentId: "khong-co" }))),
+    ).toBe("INVALID");
+    expect(code(() => go(afterReplace((s) => (s.docs.a = { sex: "F" }))))).toBe(
+      "INVALID",
+    );
+    expect(code(() => go(afterReplace(), revert({ role: "MOTHER" })))).toBe(
+      "BAD_STATE",
+    );
+    expect(
+      code(() =>
+        go(
+          afterReplace((s) => {
+            const d = JSON.parse(String(s.snapshot.data));
+            d.relations.push(["k", "a", "M", "B", 0]);
+            s.snapshot = { ...s.snapshot, data: JSON.stringify(d) };
+          }),
+        ),
+      ),
+    ).toBe("INVALID");
+  });
+
+  it("khóa phiên bản, relationReads trả quan hệ cũ + hiện tại + nhật ký, không sửa đầu vào", () => {
+    expect(code(() => go(afterReplace(), revert(), 5))).toBe(
+      "VERSION_CONFLICT",
+    );
+    const s = afterReplace();
+    const reads = relationReads(s.snapshot, revert());
+    expect(reads.relations.sort()).toEqual(["r-a-k", "r-a3-k"]);
+    expect(reads.audit).toBe("edit-6");
+    const before = JSON.stringify(s);
+    go(s);
+    expect(JSON.stringify(s)).toBe(before);
+  });
+
+  it("chuỗi hai lần thay: chỉ hoàn tác được lần mới nhất", () => {
+    // k: a -> a3 (edit-6) rồi a3 -> a2 (edit-7). Hoàn tác edit-6 khi quan hệ hiện tại do edit-7 tạo ra bị từ chối.
+    const first = afterReplace();
+    const second = run(
+      parent("k", "a2", { confirmReplace: true }),
+      {
+        ...first,
+        relations: { ...first.relations, "r-a2-k": null },
+        docs: first.docs,
+      },
+      6,
+    );
+    const s = state({
+      snapshot: {
+        schemaVersion: 1,
+        dataVersion: "x",
+        editVersion: 7,
+        data: String(
+          (
+            second.writes.find((w) => w.path === "treeSnapshots/main")!
+              .data as {
+              data: string;
+            }
+          ).data,
+        ),
+      },
+    });
+    s.relations = {
+      "r-a2-k": {
+        version: 1,
+        parentRole: "FATHER",
+        relationType: "BIOLOGICAL",
+        lineageTransmission: true,
+        sourceRefs: ["auditLogs/edit-7"],
+      },
+      "r-a-k": first.relations["r-a-k"],
+    };
+    s.audit = first.audit;
+    expect(code(() => go(s, revert({ changeVersion: 6 }), 7))).toBe(
+      "BAD_STATE",
+    );
+  });
+});

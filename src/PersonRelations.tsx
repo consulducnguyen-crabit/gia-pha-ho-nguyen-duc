@@ -1,7 +1,7 @@
 // Quản trị quan hệ cha/mẹ của một người: đặt/đổi cha hoặc mẹ, đổi loại con nuôi/ruột. Chỉ quản trị viên thấy.
 import { useEffect, useId, useRef, useState } from "react";
 import { db } from "./firebase";
-import { commitRelation } from "./editClient";
+import { commitRelation, findRevertCandidate } from "./editClient";
 import { EditError } from "./editCore";
 import { saveErrorMessage } from "./editForm";
 import { AddPanel } from "./PersonAdd";
@@ -170,8 +170,8 @@ function SetParentPanel({
             aria-invalid={errors.confirm ? true : undefined}
           />
           Tôi xác nhận thay {ROLE_LABEL[role as "FATHER" | "MOTHER"]} hiện có (
-          {existingName}); quan hệ cũ được ẩn và ghi vào nhật ký. Chưa thể chọn
-          lại {existingName} cho tới khi có chức năng khôi phục.
+          {existingName}); quan hệ cũ được ẩn và ghi vào nhật ký. Nếu thay nhầm,
+          dùng nút “Hoàn tác lần thay” ở mục Quan hệ cha mẹ.
           {errors.confirm && (
             <span role="alert" className="edit-error">
               {errors.confirm}
@@ -187,6 +187,13 @@ export function PersonRelations(props: Props) {
   const { index, p, uid, onSaved, onReload } = props;
   const [open, setOpen] = useState(false);
   const [pendingType, setPendingType] = useState<string | null>(null);
+  const [revertAsk, setRevertAsk] = useState<{
+    role: "FATHER" | "MOTHER";
+    curName: string;
+    parentId: string;
+    oldName: string;
+    changeVersion: number;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restoreFocus, setRestoreFocus] = useState(false);
@@ -194,15 +201,69 @@ export function PersonRelations(props: Props) {
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const parents = index.parents(p.id);
   // Quản lý focus: tới nút xác nhận khi mở bước xác nhận; về tiêu đề mục khi hủy/đóng.
+  const pending =
+    pendingType ?? (revertAsk ? `revert:${revertAsk.role}` : null);
   useEffect(() => {
-    if (pendingType) confirmRef.current?.focus();
-  }, [pendingType]);
+    if (pending) confirmRef.current?.focus();
+  }, [pending]);
   useEffect(() => {
-    if (!open && !pendingType && restoreFocus) {
+    if (!open && !pending && restoreFocus) {
       headingRef.current?.focus();
       setRestoreFocus(false);
     }
-  }, [open, pendingType, restoreFocus]);
+  }, [open, pending, restoreFocus]);
+
+  async function startRevert(x: { id: string; role: "FATHER" | "MOTHER" }) {
+    props.onStart();
+    setBusy(true);
+    setError(null);
+    try {
+      const found = await findRevertCandidate(db!, p.id, x.id, x.role);
+      if (!found) {
+        setError(
+          `Không có lần thay ${ROLE_LABEL[x.role].toLowerCase()} nào để hoàn tác (quan hệ hiện tại không phải kết quả của một lần thay).`,
+        );
+        return;
+      }
+      setRevertAsk({
+        role: x.role,
+        curName: index.snapshot.persons.get(x.id)?.name ?? x.id,
+        parentId: found.parentId,
+        oldName:
+          index.snapshot.persons.get(found.parentId)?.name ?? found.parentId,
+        changeVersion: found.changeVersion,
+      });
+    } catch (e) {
+      setError(saveErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function confirmRevert() {
+    if (!revertAsk) return;
+    props.onStart();
+    setBusy(true);
+    setError(null);
+    try {
+      await commitRelation(db!, {
+        op: {
+          type: "revertParent",
+          childId: p.id,
+          role: revertAsk.role,
+          parentId: revertAsk.parentId,
+          changeVersion: revertAsk.changeVersion,
+        },
+        expectedVersion: index.snapshot.editVersion,
+        actorUid: uid,
+      });
+      setRevertAsk(null);
+      onSaved("Đã hoàn tác lần thay cha/mẹ và ghi nhật ký.", p.id);
+    } catch (e) {
+      setError(saveErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function toggleType(parentId: string, adoptive: boolean) {
     props.onStart();
@@ -274,17 +335,52 @@ export function PersonRelations(props: Props) {
                       Hủy
                     </button>
                   </>
+                ) : revertAsk && revertAsk.role === x.role ? (
+                  <span className="edit-note">
+                    Đưa {revertAsk.oldName} trở lại làm{" "}
+                    {ROLE_LABEL[x.role].toLowerCase()}, thay {revertAsk.curName}
+                    . Nếu loại con (nuôi/ruột) của quan hệ hiện tại đã đổi sau
+                    lần thay đó, thay đổi ấy không được giữ.{" "}
+                    <button
+                      type="button"
+                      className="primary"
+                      ref={confirmRef}
+                      disabled={busy}
+                      onClick={() => void confirmRevert()}
+                    >
+                      {busy ? "Đang lưu…" : "Xác nhận hoàn tác"}
+                    </button>{" "}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setRestoreFocus(true);
+                        setRevertAsk(null);
+                      }}
+                    >
+                      Hủy
+                    </button>
+                  </span>
                 ) : (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      props.onStart();
-                      setPendingType(x.id);
-                    }}
-                  >
-                    Đổi thành {x.adoptive ? "con ruột" : "con nuôi"}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        props.onStart();
+                        setPendingType(x.id);
+                      }}
+                    >
+                      Đổi thành {x.adoptive ? "con ruột" : "con nuôi"}
+                    </button>{" "}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void startRevert(x)}
+                    >
+                      Hoàn tác lần thay {ROLE_LABEL[x.role].toLowerCase()}
+                    </button>
+                  </>
                 )}
               </li>
             );

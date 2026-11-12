@@ -1,6 +1,7 @@
 // Nối lõi sửa (editCore) với Firestore: đọc và ghi trong CÙNG một giao dịch.
 import {
   doc,
+  getDoc,
   runTransaction,
   serverTimestamp,
   type Firestore,
@@ -141,13 +142,53 @@ export async function commitRelation(
       const d = await tx.get(doc(db, "relations", id));
       relations[id] = d.exists() ? d.data() : null;
     }
+    let audit: DocumentData | null = null;
+    if (reads.audit) {
+      const a = await tx.get(doc(db, "auditLogs", reads.audit));
+      audit = a.exists() ? a.data() : null;
+    }
     const result = applyRelation(
-      { snapshot: snapshot.data(), docs, relations },
+      { snapshot: snapshot.data(), docs, relations, audit },
       input,
     );
     stageWrites(db, tx as unknown as SetTarget, result.writes);
     return result;
   });
+}
+
+/**
+ * Tìm lần thay cha/mẹ gần nhất của một vai trò để hoàn tác (đọc ngoài giao dịch, chỉ để hiển thị xác nhận;
+ * giao dịch hoàn tác sẽ kiểm lại mọi điều kiện). Trả null nếu không có gì để hoàn tác.
+ */
+export async function findRevertCandidate(
+  db: Firestore,
+  childId: string,
+  curParent: string,
+  role: "FATHER" | "MOTHER",
+): Promise<{ parentId: string; changeVersion: number } | null> {
+  if (!SAFE_ID.test(curParent) || !SAFE_ID.test(childId)) return null;
+  const cur = await getDoc(doc(db, "relations", `r-${curParent}-${childId}`));
+  const ref = cur.data()?.sourceRefs;
+  const m =
+    Array.isArray(ref) && typeof ref[0] === "string"
+      ? /^auditLogs\/edit-(\d+)$/.exec(ref[0])
+      : null;
+  if (!m) return null;
+  const version = Number(m[1]);
+  const audit = await getDoc(doc(db, "auditLogs", `edit-${version}`));
+  const a = audit.data();
+  const removed = (a?.before as DocumentData | undefined)?.removed as
+    DocumentData | null | undefined;
+  if (
+    !a ||
+    a.event !== "PARENT_CHANGED" ||
+    !removed ||
+    typeof removed.parentId !== "string" ||
+    !SAFE_ID.test(removed.parentId) ||
+    removed.role !== role
+  )
+    return null;
+  return { parentId: removed.parentId, changeVersion: version };
 }
 
 /** Ẩn (xóa mềm) hoặc khôi phục một người. Đọc và ghi trong CÙNG một giao dịch. */

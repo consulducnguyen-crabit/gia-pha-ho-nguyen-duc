@@ -27,5 +27,6 @@ describe("chặn --replace sau khi có sửa trong app", () => {
   it("danh sách sự kiện gồm cả ẩn/khôi phục", () => {
     expect(EDIT_EVENTS).toContain("PERSON_DELETED");
     expect(EDIT_EVENTS).toContain("PERSON_RESTORED");
+    expect(EDIT_EVENTS).toContain("PARENT_REVERTED");
   });
 });
