@@ -4,6 +4,7 @@ import {
   buildChanges,
   normalizeNameInput,
   saveErrorMessage,
+  syncDupNameFlag,
   type FormValues,
 } from "../src/editForm";
 
@@ -95,5 +96,31 @@ describe("saveErrorMessage", () => {
       saveErrorMessage(new EditError("INVALID", "Giới tính mới mâu thuẫn")),
     ).toBe("Giới tính mới mâu thuẫn");
     expect(saveErrorMessage(new Error("boom"))).toMatch(/Không lưu được/);
+  });
+});
+
+describe("syncDupNameFlag", () => {
+  const noFlag: FormValues = { ...base, flags: ["VERIFY"] };
+  it("gắn cờ khi đổi sang tên trùng", () => {
+    const r = syncDupNameFlag(
+      base.name,
+      { ...noFlag, name: "Nguyễn Văn B" },
+      1,
+    );
+    expect(r.flags).toEqual(["VERIFY", "DUP_NAME"]);
+  });
+  it("gỡ cờ khi tên mới không còn trùng", () => {
+    const r = syncDupNameFlag(base.name, { ...base, name: "Nguyễn Văn C" }, 0);
+    expect(r.flags).toEqual(["VERIFY"]);
+  });
+  it("không đụng tới cờ khi tên không đổi", () => {
+    expect(syncDupNameFlag(base.name, noFlag, 2)).toBe(noFlag);
+    expect(syncDupNameFlag(base.name, { ...base }, 0).flags).toEqual(
+      base.flags,
+    );
+  });
+  it("không đổi gì khi đã đúng trạng thái", () => {
+    const v = { ...base, name: "Nguyễn Văn B" };
+    expect(syncDupNameFlag(base.name, v, 1)).toBe(v);
   });
 });

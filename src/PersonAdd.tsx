@@ -1,5 +1,6 @@
 // Biểu mẫu thêm con / thêm vợ chồng — chỉ quản trị viên thấy; ghi qua commitAdd (lô nguyên tử có nhật ký).
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { DuplicateNote } from "./DuplicateNote";
 import { useNavigate } from "react-router-dom";
 import { db } from "./firebase";
 import { commitAdd } from "./editClient";
@@ -15,7 +16,12 @@ import {
   type PersonFields,
   type SpouseForm,
 } from "./addForm";
-import { yearsLabel, type SnapPerson, type TreeIndex } from "./treeModel";
+import {
+  sameNamePeople,
+  yearsLabel,
+  type SnapPerson,
+  type TreeIndex,
+} from "./treeModel";
 
 type Mode = "closed" | "child" | "spouse";
 interface Props {
@@ -31,7 +37,9 @@ function PersonFieldsInputs({
   errors,
   set,
   idOf,
+  nameNote,
 }: {
+  nameNote?: ReactNode;
   values: PersonFields;
   errors: AddErrors;
   set: <K extends keyof PersonFields>(k: K, v: PersonFields[K]) => void;
@@ -59,6 +67,7 @@ function PersonFieldsInputs({
           {...aria("name")}
         />
         {err("name")}
+        {nameNote}
       </label>
       <label>
         Giới tính
@@ -260,6 +269,14 @@ function ChildPanel({
   };
   const fatherIsClan = !!fatherId && canBeLineageFather(fatherId);
   const category = fatherIsClan ? values.category : "EXTERNAL";
+  const fatherGeneration = fatherId
+    ? (index.snapshot.persons.get(fatherId)?.generation ?? null)
+    : null;
+  // Cùng quy tắc editAdd: chỉ con theo dòng mới có đời (= đời cha + 1).
+  const childGeneration =
+    fatherIsClan && category === "CLAN" && fatherGeneration !== null
+      ? fatherGeneration + 1
+      : null;
   // Chi mặc định theo chi của cha, trừ khi người dùng đã tự chọn.
   const [branchTouched, setBranchTouched] = useState(false);
   const fatherBranch =
@@ -337,6 +354,17 @@ function ChildPanel({
         errors={errors}
         idOf={idOf}
         set={(k, v) => set(k, v as never)}
+        nameNote={
+          <DuplicateNote
+            people={sameNamePeople(
+              index.snapshot.persons.values(),
+              values.name,
+              childGeneration,
+              null,
+            )}
+            nameChanged={false}
+          />
+        }
       />
       <label className="checkbox-field">
         <input
