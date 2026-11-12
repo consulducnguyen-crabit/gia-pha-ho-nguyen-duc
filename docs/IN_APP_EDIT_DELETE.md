@@ -29,7 +29,7 @@ không sửa được và không được chọn làm cha/mẹ (quan hệ mới 
   quan hệ đã bị THAY THẾ (`replacedBy`), và không cho tạo vợ/chồng mới với người đang ẩn.
 - Người có hơn hai quan hệ cha/mẹ (ruột + nuôi + mẹ) chưa ẩn được (thông báo rõ từ lõi).
 - Sau khi ẩn, app chuyển tới cha/mẹ, vợ/chồng hoặc thủy tổ để hiện thông báo kèm mã người và số phiên bản.
-- Người đã ẩn không liệt kê được trong app: phải nhớ mã người và số phiên bản (nằm trong thông báo và nhật ký).
+- Khi mở "Khôi phục người đã ẩn", app tải tối đa 100 người đang ẩn (`persons` có `deleted == true`, quản trị viên đã có quyền đọc, rules không đổi), sắp theo lần ẩn gần nhất; bấm một người thì mã và số phiên bản tự điền. Vẫn nhập tay được nếu danh sách không tải được. Quá 100 người ẩn thì phải nhập tay.
 - Rules chỉ kiểm quan hệ đầu tiên trong lô ẩn/khôi phục và không kiểm nội dung JSON snapshot; script đối soát (PR D).
 - Quan hệ cha/mẹ cũ đã bị thay thế (C2a) vẫn chưa khôi phục được riêng lẻ.
 - `functions/src/proposals.ts` (emulator-only) chưa lọc `deleted`; cờ `DUP_NAME` của người trùng tên không tự tính lại.
