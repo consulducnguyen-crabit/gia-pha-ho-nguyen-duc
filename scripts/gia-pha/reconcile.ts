@@ -1,10 +1,10 @@
 // Đối soát treeSnapshots/main ↔ persons/memberProfiles/relations/unions/nhật ký (CHỈ ĐỌC, không ghi gì).
 // Chạy: npm run gia-pha:reconcile -- [--project <id>]   (emulator: đặt FIRESTORE_EMULATOR_HOST)
-// Kết quả chỉ in mã lỗi và mã tài liệu, không in tên hay ghi chú. Thoát 1 nếu có sai lệch.
+// Kết quả chỉ in mã lỗi và mã tài liệu, không in tên hay ghi chú. Thoát 1 nếu có sai lệch (cảnh báo riêng, không đổi mã thoát).
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { decideTarget } from "./import-plan.ts";
-import { reconcile } from "./reconcile-core.ts";
+import { reconcile, reconcileWarnings } from "./reconcile-core.ts";
 import { EDIT_EVENTS } from "./replace-guard.ts";
 
 const root = resolve(import.meta.dirname, "..", "..");
@@ -40,7 +40,7 @@ const edits = await db
   .where("event", "in", EDIT_EVENTS)
   .select("editVersion", "event")
   .get();
-const issues = reconcile({
+const input = {
   snapshot: snap.exists ? snap.data() : null,
   persons: await map("persons"),
   memberProfiles: await map("memberProfiles"),
@@ -51,7 +51,15 @@ const issues = reconcile({
     editVersion: d.data().editVersion,
     event: d.data().event,
   })),
-});
+};
+const issues = reconcile(input);
+// Cảnh báo chỉ-đọc, tách khỏi lỗi: không ảnh hưởng mã thoát.
+const warnings = reconcileWarnings(input);
+if (warnings.length) {
+  console.warn(`CẢNH BÁO ${warnings.length} (không làm đối soát thất bại):`);
+  for (const x of warnings.slice(0, 200))
+    console.warn(` ~ ${x.code}: ${x.ref}`);
+}
 if (!issues.length) {
   console.log("ĐẠT: không có sai lệch.");
   process.exit(0);

@@ -86,3 +86,8 @@
 - Cây gia phả: khi chọn chi ở bộ lọc hiện khối thông tin chi (tên chi, thủy tổ chi có liên kết nếu có trong cây, nguồn gốc hợp nhất). Quản trị viên (`canManageMembership`) còn thấy "Ghi chú quản trị (chi)".
 - Chuỗi dài hơn 500 ký tự được cắt kèm nút "Xem đầy đủ"; mọi chuỗi render bằng text, không `dangerouslySetInnerHTML`, không `href` từ dữ liệu (liên kết thủy tổ chỉ khi mã khớp `^[A-Za-z0-9_-]{1,100}$` và có trong ảnh chụp).
 - Chỉ đọc/hiển thị: không đổi rules, schema, API. Mã mới: `src/branchInfo.ts`, `src/BranchInfoView.tsx`; test `tests/branchInfo.test.ts`, `scripts/branch-info-browser-check.mjs` (`npm run test:browser:branch`, đã thêm vào CI).
+
+# PR-8 — Cảnh báo chi lệch người khai chi — 2026-11-12
+
+- Đối soát thêm cảnh báo chỉ-đọc `BRANCH_FOUNDER_MISMATCH` (`reconcileWarnings`), in phần "CẢNH BÁO" riêng, không đổi mã thoát. Chỉ mã + mã người, không tên.
+- Không đổi chi hàng loạt trong app; không đổi rules/src/schema/snapshot. Ghi quyết định Q1–Q4 vào OPEN_DECISIONS.md.
