@@ -32,7 +32,7 @@ GitHub Pages chỉ phục vụ `dist/`, router dùng hash và Vite base tương 
 
 ## Sao lưu và khôi phục
 Công cụ sao lưu/khôi phục cục bộ và kết quả diễn tập: xem [BACKUP.md](BACKUP.md).
-Prod đã có dữ liệu thật: sao lưu đã kiểm chứng là điều kiện trước mọi deploy rules hoặc thao tác phá hủy (xem BACKUP.md, PROD_ROLLOUT.md). Emulator có thể export bằng `npx firebase emulators:export /tmp/gia-pha-backup --project demo-gia-pha`; import bằng `npm run emulators -- --import /tmp/gia-pha-backup`. Không commit export.
+Prod đã có dữ liệu thật. Từ 2026-11-13 sao lưu là tùy chọn do quản trị viên tự quyết, không bắt buộc cho quy trình sửa trong app; riêng nạp/khôi phục-ghi-đè trên prod vẫn bị cổng của công cụ đòi bản sao lưu (xem BACKUP.md, PROD_ROLLOUT.md). Emulator có thể export bằng `npx firebase emulators:export /tmp/gia-pha-backup --project demo-gia-pha`; import bằng `npm run emulators -- --import /tmp/gia-pha-backup`. Không commit export.
 Trước migration thật: người phụ trách được chỉ định tạo Firestore export và bản sao Storage vào kho riêng có ACL, ghi checksum/phiên bản schema và thời điểm; dry-run trên project cô lập; đối chiếu số lượng, quan hệ, quyền và tài liệu mẫu sau restore. Chưa tuyên bố khả năng restore production khi chưa diễn tập. Thay đổi production cần phê duyệt rõ ràng.
 
 ## Rollback

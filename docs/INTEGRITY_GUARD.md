@@ -49,7 +49,7 @@ sau một chuỗi sửa thật (thêm con/vợ chồng, đổi cha mẹ, ẩn, k
 
 ## Chưa làm trong PR này
 
-- Sao lưu định kỳ tự động: cần cụm mật khẩu và khóa service account do người dùng đặt; chạy tay `gia-pha:backup` đến khi có.
+- Sao lưu định kỳ tự động: đã bỏ khỏi phạm vi (quyết định 2026-11-13); nếu quản trị viên muốn sao lưu thì tự chạy `gia-pha:backup` (cần cụm mật khẩu và khóa service account do người dùng đặt).
 - Cờ `DUP_NAME` của người trùng tên còn lại không tự cập nhật (form chỉ tự gắn/gỡ cho người đang sửa, xem IN_APP_EDIT.md).
 - Chưa chạy đối soát trên dữ liệu prod thật (cần khóa của người dùng).
 - Chưa tự chạy đối soát trong CI hay theo lịch.

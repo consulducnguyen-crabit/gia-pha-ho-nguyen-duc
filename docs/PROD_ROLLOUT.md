@@ -6,6 +6,8 @@ Project: `gia-pha-nguyen-duc-prod`. Mọi bước **ghi** lên prod cần bạn 
 3. với nạp/khôi phục-ghi-đè: **bản sao lưu mới** `--backup-dir` (tạo trong 30 phút, cùng project, qua `verify`, **khớp Firestore hiện tại**). Cổng tự kiểm tra, không tin lời khai.
 Quản lý tài khoản prod chỉ cần confirm + ack (không cần sao lưu).
 
+> Các bước 1-9 và "Điều kiện trước" dưới đây mô tả lần nạp dữ liệu đầu tiên (đã xảy ra). Cổng sao lưu (`--backup-dir`) của công cụ import/restore là hành vi sẵn có của công cụ; từ 2026-11-13 sao lưu KHÔNG phải bước bắt buộc của quy trình sửa trong app (xem "Rules sửa trong app").
+
 ## Điều kiện trước
 - [ ] Đã rà soát Excel thật (`private-data\gia-pha-ban-nhap.xlsx`); chấp nhận các mục gắn cờ "Cần kiểm tra".
 - [ ] Khóa service account **prod** lưu ngoài repo; đặt `GOOGLE_APPLICATION_CREDENTIALS`.
@@ -60,21 +62,22 @@ Các chức năng sửa trong app cần rules mới trên prod. `firestore.rules
 Pages tự phát hành frontend khi merge vào `main`, nên frontend có thể lên TRƯỚC rules; khi đó nút lưu báo "Không có quyền" (từ chối an toàn, không ghi gì) và trang `#/audit` báo không đọc được cho tới khi rules được deploy. Deploy rules prod cần người dùng duyệt rõ ràng.
 
 ### Thứ tự phát hành Giai đoạn 3 (người dùng đã duyệt)
-1. **Sao lưu mã hóa đã kiểm chứng ngay trước khi deploy rules** (cần `GIA_PHA_BACKUP_PASSPHRASE` và `GOOGLE_APPLICATION_CREDENTIALS` prod do người dùng đặt; `backup` rồi `verify`/`gate-check`, xem BACKUP.md).
-2. **`npm run gia-pha:reconcile`** (chỉ đọc) trước khi deploy: ghi lại kết quả cơ sở.
-3. **Deploy rules prod** (cần người dùng duyệt rõ): `npx firebase deploy --only firestore:rules --project prod` (index không đổi cũng có thể dùng `--only firestore`).
-4. **Reconcile lại** (chỉ đọc), so với bước 2.
-5. **Sửa thử MỘT người** theo [ACCEPTANCE_CHECKLIST.md](ACCEPTANCE_CHECKLIST.md) Phần B (có ghi giá trị cũ để sửa lại).
-6. **Chốt mốc chuyển nguồn:** từ đây chỉ sửa trong app; file nguồn không còn là nguồn sự thật; code chặn `--replace` trên prod khi `editVersion > 0` (INTEGRITY_GUARD.md). Nên sao lưu mới ở mốc này.
-7. **Thu hồi tài khoản thử và khóa:** `npm run gia-pha:accounts -- revoke --email thu-nghiem@gia-pha.test --disable-auth --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod" --apply`; sau nghiệm thu xóa khóa service account prod (và bỏ `GOOGLE_APPLICATION_CREDENTIALS`).
+Trạng thái 2026-11-13: rules prod ĐÃ deploy (commit a8c740a); bước sửa thử một người ĐÃ ĐẠT (người c2-thai-son, nhật ký `edit-1`, `edit-2` hiện đúng ở `#/audit`). Từ 2026-11-13 sao lưu không còn là điều kiện trước deploy rules hay sửa thử (bỏ khỏi phạm vi theo quyết định của người dùng; công cụ sao lưu vẫn còn, xem BACKUP.md).
+1. **`npm run gia-pha:reconcile`** (chỉ đọc) trước khi deploy: BỎ QUA, chưa chạy trên prod (Claude không có `GOOGLE_APPLICATION_CREDENTIALS` trong shell). Có thể chạy sau từ PowerShell đã đặt khóa.
+2. ~~**Deploy rules prod**: `npx firebase deploy --only firestore:rules --project prod`.~~ Đã làm 2026-11-13.
+3. **Reconcile lại** (chỉ đọc): chưa chạy; nên chạy một lần sau các lần sửa thử (xem bước 1).
+4. ~~**Sửa thử MỘT người** theo [ACCEPTANCE_CHECKLIST.md](ACCEPTANCE_CHECKLIST.md) Phần B.~~ ĐẠT 2026-11-13.
+5. **Chốt mốc chuyển nguồn (còn lại):** từ đây chỉ sửa trong app; file nguồn không còn là nguồn sự thật; code chặn `--replace` trên prod khi `editVersion > 0` (INTEGRITY_GUARD.md).
+6. **Thu hồi tài khoản thử `thu-nghiem@gia-pha.test` (còn lại):** `npm run gia-pha:accounts -- revoke --email thu-nghiem@gia-pha.test --disable-auth --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod" --apply`.
+7. **Xóa khóa service account prod (còn lại)** trên Cloud Console sau khi chạy lệnh thu hồi (và bỏ `GOOGLE_APPLICATION_CREDENTIALS`).
 
 ### Rủi ro chưa kiểm chứng: giới hạn truy cập tài liệu của rules
-Firestore Rules giới hạn 10 lần truy cập tài liệu cho mỗi yêu cầu ghi đơn lẻ và 20 cho cả lô. Rules và test emulator đã được thiết kế theo giới hạn này (ví dụ ẩn người dùng tối đa 6 liên kết vợ/chồng để giữ ở mức 9), nhưng **chưa thử trên Firestore thật**; emulator có thể không phản ánh đúng cách tính. Bước (5) vì vậy là **phép thử thật đầu tiên**.
-- **Cách phát hiện:** lưu/ẩn báo "Không có quyền" (`permission-denied`) dù tài khoản là quản trị và bước (4) sạch, nhất là khi ẩn/khôi phục người có nhiều vợ/chồng hoặc lô lớn (nhiều quan hệ).
-- **Cách xử lý:** không ghi dở (mỗi lô là nguyên tử nên bị từ chối thì không ghi gì); không thử đi thử lại. Dừng, ghi lại thao tác và giờ, báo Claude. Nếu cần: rollback rules về bản trước (deploy lại rules cũ, giữ mặc định từ chối), kiểm tra bằng reconcile, và sửa rules/giới hạn bằng PR riêng. Nếu đã có sửa trong app thì khôi phục từ sao lưu sẽ mất các sửa sau thời điểm sao lưu (xem phần Rollback).
+Firestore Rules giới hạn 10 lần truy cập tài liệu cho mỗi yêu cầu ghi đơn lẻ và 20 cho cả lô. Rules và test emulator đã được thiết kế theo giới hạn này (ví dụ ẩn người dùng tối đa 6 liên kết vợ/chồng để giữ ở mức 9), nhưng **đã thử `PERSON_EDITED` trên Firestore thật, đạt**; các sự kiện nhiều tài liệu (ẩn/khôi phục người có nhiều vợ/chồng) **chưa thử**; emulator có thể không phản ánh đúng cách tính.
+- **Cách phát hiện:** lưu/ẩn báo "Không có quyền" (`permission-denied`) dù tài khoản là quản trị và đối soát sạch, nhất là khi ẩn/khôi phục người có nhiều vợ/chồng hoặc lô lớn (nhiều quan hệ).
+- **Cách xử lý:** không ghi dở (mỗi lô là nguyên tử nên bị từ chối thì không ghi gì); không thử đi thử lại. Dừng, ghi lại thao tác và giờ, báo Claude. Nếu cần: rollback rules về bản trước (deploy lại rules cũ, giữ mặc định từ chối), kiểm tra bằng reconcile, và sửa rules/giới hạn bằng PR riêng. Nếu người dùng tự có bản sao lưu, khôi phục từ đó sẽ mất các sửa sau thời điểm sao lưu (xem phần Rollback).
 
 ### Smoke test bản build
 Sau MỖI thay đổi `manualChunks` trong `vite.config.ts` phải chạy `npm run build && npx vite preview` và xác nhận trang tải được (browser check dùng Vite dev nên không bắt lỗi phụ thuộc vòng giữa chunk; xem DEPLOYMENT.md).
 
 ## Chưa có
-App Check, cảnh báo ngân sách khi nâng Blaze, lịch sao lưu tự động, luồng đề xuất/duyệt (cần Blaze).
+App Check, cảnh báo ngân sách khi nâng Blaze, luồng đề xuất/duyệt (cần Blaze).
