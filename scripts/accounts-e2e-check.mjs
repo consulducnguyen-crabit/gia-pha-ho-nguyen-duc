@@ -23,7 +23,7 @@ const PROJECT = "demo-gia-pha";
 const req = createRequire(resolve(root, "functions", "package.json"));
 const { initializeApp } = req("firebase-admin/app");
 const { getAuth } = req("firebase-admin/auth");
-const { getFirestore } = req("firebase-admin/firestore");
+const { getFirestore, Timestamp } = req("firebase-admin/firestore");
 const app = initializeApp({ projectId: PROJECT });
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -304,6 +304,147 @@ check(
   run("grant", "--email", "e@example.test", "--apply") === 0 &&
     !(await ledger()),
 );
+
+// --- Xóa hẳn tài khoản (delete): users + Firebase Auth, KHÔNG hoàn tác ---
+check(
+  "dựng lại sổ cho kịch bản delete",
+  run("registry", "--rebuild", "--apply") === 0 &&
+    run("registry", "--verify") === 0,
+);
+const DEL = "xoa@example.test";
+const delUid = await mk(DEL, { enabled: true, canManageMembership: false });
+const delArgs = ["delete", "--email", DEL];
+const ledgerBefore = JSON.stringify(await ledger());
+const userExists = async (uid) => (await db.doc(`users/${uid}`).get()).exists;
+const authExists = async (email) =>
+  auth.getUserByEmail(email).then(
+    () => true,
+    () => false,
+  );
+check(
+  "delete (chạy thử) khi còn bật bị chặn, hướng dẫn vô hiệu hóa trước",
+  run(...delArgs) === 1 &&
+    /Vô hiệu hóa trước/.test(lastOut) &&
+    (await userExists(delUid)),
+);
+check(
+  "delete --apply khi còn bật bị từ chối",
+  run(...delArgs, "--apply", "--confirm-delete", DEL) === 1 &&
+    (await userExists(delUid)) &&
+    (await authExists(DEL)),
+);
+check("revoke tài khoản đích", run("revoke", "--email", DEL, "--apply") === 0);
+check(
+  "delete --apply thiếu --confirm-delete bị từ chối",
+  run(...delArgs, "--apply") === 2 && (await userExists(delUid)),
+);
+check(
+  "delete --apply sai email xác nhận bị từ chối",
+  run(...delArgs, "--apply", "--confirm-delete", "khac@example.test") === 2 &&
+    (await userExists(delUid)),
+);
+check(
+  "delete chạy thử đúng: in kế hoạch, chưa xóa gì",
+  run(...delArgs) === 0 &&
+    /KHÔNG hoàn tác/.test(lastOut) &&
+    (await userExists(delUid)) &&
+    (await authExists(DEL)),
+);
+const ledgerPre = JSON.stringify(await ledger());
+check(
+  "delete --apply --confirm-delete đúng: users và Auth mất, nhật ký không chứa email, sổ không đổi",
+  run(...delArgs, "--apply", "--confirm-delete", DEL.toUpperCase()) === 0 &&
+    !(await userExists(delUid)) &&
+    !(await authExists(DEL)) &&
+    JSON.stringify(await ledger()) === ledgerPre,
+);
+const deletedAudit = (
+  await db.collection("auditLogs").where("event", "==", "ACCOUNT_DELETED").get()
+).docs.map((d) => d.data());
+check(
+  "nhật ký ACCOUNT_DELETED: targetUid đúng, không email/tên",
+  deletedAudit.length === 1 &&
+    deletedAudit[0].targetUid === delUid &&
+    deletedAudit[0].actorUid === "admin-local-script" &&
+    !JSON.stringify(deletedAudit[0]).includes("@") &&
+    !("displayName" in deletedAudit[0]),
+);
+check("verify sạch sau delete", run("registry", "--verify") === 0);
+check(
+  "delete lần hai: báo không tìm thấy",
+  run(...delArgs, "--apply", "--confirm-delete", DEL) === 1 &&
+    /Không tìm thấy/.test(lastOut),
+);
+check(
+  "delete quản trị viên bị từ chối (dù đủ xác nhận)",
+  run(
+    "delete",
+    "--email",
+    "a@example.test",
+    "--apply",
+    "--confirm-delete",
+    "a@example.test",
+  ) === 1 &&
+    (await userExists(A)) &&
+    (await authExists("a@example.test")),
+);
+// quản trị viên đã vô hiệu hóa kiểu cũ (canManageMembership còn true) vẫn bị chặn
+const OLD = "cu@example.test";
+const oldUid = await mk(OLD, { enabled: false, canManageMembership: true });
+check(
+  "delete tài khoản đã tắt nhưng còn cờ quản trị (sổ lệch/quản trị) bị chặn",
+  run("delete", "--email", OLD, "--apply", "--confirm-delete", OLD) === 1 &&
+    (await userExists(oldUid)),
+);
+await db.doc(`users/${oldUid}`).delete();
+await auth.deleteUser(oldUid);
+// có Auth, không có users: xóa được Auth (cảnh báo); lời mời PENDING chỉ cảnh báo, không bị xóa
+const ORPH = "mocoi@example.test";
+await auth.createUser({ email: ORPH, emailVerified: true });
+await db.doc(`accountInvites/${ORPH}`).set({
+  email: ORPH,
+  role: "VIEWER",
+  status: "PENDING",
+  nonce: "22222222-2222-4222-8222-222222222222",
+  createdBy: A,
+  createdAt: Timestamp.now(),
+  expiresAt: Timestamp.fromMillis(Date.now() + 86400000),
+  schemaVersion: 1,
+});
+check(
+  "delete (chạy thử) có Auth không users: cảnh báo, và lời mời đang chờ CHẶN xóa",
+  run("delete", "--email", ORPH) === 1 &&
+    /chỉ xóa tài khoản Firebase Auth/.test(lastOut) &&
+    /Thu hồi lời mời trong #\/users trước/.test(lastOut),
+);
+check(
+  "delete --apply bị chặn khi còn lời mời PENDING; Auth và lời mời giữ nguyên",
+  run("delete", "--email", ORPH, "--apply", "--confirm-delete", ORPH) === 1 &&
+    (await authExists(ORPH)) &&
+    (await db.doc(`accountInvites/${ORPH}`).get()).data().status === "PENDING",
+);
+await db.doc(`accountInvites/${ORPH}`).update({ status: "REVOKED" }); // thu hồi bằng Admin SDK
+check(
+  "sau khi thu hồi lời mời: xóa Auth thành công, nhật ký authOnly, lời mời giữ nguyên",
+  run("delete", "--email", ORPH, "--apply", "--confirm-delete", ORPH) === 0 &&
+    !(await authExists(ORPH)) &&
+    (await db.doc(`accountInvites/${ORPH}`).get()).exists &&
+    (
+      await db
+        .collection("auditLogs")
+        .where("event", "==", "ACCOUNT_DELETED")
+        .where("authOnly", "==", true)
+        .get()
+    ).docs.length === 1,
+);
+await db.doc(`accountInvites/${ORPH}`).delete();
+check(
+  "verify sạch sau các kịch bản delete",
+  run("registry", "--verify") === 0 &&
+    JSON.stringify(await ledger()) === ledgerPre &&
+    ledgerBefore.length > 0,
+);
+
 console.log(
   failed ? `\n${failed} kiểm tra THẤT BẠI` : "\nTất cả kiểm tra đạt.",
 );

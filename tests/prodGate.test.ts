@@ -104,6 +104,23 @@ describe("cổng ghi production", () => {
     expect(evaluateProdGate(input).ok).toBe(true);
     expect(evaluateProdGate({ ...input, ack: undefined }).ok).toBe(false);
   });
+  it("xóa hẳn tài khoản dùng câu xác nhận riêng, không nhận câu của quản lý tài khoản", () => {
+    const input: GateInput = {
+      action: "XOA TAI KHOAN",
+      project: PROD_PROJECT,
+      confirm: PROD_PROJECT,
+      ack: ackPhrase("XOA TAI KHOAN", PROD_PROJECT),
+      needsBackup: false,
+      now,
+    };
+    expect(evaluateProdGate(input).ok).toBe(true);
+    expect(
+      evaluateProdGate({
+        ...input,
+        ack: ackPhrase("QUAN LY TAI KHOAN", PROD_PROJECT),
+      }).ok,
+    ).toBe(false);
+  });
 });
 
 describe("chọn đích có cho phép prod", () => {

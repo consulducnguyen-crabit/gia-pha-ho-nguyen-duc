@@ -455,6 +455,127 @@ export function planAdminWrite(
   return { ledgerWrite: next, warnings: [] };
 }
 
+export interface DeletePlan {
+  ok: boolean;
+  /** Lý do chặn (không xóa gì khi còn bất kỳ lý do nào). */
+  errors: string[];
+  warnings: string[];
+  /** Việc sẽ làm (chỉ có nghĩa khi ok). */
+  steps: string[];
+  uid?: string;
+  /** Có hồ sơ users để xóa không (false = chỉ còn tài khoản Auth). */
+  hasUserDoc: boolean;
+}
+
+/**
+ * Kế hoạch xóa HẲN một tài khoản (users + Firebase Auth); thao tác KHÔNG hoàn tác nên chặn chặt:
+ * phải tìm thấy Auth; users (nếu có) phải ĐÃ vô hiệu hóa; không phải quản trị viên (users, sổ hoặc canManageMembership);
+ * sổ phải khớp users; sau khi xóa vẫn còn quản trị viên hiệu lực nằm trong sổ. Lời mời PENDING chỉ cảnh báo.
+ */
+export function planDelete(input: {
+  authUser: { uid: string } | null;
+  userDoc: Record<string, unknown> | undefined;
+  ledger: Ledger | undefined;
+  allUsers: Map<string, Record<string, unknown>>;
+  invite: Record<string, unknown> | undefined;
+  nowMs: number;
+}): DeletePlan {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const steps: string[] = [];
+  const { authUser, userDoc, ledger, allUsers } = input;
+  if (!authUser)
+    return {
+      ok: false,
+      errors: ["Không tìm thấy tài khoản Auth theo email này (có thể đã xóa)."],
+      warnings,
+      steps,
+      hasUserDoc: false,
+    };
+  const uid = authUser.uid;
+  if (userDoc) {
+    if (userDoc.enabled === true)
+      errors.push(
+        "Tài khoản còn đang bật. Vô hiệu hóa trước trong #/users (hoặc lệnh revoke), rồi mới xóa.",
+      );
+    if (
+      isActiveAdmin(userDoc) ||
+      userDoc.canManageMembership === true ||
+      !!ledger?.adminUids?.includes(uid)
+    )
+      errors.push(
+        "Đây là quản trị viên (users hoặc sổ accessControl/admins). Hạ quyền quản trị trước rồi mới xóa.",
+      );
+  } else {
+    warnings.push(
+      "Không có hồ sơ users cho tài khoản này; chỉ xóa tài khoản Firebase Auth.",
+    );
+  }
+  const diff = diffRegistry(ledger, allUsers);
+  if (!diff.clean)
+    errors.push(
+      ledger
+        ? `${describeDrift(ledger, diff)}; chạy \`registry --rebuild\` trước khi xóa.`
+        : "Chưa có sổ accessControl/admins; chạy `registry --rebuild --apply` trước khi xóa.",
+    );
+  else {
+    const remaining = ledger!.adminUids.filter(
+      (u) => u !== uid && isActiveAdmin(allUsers.get(u)),
+    );
+    if (!remaining.length)
+      errors.push("Sau khi xóa sẽ không còn quản trị viên hiệu lực nào.");
+  }
+  const status = inviteStatusOf(input.invite, input.nowMs);
+  if (status === "PENDING")
+    // Sau khi xóa users + Auth, người này đăng nhập lại cùng email (uid mới) sẽ NHẬN LẠI quyền qua chính lời mời đang chờ.
+    errors.push(
+      "Còn lời mời ĐANG CHỜ cho email này. Thu hồi lời mời trong #/users trước: nếu không, người này đăng nhập lại cùng email sẽ nhận lại quyền qua chính lời mời đó.",
+    );
+  else if (status)
+    warnings.push(`Lời mời cho email này ở trạng thái ${status} (không đổi).`);
+  if (userDoc)
+    steps.push(
+      "Xóa hồ sơ users và ghi nhật ký ACCOUNT_DELETED (không có email/tên).",
+    );
+  else steps.push("Ghi nhật ký ACCOUNT_DELETED (không có email/tên).");
+  steps.push(
+    "Thu hồi phiên đăng nhập rồi xóa tài khoản Firebase Auth (KHÔNG hoàn tác).",
+  );
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    steps,
+    uid,
+    hasUserDoc: !!userDoc,
+  };
+}
+
+/**
+ * Kiểm lại ngay trước khi xóa (trong giao dịch): trạng thái có thể đã đổi giữa lúc lập kế hoạch và lúc xóa
+ * (bật lại, nâng quyền, sổ lệch, lời mời mới...). Trả về lý do chặn hoặc null nếu vẫn hợp lệ.
+ */
+export function recheckDelete(
+  plannedUid: string,
+  current: Omit<Parameters<typeof planDelete>[0], "authUser">,
+): string | null {
+  const again = planDelete({ ...current, authUser: { uid: plannedUid } });
+  return again.ok ? null : again.errors.join(" ");
+}
+
+function inviteStatusOf(
+  invite: Record<string, unknown> | undefined,
+  nowMs: number,
+): string | null {
+  if (!invite) return null;
+  if (invite.status === "ACCEPTED" || invite.status === "REVOKED")
+    return invite.status;
+  if (invite.status !== "PENDING") return null;
+  const t = invite.expiresAt as { toMillis?: () => number } | undefined;
+  const exp = t && typeof t.toMillis === "function" ? t.toMillis() : null;
+  return exp !== null && exp > nowMs ? "PENDING" : "EXPIRED";
+}
+
 export type Command =
   | "list"
   | "grant"
@@ -462,7 +583,8 @@ export type Command =
   | "revoke"
   | "role"
   | "reset-password"
-  | "registry";
+  | "registry"
+  | "delete";
 export const COMMANDS: Command[] = [
   "list",
   "registry",
@@ -471,4 +593,5 @@ export const COMMANDS: Command[] = [
   "revoke",
   "role",
   "reset-password",
+  "delete",
 ];

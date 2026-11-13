@@ -9,6 +9,8 @@ import {
   ledgerAfter,
   normalizeUser,
   planAdminWrite,
+  planDelete,
+  recheckDelete,
   planRebuild,
   grantRestoresAdmin,
   badUserReason,
@@ -566,5 +568,150 @@ describe("planAdminWrite / planRebuild (từ chối khi sổ thiếu hoặc lệ
       ),
     ).toBe(false);
     expect(grantRestoresAdmin(undefined, undefined)).toBe(false);
+  });
+});
+
+describe("planDelete (xóa hẳn tài khoản, không hoàn tác)", () => {
+  const adm = { enabled: true, canManageMembership: true, accessVersion: 1 };
+  const off = { enabled: false, canManageMembership: false, accessVersion: 3 };
+  const L = {
+    adminUids: ["a"],
+    version: 2,
+    lastTargetUid: "a",
+    schemaVersion: 1 as const,
+  };
+  const users = (extra: Record<string, Record<string, unknown>> = {}) =>
+    new Map<string, Record<string, unknown>>([
+      ["a", adm],
+      ["m", off],
+      ...Object.entries(extra),
+    ]);
+  const plan = (over: Partial<Parameters<typeof planDelete>[0]> = {}) =>
+    planDelete({
+      authUser: { uid: "m" },
+      userDoc: off,
+      ledger: L,
+      allUsers: users(),
+      invite: undefined,
+      nowMs: 1000,
+      ...over,
+    });
+  it("hợp lệ: tài khoản đã vô hiệu hóa, không phải quản trị, sổ khớp", () => {
+    const p = plan();
+    expect(p.ok).toBe(true);
+    expect(p.errors).toEqual([]);
+    expect(p.hasUserDoc).toBe(true);
+    expect(p.uid).toBe("m");
+    expect(p.steps.join(" ")).toMatch(/KHÔNG hoàn tác/);
+  });
+  it("chặn: không có Auth", () => {
+    const p = plan({ authUser: null });
+    expect(p.ok).toBe(false);
+    expect(p.errors[0]).toMatch(/Không tìm thấy/);
+  });
+  it("chặn: tài khoản còn bật, kèm hướng dẫn vô hiệu hóa trước", () => {
+    const p = plan({
+      userDoc: { ...off, enabled: true },
+      allUsers: users({ m: { ...off, enabled: true } }),
+    });
+    expect(p.ok).toBe(false);
+    expect(p.errors.join(" ")).toMatch(/Vô hiệu hóa trước/);
+  });
+  it("chặn: quản trị viên (users, canManageMembership tàn dư hoặc có trong sổ)", () => {
+    expect(
+      plan({ authUser: { uid: "a" }, userDoc: adm }).errors.join(" "),
+    ).toMatch(/quản trị viên/);
+    const legacy = {
+      enabled: false,
+      canManageMembership: true,
+      accessVersion: 1,
+    };
+    expect(plan({ userDoc: legacy, allUsers: users({ m: legacy }) }).ok).toBe(
+      false,
+    );
+    const inLedger = { ...L, adminUids: ["a", "m"] };
+    const p = plan({ ledger: inLedger });
+    expect(p.ok).toBe(false);
+    expect(p.errors.join(" ")).toMatch(/quản trị viên/);
+  });
+  it("chặn: sổ thiếu hoặc lệch, hướng dẫn registry --rebuild", () => {
+    expect(plan({ ledger: undefined }).errors.join(" ")).toMatch(
+      /registry --rebuild/,
+    );
+    const drift = plan({ ledger: { ...L, adminUids: ["a", "z"] } });
+    expect(drift.ok).toBe(false);
+    expect(drift.errors.join(" ")).toMatch(/thừa trong sổ: z/);
+    expect(
+      plan({ ledger: { ...L, adminUids: ["a", "a"] } }).errors.join(" "),
+    ).toMatch(/uid trùng/);
+  });
+  it("chặn: sau khi xóa không còn quản trị viên hiệu lực", () => {
+    const p = plan({
+      ledger: { ...L, adminUids: [] },
+      allUsers: new Map([["m", off]]),
+    });
+    expect(p.ok).toBe(false);
+    expect(p.errors.join(" ")).toMatch(/không còn quản trị viên/);
+  });
+  it("có Auth nhưng không có users: cho xóa Auth kèm cảnh báo", () => {
+    const p = plan({ userDoc: undefined, allUsers: new Map([["a", adm]]) });
+    expect(p.ok).toBe(true);
+    expect(p.hasUserDoc).toBe(false);
+    expect(p.warnings.join(" ")).toMatch(/chỉ xóa tài khoản Firebase Auth/);
+  });
+  it("lời mời PENDING còn hạn CHẶN xóa (sẽ nhận lại quyền qua lời mời); trạng thái khác vẫn cho xóa", () => {
+    const fut = { toMillis: () => 5000 };
+    const past = { toMillis: () => 500 };
+    const pending = plan({ invite: { status: "PENDING", expiresAt: fut } });
+    expect(pending.ok).toBe(false);
+    expect(pending.errors.join(" ")).toMatch(
+      /Thu hồi lời mời trong #\/users trước/,
+    );
+    expect(pending.errors.join(" ")).toMatch(/nhận lại quyền/);
+    const expired = plan({ invite: { status: "PENDING", expiresAt: past } });
+    expect(expired.ok).toBe(true);
+    expect(expired.warnings.join(" ")).toMatch(/EXPIRED/);
+    expect(plan({ invite: { status: "REVOKED" } }).ok).toBe(true);
+    expect(plan({ invite: { status: "ACCEPTED" } }).ok).toBe(true);
+    expect(plan({ invite: undefined }).ok).toBe(true);
+  });
+  it("kiểm lại trong giao dịch: trạng thái đổi giữa kế hoạch và xóa thì bị chặn", () => {
+    const base = {
+      userDoc: off as Record<string, unknown> | undefined,
+      ledger: L as typeof L | undefined,
+      allUsers: users(),
+      invite: undefined as Record<string, unknown> | undefined,
+      nowMs: 1000,
+    };
+    expect(recheckDelete("m", base)).toBeNull();
+    // bật lại trong lúc chờ
+    const on = { ...off, enabled: true };
+    expect(
+      recheckDelete("m", { ...base, userDoc: on, allUsers: users({ m: on }) }),
+    ).toMatch(/còn đang bật/);
+    // được nâng quyền quản trị trong lúc chờ
+    const promoted = {
+      enabled: true,
+      canManageMembership: true,
+      accessVersion: 4,
+    };
+    expect(
+      recheckDelete("m", {
+        ...base,
+        userDoc: promoted,
+        allUsers: users({ m: promoted }),
+      }),
+    ).toMatch(/bật|quản trị/);
+    // có lời mời PENDING mới
+    expect(
+      recheckDelete("m", {
+        ...base,
+        invite: { status: "PENDING", expiresAt: { toMillis: () => 5000 } },
+      }),
+    ).toMatch(/ĐANG CHỜ/);
+    // sổ bị xóa/lệch
+    expect(recheckDelete("m", { ...base, ledger: undefined })).toMatch(
+      /registry --rebuild/,
+    );
   });
 });

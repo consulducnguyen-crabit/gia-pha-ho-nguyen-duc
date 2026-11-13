@@ -245,9 +245,10 @@ export function UsersPage({ uid }: { uid: string }) {
       <section className="users-howto">
         <h2>Công cụ trên máy quản trị</h2>
         <p>
-          Việc tạo tài khoản có mật khẩu và xóa hẳn tài khoản đăng nhập làm bằng
-          lệnh (thêm <b>--apply</b> để thực hiện; không có thì chỉ chạy thử).
-          Nút <b>Sửa</b> ở trên chỉ áp dụng cho tài khoản đã có.
+          Việc tạo tài khoản có mật khẩu và xóa hẳn tài khoản (users + tài khoản
+          đăng nhập) làm bằng lệnh (thêm <b>--apply</b> để thực hiện; không có
+          thì chỉ chạy thử). Nút <b>Sửa</b> ở trên chỉ áp dụng cho tài khoản đã
+          có.
         </p>
         <p>
           Thành viên có Gmail (đăng nhập bằng Google, nhập đúng email Google):
@@ -273,6 +274,19 @@ export function UsersPage({ uid }: { uid: string }) {
           --apply
         </code>
         <code>npm run gia-pha:accounts -- list</code>
+        <p>
+          Xóa hẳn một tài khoản — <b>vô hiệu hóa trước, không hoàn tác</b>. Chạy
+          thử (chỉ đọc, in kế hoạch), rồi thực hiện kèm xác nhận đúng email. Nếu
+          còn lời mời đang chờ cho email đó, thu hồi lời mời trước:
+        </p>
+        <code>
+          npm run gia-pha:accounts -- delete --email ten@example.com --project
+          &lt;id&gt;
+        </code>
+        <code>
+          npm run gia-pha:accounts -- delete --email ten@example.com --project
+          &lt;id&gt; --apply --confirm-delete ten@example.com
+        </code>
         <p>
           Kiểm tra và dựng lại sổ quản trị (khi trang này báo sổ chưa khởi tạo
           hoặc lệch):
@@ -430,8 +444,8 @@ function AccountPanel(props: {
             <p>
               Người này <b>mất quyền truy cập ngay</b> (không xem được dữ liệu
               gia phả){row.admin ? ", đồng thời mất quyền Quản trị" : ""}. Có
-              thể bật lại sau. Muốn xóa hẳn tài khoản đăng nhập vẫn dùng lệnh
-              gia-pha:accounts.
+              thể bật lại sau. Muốn xóa hẳn tài khoản (không hoàn tác) hãy dùng
+              lệnh gia-pha:accounts delete sau khi đã vô hiệu hóa.
             </p>
             <div className="edit-actions">
               <button

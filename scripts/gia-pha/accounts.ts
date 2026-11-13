@@ -6,6 +6,8 @@
 //   revoke         --email <email> [--disable-auth] --apply
 //   role           --email <email> [--admin on|off] [--reviewer on|off] --apply
 //   reset-password --email <email> --apply
+//   delete         --email <email> [--apply --confirm-delete <email>]   XÓA HẲN users + tài khoản Auth (KHÔNG hoàn tác)
+//                  Chỉ xóa tài khoản ĐÃ vô hiệu hóa, không phải quản trị viên, sổ khớp users. Chạy thử có đọc dữ liệu (chỉ đọc) để in kế hoạch thật.
 //   registry [--verify]            chỉ đọc: so sổ accessControl/admins với users, thoát mã 1 nếu lệch
 //   registry --rebuild [--apply]   dựng lại sổ từ users + chuẩn hóa users lệch (mặc định chỉ in kế hoạch)
 // Sổ accessControl/admins phải khớp bất biến của firestore.rules: uid ∈ adminUids ⇔ users.enabled == true &&
@@ -29,6 +31,8 @@ import {
   diffRegistry,
   grantRestoresAdmin,
   planAdminWrite,
+  planDelete,
+  recheckDelete,
   planRebuild,
   LEDGER_PATH,
   type Command,
@@ -73,7 +77,10 @@ if (isRegistry && flag("--verify") && flag("--rebuild"))
   die("chỉ chọn một trong --verify hoặc --rebuild.");
 const rebuild = isRegistry && flag("--rebuild");
 // registry (verify) và list chỉ đọc; registry --rebuild chỉ ghi khi có --apply.
-const mutating = command === "list" || isRegistry ? rebuild && apply : true;
+// delete: chạy thử CÓ đọc dữ liệu (chỉ đọc) để in kế hoạch và các điều kiện chặn thật; chỉ ghi khi có --apply.
+const isDelete = command === "delete";
+const mutating =
+  command === "list" || isRegistry ? rebuild && apply : isDelete ? apply : true;
 
 let email = "";
 let name: string | undefined;
@@ -85,6 +92,14 @@ try {
   die((error as Error).message);
 }
 
+if (
+  isDelete &&
+  apply &&
+  option("--confirm-delete")?.trim().toLowerCase() !== email
+)
+  die(
+    "xóa hẳn cần --confirm-delete <đúng email đích> (không hoàn tác). Chạy thử không có --apply để xem kế hoạch.",
+  );
 if (mutating && !apply && !isRegistry) {
   console.log(`Chạy thử (dry-run): ${command} ${email}`);
   const extras = [
@@ -120,7 +135,8 @@ if (
   die(`ghi vào project thật cần --confirm ${decision.project}.`);
 if (decision.kind === "prod" && mutating) {
   const gate = evaluateProdGate({
-    action: "QUAN LY TAI KHOAN",
+    // Xóa hẳn tài khoản (không hoàn tác) dùng câu xác nhận riêng.
+    action: isDelete ? "XOA TAI KHOAN" : "QUAN LY TAI KHOAN",
     project: decision.project,
     confirm: option("--confirm"),
     ack: option("--ack"),
@@ -168,6 +184,7 @@ interface Tx {
   set(ref: unknown, data: unknown): void;
   create(ref: unknown, data: unknown): void;
   update(ref: unknown, data: unknown): void;
+  delete(ref: unknown): void;
 }
 const ledgerRef = db.doc(LEDGER_PATH);
 const toMap = (snap: { docs: Array<{ id: string; data(): Doc }> }) =>
@@ -359,6 +376,97 @@ if (command === "list") {
 
 const user = await findUser(email);
 const now = Timestamp.now();
+
+/** Xóa HẲN tài khoản: chạy thử in kế hoạch (chỉ đọc); --apply làm trong một giao dịch rồi xóa Auth. */
+async function runDelete() {
+  const readState = async () => {
+    const all = toMap(await db.collection("users").get());
+    const ledgerSnap = await ledgerRef.get();
+    const invite = (await db.doc(`accountInvites/${email}`).get()).data();
+    return {
+      all,
+      ledger: ledgerSnap.exists
+        ? (ledgerSnap.data() as unknown as Ledger)
+        : undefined,
+      invite,
+    };
+  };
+  const st = await readState();
+  const plan = planDelete({
+    authUser: user ? { uid: user.uid } : null,
+    userDoc: user ? st.all.get(user.uid) : undefined,
+    ledger: st.ledger,
+    allUsers: st.all,
+    invite: st.invite,
+    nowMs: Date.now(),
+  });
+  const d = user ? st.all.get(user.uid) : undefined;
+  console.log(
+    `Kế hoạch xóa: uid ${user ? user.uid.slice(0, 8) : "(không có)"} | ${email} | trạng thái ${d ? (d.enabled === true ? "ĐANG BẬT" : "đã vô hiệu hóa") : "không có hồ sơ users"} | vai trò ${d ? (d.canManageMembership === true ? "quản trị" : "chỉ xem") : "-"}`,
+  );
+  for (const w of plan.warnings) console.log(`CẢNH BÁO: ${w}`);
+  if (!plan.ok) {
+    for (const e of plan.errors) console.error(`CHẶN: ${e}`);
+    die("không xóa vì có điều kiện chặn ở trên.", 1);
+  }
+  for (const s of plan.steps) console.log(` - ${s}`);
+  if (!apply) {
+    console.log(
+      `Chạy thử: chưa xóa gì. Thao tác KHÔNG hoàn tác. Để thực hiện thêm: --apply --confirm-delete ${email}`,
+    );
+    return;
+  }
+  const uid = plan.uid as string;
+  // Một giao dịch: đọc lại, kiểm lại điều kiện chặn, xóa users và ghi nhật ký (lỗi được trả về, không ném giữa giao dịch).
+  const failure = await db.runTransaction(async (t: Tx) => {
+    const all = toMap(await t.get(db.collection("users")));
+    const ledgerSnap = await t.get(ledgerRef);
+    const inviteSnap = await t.get(db.doc(`accountInvites/${email}`));
+    const blocked = recheckDelete(uid, {
+      userDoc: all.get(uid),
+      ledger: ledgerSnap.exists
+        ? (ledgerSnap.data() as unknown as Ledger)
+        : undefined,
+      allUsers: all,
+      invite: inviteSnap.exists ? inviteSnap.data() : undefined,
+      nowMs: Date.now(),
+    });
+    if (blocked) return new Error(blocked);
+    const before = all.get(uid);
+    if (before) t.delete(db.doc(`users/${uid}`));
+    t.create(db.collection("auditLogs").doc(), {
+      event: "ACCOUNT_DELETED",
+      actorUid: ACTOR,
+      targetUid: uid,
+      ...(typeof before?.accessVersion === "number"
+        ? { accessVersion: before.accessVersion }
+        : {}),
+      ...(before ? {} : { authOnly: true }),
+      timestamp: Timestamp.now(),
+      schemaVersion: 1,
+    });
+    return null;
+  });
+  if (failure) die(failure.message, 1);
+  // auth/user-not-found nghĩa là Auth đã mất (xóa tay hoặc chạy trước đó): coi như đã xong.
+  const gone = (e: unknown) =>
+    (e as { code?: string } | null)?.code === "auth/user-not-found";
+  try {
+    await auth.revokeRefreshTokens(uid).catch((e: unknown) => {
+      if (!gone(e)) throw e;
+    });
+    await auth.deleteUser(uid).catch((e: unknown) => {
+      if (!gone(e)) throw e;
+    });
+  } catch (error) {
+    console.error(
+      `CẢNH BÁO: đã xóa hồ sơ users (tài khoản không còn quyền) nhưng xóa tài khoản Auth LỖI (${(error as Error).message}). Xóa tay trong Firebase Console (Authentication) hoặc chạy lại lệnh delete (sẽ xử lý trạng thái "có Auth, không có users").`,
+    );
+    process.exit(1);
+  }
+  console.log("Đã xóa hẳn tài khoản (users + Firebase Auth).");
+}
+
 try {
   if (command === "create") {
     if (user) die("email đã có tài khoản; dùng grant hoặc reset-password.", 1);
@@ -461,6 +569,8 @@ try {
       "ACCOUNT_ROLE_CHANGED",
     );
     console.log("Đã cập nhật vai trò.");
+  } else if (command === "delete") {
+    await runDelete();
   } else if (command === "reset-password") {
     if (!user) die("không tìm thấy tài khoản.", 1);
     if (
