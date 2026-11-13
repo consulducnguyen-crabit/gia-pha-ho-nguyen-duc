@@ -11,6 +11,7 @@ import {
   type EditWrite,
 } from "./editCore";
 import { recomputeGenerations } from "./editRelation";
+import { setTupleSex } from "./treeModel";
 
 type Doc = Record<string, unknown>;
 type Row = unknown[];
@@ -274,7 +275,8 @@ export function applyDelete(
       });
     before = {
       rows: JSON.stringify({
-        person: tuple,
+        // Nhật ký giữ bộ 7 phần tử (định dạng cũ); giới tính khôi phục từ persons, không từ nhật ký.
+        person: tuple.slice(0, 7),
         relations: parentRows,
         union: unions[0] ?? null,
         moreUnions: unions.slice(1),
@@ -358,7 +360,13 @@ export function applyDelete(
           restoredBy: input.actorUid,
         },
       });
-    data.persons[id] = tuple;
+    // Giới tính lấy từ persons/{id} (nguồn chuẩn, còn nguyên khi ẩn mềm); giá trị lạ coi như chưa rõ.
+    const restored = tuple.slice(0, 7);
+    setTupleSex(
+      restored,
+      person.sex === "M" || person.sex === "F" ? person.sex : null,
+    );
+    data.persons[id] = restored;
     for (const r of saved.relations) data.relations.push(r);
     for (const u of saved.unions) data.unions.push(u);
     recomputeGenerations(data);

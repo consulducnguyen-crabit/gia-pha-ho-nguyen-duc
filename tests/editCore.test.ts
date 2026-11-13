@@ -261,3 +261,32 @@ describe("exceedsSnapshotLimit", () => {
     expect(exceedsSnapshotLimit("ệ".repeat(283334))).toBe(true);
   });
 });
+
+describe("giới tính trong ảnh chụp", () => {
+  const tupleOf = (r: ReturnType<typeof run>, id = "a") =>
+    JSON.parse(byPath(r)["treeSnapshots/main"].data.data as string).persons[id];
+  it("đổi giới tính ghi phần tử thứ 8; sửa trường khác cũng đồng bộ theo persons.sex", () => {
+    // "b" là con (không giữ vai cha/mẹ) nên đổi giới tính không vướng kiểm tra mâu thuẫn quan hệ.
+    expect(tupleOf(run({ sex: "F" }, state(), 0, "b"), "b")[7]).toBe("F");
+    expect(tupleOf(run({ sex: null }, state(), 0, "b"), "b")[7]).toBeNull();
+    // fixture persons.a.sex = "M"
+    expect(tupleOf(run({ name: "Tên Mới" }))[7]).toBe("M");
+  });
+  it("bộ 6 phần tử được nâng lên 8, không tạo mảng thưa", () => {
+    const s = state();
+    const d = JSON.parse(s.snapshot.data as string);
+    d.persons.b = d.persons.b.slice(0, 6);
+    s.snapshot.data = JSON.stringify(d);
+    const t = tupleOf(run({ sex: "F" }, s, 0, "b"), "b");
+    expect(t).toHaveLength(8);
+    expect(t[6]).toEqual([]);
+    expect(t[7]).toBe("F");
+  });
+  it("người khác giữ nguyên bộ dữ liệu của họ", () => {
+    const s = state();
+    const d = JSON.parse(s.snapshot.data as string);
+    d.persons.b.push("F");
+    s.snapshot.data = JSON.stringify(d);
+    expect(tupleOf(run({ name: "Tên Mới" }, s), "b")).toEqual(d.persons.b);
+  });
+});

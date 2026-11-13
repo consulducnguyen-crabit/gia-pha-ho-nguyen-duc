@@ -1,7 +1,7 @@
 // Lõi sửa dữ liệu trực tiếp trong app (hàm thuần, không phụ thuộc React/Firebase).
 // Mỗi lần sửa tạo ra MỘT lô ghi nguyên tử: persons + memberProfiles + personPrivate +
 // treeSnapshots/main + auditLogs/edit-{phiên bản}. firestore.rules kiểm tra lô này (xem editGate).
-import { FLAG_ORDER, type FlagCode } from "./treeModel";
+import { FLAG_ORDER, setTupleSex, type FlagCode } from "./treeModel";
 import { normalizeName } from "./domain";
 
 /**
@@ -217,8 +217,11 @@ export function applyEdit(state: EditState, input: EditInput): EditResult {
     flags: FLAG_ORDER.filter((c) =>
       ((tuple[6] as FlagCode[] | undefined) ?? []).includes(c),
     ),
-    sex: ((state.person.sex as string | null | undefined) ?? null) as
-      "M" | "F" | null,
+    sex: (state.person.sex === "M"
+      ? "M"
+      : state.person.sex === "F"
+        ? "F"
+        : null) as "M" | "F" | null,
     note: typeof state.priv?.note === "string" ? state.priv.note : "",
   };
   const ch = op.changes;
@@ -356,6 +359,8 @@ export function applyEdit(state: EditState, input: EditInput): EditResult {
   newTuple[2] = next.deathYear;
   newTuple[5] = next.branch;
   newTuple[6] = next.flags;
+  // Giới tính luôn ghi theo persons (nguồn chuẩn) để ảnh chụp không lệch; bộ 6 phần tử được nâng lên 8.
+  setTupleSex(newTuple, next.sex);
   data.persons[id] = newTuple;
 
   const writes: EditWrite[] = [];

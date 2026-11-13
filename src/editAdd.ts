@@ -323,6 +323,7 @@ export function applyAdd(state: AddState, input: AddInput): AddResult {
       CAT_CODE[op.category],
       op.branch,
       [],
+      child.sex,
     ];
     personId = op.newId;
     focusId = op.newId;
@@ -367,6 +368,7 @@ export function applyAdd(state: AddState, input: AddInput): AddResult {
         CAT_CODE[op.spouse.category],
         null,
         [],
+        person.sex,
       ];
       created = [spouseId];
     }

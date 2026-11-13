@@ -288,7 +288,8 @@ describe("khôi phục người", () => {
       6,
     );
     const d = data(r);
-    expect(d.persons.k).toEqual(tree().persons.k);
+    // Giới tính lấy từ persons/k (fixture không có sex => null), không lấy từ nhật ký.
+    expect(d.persons.k).toEqual([...tree().persons.k, null]);
     expect(d.relations).toHaveLength(3);
     const w = Object.fromEntries(r.writes.map((x) => [x.path, x]));
     expect(w["memberProfiles/k"]).toMatchObject({
@@ -335,5 +336,56 @@ describe("khôi phục người", () => {
     const s4 = base();
     s4.audit = { ...audit, personId: "a" };
     expect(code(() => run(s4, restore(), 6))).toBe("BAD_STATE");
+  });
+});
+
+describe("giới tính trong ảnh chụp", () => {
+  const sexed = () => {
+    const t = tree();
+    for (const v of Object.values(t.persons) as unknown[][]) v.push("M");
+    return t;
+  };
+  it("ẩn người: nhật ký vẫn giữ bộ 7 phần tử; người khác giữ phần tử 8", () => {
+    const r = run(delState("k", sexed()), del("k"));
+    const rows = JSON.parse(
+      String(
+        (
+          r.writes.find((w) => w.path === "auditLogs/edit-6")!.data
+            .before as Record<string, unknown>
+        ).rows,
+      ),
+    );
+    expect(rows.person).toHaveLength(7);
+    expect(data(r).persons.a).toHaveLength(8);
+  });
+  it("khôi phục lấy giới tính từ persons, không từ nhật ký; giá trị lạ thành null", () => {
+    const base = run(delState("k", sexed()), del("k"));
+    const audit = base.writes.find((w) => w.path === "auditLogs/edit-6")!.data;
+    const snapshot = snap(data(base), 6);
+    const restoreWith = (sex: unknown) =>
+      data(
+        run(
+          {
+            snapshot,
+            person: person({
+              deleted: true,
+              deletedAtVersion: 6,
+              profileVersion: 3,
+              sex,
+            }),
+            relations: {
+              "r-a-k": { version: 4, deleted: true },
+              "r-b-k": { version: 4, deleted: true },
+            },
+            audit,
+          },
+          { type: "restorePerson", personId: "k", deleteVersion: 6 },
+          6,
+        ),
+      ).persons.k;
+    expect(restoreWith("F")[7]).toBe("F");
+    expect(restoreWith(undefined)[7]).toBeNull();
+    expect(restoreWith("X")[7]).toBeNull();
+    expect(restoreWith("F")).toHaveLength(8);
   });
 });

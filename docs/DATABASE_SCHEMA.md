@@ -3,6 +3,7 @@
 ## Collections
 
 - `persons/{personId}`: displayName, normalizedName, sex(optional), birth/death date objects, lineageStatus, profileVersion, createdAt, updatedAt.
+- `treeSnapshots/main.data` (JSON): `persons[id]` = `[name, birthYear, deathYear, generation, cat, branch, flags, sex]`; phần tử 8 `sex` ∈ `"M"|"F"|null` là bản sao phái sinh của `persons.sex` (giữ `schemaVersion` 1, `data.v` 1; đọc được bộ 6/7 phần tử). `gia-pha:reconcile` báo `SEX_MISMATCH` (lỗi) và `SEX_NOT_IN_SNAPSHOT` (cảnh báo).
 - `persons/{personId}/names/{nameId}`: type, value, sourceRefs.
 - `relations/{relationId}`: parentId, childId, relationType, lineageTransmission, verificationStatus, sourceRefs, version.
 - `unions/{unionId}`: partnerIds, status, eventDate, sourceRefs.

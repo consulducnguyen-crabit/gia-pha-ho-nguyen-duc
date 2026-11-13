@@ -163,3 +163,9 @@
 - Liên kết trong thư mang `?invitee=<email>`: mở là tự đăng nhập (không hỏi email), tự kích hoạt lời mời (`InviteAccept`) và hiện lời chào một lần (`WelcomeBanner`, cờ sessionStorage). Email trong URL chỉ là đầu vào cho Firebase; quyền do rules quyết định. Giữ `updatePassword` ngẫu nhiên và màn xung đột tài khoản.
 - Test: `tests/invitesClient.test.ts` (continue URL, `?invitee=`, lời chào), `scripts/invites-browser-check.mjs` (một bước, thiết bị sạch, `?invitee=` sai, thu hồi/hết hạn không kích hoạt, gửi lại, cooldown, tên có HTML, 360/768/1280). Chưa kiểm chứng trên Firebase thật.
 - Review mời một bước: `?invitee=` chỉ gắn cho thư của quản trị viên; header "Đang đăng nhập: {email}" và lời chào nêu email + nút "Không phải bạn? Đăng xuất"; cờ chào mừng gắn uid và bị xóa khi đăng xuất/đổi tài khoản, đọc rồi xóa khi hiện; `InviteAccept` giữ lỗi cuối/đang kích hoạt theo khóa ở cấp module; khóa ô tên khi gửi lại; chặn mời email đã có tài khoản.
+
+# Giới tính trong ảnh chụp cây — 2026-11-13
+
+- Người dùng duyệt: `treeSnapshots/main` thêm phần tử thứ 8 `sex` cho mỗi người (giữ `schemaVersion` 1); `parseSnapshot` nhận 6/7/8 phần tử.
+- App ghi/giữ `sex` khi sửa, thêm, khôi phục; nạp dữ liệu (`import-plan`) ghi `sex`; `reconcile` thêm `SEX_MISMATCH` và cảnh báo `SEX_NOT_IN_SNAPSHOT`.
+- Lệnh mới `npm run gia-pha:snapshot-sex` (backfill/`--strip`), hành động cổng prod `DONG BO GIOI TINH`. Chưa chạy trên production.

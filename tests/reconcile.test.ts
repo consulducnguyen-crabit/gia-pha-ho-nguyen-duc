@@ -287,8 +287,11 @@ describe("đối soát snapshot", () => {
       });
       return { g, t };
     };
+    // Cảnh báo giới tính kiểm riêng ở describe "giới tính"; ở đây chỉ xét cảnh báo chi.
     const warn = (i: ReconcileInput) =>
-      reconcileWarnings(i).map((x) => `${x.code}:${x.ref}`);
+      reconcileWarnings(i)
+        .filter((x) => x.code !== "SEX_NOT_IN_SNAPSHOT")
+        .map((x) => `${x.code}:${x.ref}`);
     it("khớp thì không cảnh báo", () => {
       expect(warn(mk().g)).toEqual([]);
     });
@@ -354,5 +357,45 @@ describe("đối soát snapshot", () => {
       setData(g, t);
       expect(warn(g)).toContain("BRANCH_FOUNDER_MISMATCH:k");
     });
+  });
+});
+
+describe("giới tính trong ảnh chụp", () => {
+  const withSex = () => {
+    const g = good();
+    const t = tree();
+    const sexes: Record<string, string | null> = { ts: "M", a: "M", b: "F" };
+    for (const [id, v] of Object.entries(t.persons)) {
+      v.push(sexes[id]);
+      g.persons.get(id)!.sex = sexes[id];
+    }
+    setData(g, t);
+    return { g, t };
+  };
+  it("bộ 8 phần tử khớp persons.sex: đạt, không cảnh báo", () => {
+    const { g } = withSex();
+    expect(codes(g)).toEqual([]);
+    expect(reconcileWarnings(g)).toEqual([]);
+  });
+  it("persons.sex thiếu coi như null", () => {
+    const { g, t } = withSex();
+    delete g.persons.get("b")!.sex;
+    t.persons.b[7] = null;
+    setData(g, t);
+    expect(codes(g)).toEqual([]);
+  });
+  it("lệch sex bị bắt là SEX_MISMATCH", () => {
+    const { g, t } = withSex();
+    t.persons.a[7] = "F";
+    setData(g, t);
+    expect(reconcile(g)).toContainEqual({ code: "SEX_MISMATCH", ref: "a" });
+  });
+  it("bộ chưa có giới tính: không lỗi, chỉ cảnh báo SEX_NOT_IN_SNAPSHOT (mã người, không tên)", () => {
+    const g = good();
+    expect(codes(g)).toEqual([]);
+    const w = reconcileWarnings(g);
+    expect(w.map((x) => x.ref).sort()).toEqual(["a", "b", "ts"]);
+    expect(w.every((x) => x.code === "SEX_NOT_IN_SNAPSHOT")).toBe(true);
+    expect(JSON.stringify(w)).not.toContain("Giả");
   });
 });
