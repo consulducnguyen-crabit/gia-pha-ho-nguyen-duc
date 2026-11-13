@@ -2132,3 +2132,39 @@ rect.stats-seg-f {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== Nền rồng: ảnh hoa văn chìm toàn bộ trang (chỉ trình bày) =====
+   Ảnh nền trắng nhân (multiply) với màu kem --color-bg nên chỉ còn nét hoa văn xám;
+   lớp kem mờ phía trên giữ chữ dễ đọc. Thay các lớp hoa văn lặp cũ ở trên. */
+:root {
+  --nen-rong: url("./assets/nen-rong.jpg");
+  --nen-rong-phu: rgb(243 234 212 / 62%);
+}
+body {
+  background-image:
+    linear-gradient(var(--nen-rong-phu), var(--nen-rong-phu)), var(--nen-rong);
+  background-repeat: no-repeat, no-repeat;
+  background-position:
+    0 0,
+    center;
+  background-size:
+    auto,
+    cover;
+  background-attachment: fixed, fixed;
+  background-blend-mode: normal, multiply;
+}
+@media (max-width: 800px) {
+  body {
+    /* fixed hay giật trên iOS; màn hẹp cho ảnh cuộn theo trang, phủ toàn chiều rộng. */
+    background-attachment: scroll, scroll;
+    background-size:
+      auto,
+      auto 100vh;
+    background-repeat: no-repeat, repeat-y;
+  }
+}
+@media print {
+  body {
+    background-image: none;
+  }
+}
