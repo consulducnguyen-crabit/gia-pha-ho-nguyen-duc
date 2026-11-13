@@ -35,6 +35,7 @@ import { AcceptInvitation, MembershipAdmin } from "./Membership";
 import { Proposals } from "./Proposals";
 import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
+import "@fontsource-variable/source-serif-4/wght.css";
 import "./style.css";
 // Tiêu đề tab (WCAG 2.4.2) đặt ngay trong phần tử của từng <Route> để luôn khớp trang thật đang render
 // (kể cả route bị chặn quyền, không tồn tại, hoặc chỉ có trên emulator).

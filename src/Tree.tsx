@@ -508,166 +508,176 @@ export function PersonPage({
           {saved.message}
         </p>
       )}
-      {canEdit && (
-        <PersonEdit
-          key={`${id}:${index.snapshot.editVersion}`}
-          index={index}
-          p={p}
-          uid={uid}
-          onReload={() => {
-            setSaved(null);
-            reload();
-          }}
-          onSaved={(message) => {
-            setSaved({ id, message });
-            reload();
-          }}
-        />
-      )}
-      {canEdit && (
-        <PersonAdd
-          key={`add:${id}:${index.snapshot.editVersion}`}
-          index={index}
-          p={p}
-          uid={uid}
-          onReload={() => {
-            setSaved(null);
-            reload();
-          }}
-          onSaved={(message, focusId) => {
-            setSaved({ id: focusId, message });
-            reload();
-          }}
-        />
-      )}
-      {canEdit && (
-        <PersonRelations
-          key={`rel:${id}:${index.snapshot.editVersion}`}
-          onStart={() => setSaved(null)}
-          index={index}
-          p={p}
-          uid={uid}
-          onReload={() => {
-            setSaved(null);
-            reload();
-          }}
-          onSaved={(message, focusId) => {
-            setSaved({ id: focusId, message });
-            reload();
-          }}
-        />
-      )}
-      {canEdit && (
-        <PersonUnions
-          key={`uni:${id}:${index.snapshot.editVersion}`}
-          onStart={() => setSaved(null)}
-          index={index}
-          p={p}
-          uid={uid}
-          onReload={() => {
-            setSaved(null);
-            reload();
-          }}
-          onSaved={(message, focusId) => {
-            setSaved({ id: focusId, message });
-            reload();
-          }}
-        />
-      )}
-      {canEdit && (
-        <PersonDelete
-          key={`del:${id}:${index.snapshot.editVersion}`}
-          onStart={() => setSaved(null)}
-          index={index}
-          p={p}
-          uid={uid}
-          onReload={() => {
-            setSaved(null);
-            reload();
-          }}
-          onSaved={(message, focusId) => {
-            setSaved({ id: focusId, message });
-            reload();
-          }}
-        />
-      )}
-      <p className="tree-profile-meta">
-        {years(p)} <Badges index={index} p={p} />{" "}
-        <span className="tree-meta">{categoryLabel(p.category)}</span>
-      </p>
-      {profileBranch && <MergedFromLine info={profileBranch} />}
-      {p.flags.length > 0 && (
-        <section className="tree-flag-box">
-          <h2>Cần kiểm tra</h2>
-          <ul>
-            {p.flags.map((f) => (
-              <li key={f}>{FLAG_LABELS[f]}</li>
-            ))}
-          </ul>
-          {p.flags.includes("DUP_NAME") && sameName.length > 0 && (
-            <>
-              <p className="tree-meta">Người trùng họ tên, cùng đời:</p>
-              <ul className="tree-links">
-                {sameName.map((o) => (
-                  <li key={o.id}>
-                    <PersonLink p={o} /> {years(o)}
-                    {o.branch && (
-                      <span className="tree-meta">
-                        {" "}
-                        ·{" "}
-                        {index.snapshot.branches.find(
-                          (b) => b.code === o.branch,
-                        )?.name ?? o.branch}
-                      </span>
-                    )}
-                    {index.spouses(o.id).length > 0 && (
-                      <span className="tree-meta">
-                        {" "}
-                        · Vợ/chồng:{" "}
-                        {index
-                          .spouses(o.id)
-                          .map((s) => index.snapshot.persons.get(s)?.name)
-                          .join(", ")}
-                      </span>
-                    )}
-                  </li>
+      <div className="profile">
+        <div className="profile-actions">
+          {canEdit && (
+            <PersonEdit
+              key={`${id}:${index.snapshot.editVersion}`}
+              index={index}
+              p={p}
+              uid={uid}
+              onReload={() => {
+                setSaved(null);
+                reload();
+              }}
+              onSaved={(message) => {
+                setSaved({ id, message });
+                reload();
+              }}
+            />
+          )}
+          {canEdit && (
+            <PersonAdd
+              key={`add:${id}:${index.snapshot.editVersion}`}
+              index={index}
+              p={p}
+              uid={uid}
+              onReload={() => {
+                setSaved(null);
+                reload();
+              }}
+              onSaved={(message, focusId) => {
+                setSaved({ id: focusId, message });
+                reload();
+              }}
+            />
+          )}
+          {canEdit && (
+            <PersonRelations
+              key={`rel:${id}:${index.snapshot.editVersion}`}
+              onStart={() => setSaved(null)}
+              index={index}
+              p={p}
+              uid={uid}
+              onReload={() => {
+                setSaved(null);
+                reload();
+              }}
+              onSaved={(message, focusId) => {
+                setSaved({ id: focusId, message });
+                reload();
+              }}
+            />
+          )}
+          {canEdit && (
+            <PersonUnions
+              key={`uni:${id}:${index.snapshot.editVersion}`}
+              onStart={() => setSaved(null)}
+              index={index}
+              p={p}
+              uid={uid}
+              onReload={() => {
+                setSaved(null);
+                reload();
+              }}
+              onSaved={(message, focusId) => {
+                setSaved({ id: focusId, message });
+                reload();
+              }}
+            />
+          )}
+          {canEdit && (
+            <PersonDelete
+              key={`del:${id}:${index.snapshot.editVersion}`}
+              onStart={() => setSaved(null)}
+              index={index}
+              p={p}
+              uid={uid}
+              onReload={() => {
+                setSaved(null);
+                reload();
+              }}
+              onSaved={(message, focusId) => {
+                setSaved({ id: focusId, message });
+                reload();
+              }}
+            />
+          )}
+        </div>
+        <div className="profile-main">
+          <p className="tree-profile-meta">
+            {years(p)} <Badges index={index} p={p} />{" "}
+            <span className="tree-meta">{categoryLabel(p.category)}</span>
+          </p>
+          {profileBranch && <MergedFromLine info={profileBranch} />}
+          {p.flags.length > 0 && (
+            <section className="tree-flag-box">
+              <h2>Cần kiểm tra</h2>
+              <ul>
+                {p.flags.map((f) => (
+                  <li key={f}>{FLAG_LABELS[f]}</li>
                 ))}
               </ul>
-            </>
+              {p.flags.includes("DUP_NAME") && sameName.length > 0 && (
+                <>
+                  <p className="tree-meta">Người trùng họ tên, cùng đời:</p>
+                  <ul className="tree-links">
+                    {sameName.map((o) => (
+                      <li key={o.id}>
+                        <PersonLink p={o} /> {years(o)}
+                        {o.branch && (
+                          <span className="tree-meta">
+                            {" "}
+                            ·{" "}
+                            {index.snapshot.branches.find(
+                              (b) => b.code === o.branch,
+                            )?.name ?? o.branch}
+                          </span>
+                        )}
+                        {index.spouses(o.id).length > 0 && (
+                          <span className="tree-meta">
+                            {" "}
+                            · Vợ/chồng:{" "}
+                            {index
+                              .spouses(o.id)
+                              .map((s) => index.snapshot.persons.get(s)?.name)
+                              .join(", ")}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              <p className="tree-meta">
+                Thông tin này đang được đối chiếu với tài liệu gốc. Nếu bạn biết
+                rõ, hãy báo cho quản trị viên gia phả.
+              </p>
+            </section>
           )}
-          <p className="tree-meta">
-            Thông tin này đang được đối chiếu với tài liệu gốc. Nếu bạn biết rõ,
-            hãy báo cho quản trị viên gia phả.
-          </p>
-        </section>
-      )}
-      {path.length > 1 && (
-        <section>
-          <h2>Dòng tổ tiên</h2>
-          <ol className="tree-path">
-            {path.map((pid) => {
-              const a = index.snapshot.persons.get(pid)!;
-              return (
-                <li key={pid}>
-                  {pid === id ? <b>{a.name}</b> : <PersonLink p={a} />}
-                  {a.generation !== null && (
-                    <span className="tree-meta"> · Đời {a.generation}</span>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </section>
-      )}
-      <Relatives title="Cha mẹ" index={index} ids={parents.map((x) => x.id)} />
-      <Relatives title="Vợ/chồng" index={index} ids={index.spouses(id)} />
-      <Relatives title="Con" index={index} ids={childIds} adoptiveOf={id} />
-      <Relatives title="Anh chị em" index={index} ids={siblings} />
-      {p.birthYear === null && p.deathYear === null && (
-        <p className="tree-meta">
-          Chưa có năm sinh hoặc năm mất trong gia phả.
-        </p>
-      )}
+          {path.length > 1 && (
+            <section>
+              <h2>Dòng tổ tiên</h2>
+              <ol className="tree-path">
+                {path.map((pid) => {
+                  const a = index.snapshot.persons.get(pid)!;
+                  return (
+                    <li key={pid}>
+                      {pid === id ? <b>{a.name}</b> : <PersonLink p={a} />}
+                      {a.generation !== null && (
+                        <span className="tree-meta"> · Đời {a.generation}</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          )}
+          <Relatives
+            title="Cha mẹ"
+            index={index}
+            ids={parents.map((x) => x.id)}
+          />
+          <Relatives title="Vợ/chồng" index={index} ids={index.spouses(id)} />
+          <Relatives title="Con" index={index} ids={childIds} adoptiveOf={id} />
+          <Relatives title="Anh chị em" index={index} ids={siblings} />
+          {p.birthYear === null && p.deathYear === null && (
+            <p className="tree-meta">
+              Chưa có năm sinh hoặc năm mất trong gia phả.
+            </p>
+          )}
+        </div>
+      </div>
     </>
   );
 }

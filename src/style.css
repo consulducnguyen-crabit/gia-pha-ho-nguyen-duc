@@ -8,25 +8,25 @@
 /* Current palette and font families, centralized for every screen. */
 :root {
   --font-body: system-ui, -apple-system, sans-serif;
-  --font-heading: "Heading Việt", Georgia, "Times New Roman", serif;
-  --color-bg: #f8f9f5;
-  --color-surface: #ffffff;
-  --color-text: #273f33;
-  --color-text-muted: #526458;
-  --color-border: #d1ddd2;
-  --color-control-border: #788b7b;
-  --color-primary: #315b43;
-  --color-primary-hover: #25452e;
-  --color-focus: #315b43;
-  --color-danger: #a42620;
-  --color-warning: #805b13;
-  --color-success: #315b43;
-  --color-soft: #eef2e9;
-  --color-sidebar: #f0f4eb;
-  --color-active: #dfe9d7;
-  --color-story: #e5eddf;
-  --color-hero: #e8efdf;
-  --color-mark: #73966e;
+  --font-heading: "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
+  --color-bg: #f3ead4;
+  --color-surface: #fcf7ea;
+  --color-text: #3a2b1d;
+  --color-text-muted: #654f38;
+  --color-border: #d6c6a2;
+  --color-control-border: #85704f;
+  --color-primary: #38573b;
+  --color-primary-hover: #2a4230;
+  --color-focus: #38573b;
+  --color-danger: #9b2c22;
+  --color-warning: #7a5410;
+  --color-success: #38573b;
+  --color-soft: #ebdfc3;
+  --color-sidebar: #e9dcbe;
+  --color-active: #dccaa0;
+  --color-story: #e4d3ac;
+  --color-hero: #e7d8b4;
+  --color-mark: #9a7b4a;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -38,7 +38,7 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --control-height: 44px;
-  --focus-ring: 0 0 0 3px rgb(49 91 67 / 20%);
+  --focus-ring: 0 0 0 3px rgb(56 87 59 / 25%);
   font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-bg);
@@ -1028,7 +1028,8 @@ label:has(> input[type="radio"]) {
   --radius-sm: 3px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  --color-rule: #c5d3c7;
+  --color-rule: #c9b78f;
+  --color-seal: #8f3a2b;
   --text-page: clamp(30px, 3.4vw, 44px);
   --text-section: 22px;
   --text-sub: 18px;
@@ -1452,4 +1453,154 @@ main section[aria-label]:not(.edit-panel):not(.tree-results) > ul > li {
 [role="status"].notice,
 .notice {
   background: var(--color-soft);
+}
+
+/* ===== Ấm cúng hoài cổ: giấy ngà, mực nâu, xanh rêu; dấu son nhỏ làm điểm nhấn (chỉ trình bày) ===== */
+body {
+  background-color: var(--color-bg);
+  /* Vân giấy rất nhẹ (SVG nhúng sẵn, không tải ngoài) + quầng sáng ấm phía trên. */
+  background-image:
+    radial-gradient(
+      ellipse 120% 60% at 50% 0%,
+      rgb(255 250 232 / 70%),
+      transparent 70%
+    ),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .33 0 0 0 0 .18 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+}
+.brand span[aria-hidden="true"],
+.tree-mark {
+  color: var(--color-seal);
+}
+.eyebrow {
+  color: var(--color-seal);
+}
+.brand {
+  border-bottom: 3px double var(--color-rule);
+}
+header {
+  background: transparent;
+  border-bottom: 3px double var(--color-rule);
+}
+aside {
+  background-color: var(--color-sidebar);
+  box-shadow: inset -6px 0 8px -8px rgb(90 60 20 / 35%);
+}
+main h2 {
+  border-bottom-color: var(--color-rule);
+}
+.hero {
+  border-left-color: var(--color-seal);
+}
+.detail {
+  border-top-color: var(--color-seal);
+}
+button:not(.primary),
+.users-table-wrap,
+input,
+select,
+textarea {
+  background-color: rgb(252 247 234 / 85%);
+}
+.tree-flag-box {
+  background: #f6e9c3;
+  border-color: #c9a85c;
+}
+.tree-badge {
+  background: rgb(220 202 160 / 55%);
+}
+.story {
+  background-color: var(--color-story);
+}
+
+/* ===== Bố cục hồ sơ người: nội dung phả hệ bên trái, khối thao tác quản trị bên phải ===== */
+.profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.profile-actions:empty {
+  display: none;
+}
+.profile-actions > .edit-panel,
+.profile-actions > .notice,
+.profile-actions > section {
+  flex: 1 1 100%;
+  margin: var(--space-2) 0;
+}
+.profile-actions > button {
+  flex: 0 0 auto;
+}
+.profile-main > :first-child {
+  margin-top: 0;
+}
+@media (min-width: 1100px) {
+  .profile {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  }
+  .profile-actions {
+    order: 2;
+    position: sticky;
+    top: var(--space-4);
+    padding: var(--space-4);
+    border: 1px solid var(--color-rule);
+    border-top: 3px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    background: rgb(252 247 234 / 60%);
+  }
+  .profile-main {
+    order: 1;
+  }
+}
+/* Chặt chẽ hơn: thu hẹp khoảng đệm trang và bề rộng đọc, mở rộng vùng nội dung. */
+main {
+  max-width: 1320px;
+  padding-inline: clamp(16px, 3vw, 40px);
+}
+@media (min-width: 801px) {
+  main {
+    padding-block: var(--space-5) var(--space-6);
+  }
+  .intro,
+  .tree-summary {
+    max-width: 70ch;
+  }
+  .cards {
+    margin-top: var(--space-5);
+  }
+}
+/* Nút thao tác nằm cùng hàng trong khối quản trị; chỉ hàng nút của biểu mẫu mới có đường kẻ ngăn. */
+.profile-actions > .edit-actions {
+  flex: 0 1 auto;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+@media (min-width: 1100px) {
+  .profile {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  }
+}
+/* Đang mở biểu mẫu: khối thao tác trải rộng để trường nhập chia cột, nội dung phả hệ nằm dưới. */
+@media (min-width: 1100px) {
+  .profile:has(.profile-actions form) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .profile:has(.profile-actions form) .profile-actions {
+    order: 0;
+    position: static;
+  }
+  .profile:has(.profile-actions form) .profile-main {
+    order: 1;
+  }
+}
+.profile-actions {
+  align-items: center;
 }
