@@ -309,7 +309,9 @@ describe("default-deny access", () => {
       await assertFails(getDocs(collection(c.firestore(), "users")));
       await assertFails(getDoc(doc(c.firestore(), "users", "manager")));
     });
-  it("an account manager can read the account list but never write accounts", async () => {
+  // Chính sách mới (PR-A): chỉ quản trị viên TRONG sổ accessControl/admins mới ghi users, và chỉ qua lô có nhật ký.
+  // "manager" ở đây không có sổ/nhật ký nên mọi ghi trực tiếp vẫn phải thất bại; chi tiết ở accountRules.test.ts.
+  it("an account manager can read the account list but cannot write accounts directly", async () => {
     const db = env.authenticatedContext("manager").firestore();
     await assertSucceeds(getDocs(collection(db, "users")));
     await assertSucceeds(getDoc(doc(db, "users", "member")));
@@ -326,6 +328,9 @@ describe("default-deny access", () => {
         roleIds: ["member"],
         canManageMembership: true,
       }),
+    );
+    await assertFails(
+      updateDoc(doc(db, "accessControl", "admins"), { version: 2 }),
     );
   });
   it("manager status comes from the trusted users document, not from client claims", async () => {

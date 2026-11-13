@@ -1,6 +1,7 @@
 # Firestore data model — proposal, not final
 
 ## Collections
+
 - `persons/{personId}`: displayName, normalizedName, sex(optional), birth/death date objects, lineageStatus, profileVersion, createdAt, updatedAt.
 - `persons/{personId}/names/{nameId}`: type, value, sourceRefs.
 - `relations/{relationId}`: parentId, childId, relationType, lineageTransmission, verificationStatus, sourceRefs, version.
@@ -19,6 +20,7 @@
 - `treeSnapshots/{scopeId}`: dataVersion, generatedAt, restricted cache payload; optional.
 
 ## Design requirements
+
 - UUID/Firestore IDs, no row numbers as identifiers.
 - Denormalized display fields only as cache; canonical relations in `relations`.
 - Query indexes for parentId, childId, branchId, normalizedName, status/createdAt.
@@ -31,9 +33,11 @@
 - Keep a migration manifest and backward compatibility strategy.
 
 ## Storage
+
 Paths like `private/persons/{personId}/{mediaId}`; Storage Rules must check membership/role, not rely on obscurity of URLs. Avoid long-lived publicly usable download tokens for restricted media.
 
 ## Privacy revision — đã phê duyệt chính sách
+
 `memberProfiles/{personId}` là projection tạo bằng allowlist: displayName, normalizedName, profileVersion, schemaVersion, birthYear, deathYear (nạp bằng script quản trị; cập nhật trong lô sửa của quản trị viên). Không chứa ngày sinh đầy đủ, liên hệ, nguồn, ghi chú hoặc lý do ngoại lệ. Client chỉ đọc collection này khi enabled.
 `persons`, `personPrivate` chỉ quản trị viên (`manager`) đọc; `relations` chỉ `get` theo mã (trong giao dịch của quản trị viên), `unions` chỉ quản trị viên `get` theo mã (không liệt kê; thay đổi 2026-11-12 để biết liên kết đã gỡ), ghi qua lô sửa; thành viên thường không đọc được các collection này (tên và quan hệ cho thành viên lấy từ `memberProfiles` và `treeSnapshots/main`). Không migrate hay tự công bố dữ liệu cũ; phải có dry-run và review phân loại trước backfill. Seed dev chỉ ghi projection giả.
 
@@ -68,3 +72,11 @@ invariants transaction và các quyết định production chưa chốt.
 Không có migration production; request/graph cũ thiếu cấu trúc bị chặn. Capability
 reviewer được bảo vệ khỏi luồng quản lý ordinary-member để không âm thầm xóa quyền.
 Xem PROPOSALS.md về workflow, giới hạn graph và rollback.
+
+## Tài khoản và lời mời trong app — schema 1 (PR-A, chưa deploy)
+
+- `accessControl/admins`: `adminUids` (list<string>, 1..20), `version` (int, +1 mỗi lần đổi), `lastTargetUid` (string), `schemaVersion` 1. Bất biến: uid thuộc `adminUids` khi và chỉ khi `users/{uid}.enabled == true && canManageMembership == true`. Client chỉ update; khởi tạo bằng script Admin.
+- `accountInvites/{emailViếtThường}`: `email`, `role` ('VIEWER'), `displayName`?, `status` (PENDING|ACCEPTED|REVOKED), `nonce` (36 ký tự), `createdBy`, `createdAt`, `expiresAt` (<= 7 ngày), `acceptedBy/At`, `revokedBy/At`, `schemaVersion` 1. Chứa email nên chỉ quản trị viên và đúng người được mời đọc được.
+- `users/{uid}` tạo khi nhận lời mời có thêm `email`, `displayName`?, `approvedBy`, `approvedAt`, `invitationNonce`; `updatedBy/At`, `disabledBy/At` khi quản trị viên sửa. `accessVersion` tăng 1 mỗi lần sửa.
+- `auditLogs` thêm sự kiện: `ACCOUNT_UPDATED` (`account-{uid}-{accessVersion}`; `fields` thuộc enabled/admin/displayName, `before/after` chỉ `enabled/admin`, không tên/email), `INVITATION_ACCEPTED` (`account-{uid}-1`), `INVITE_CREATED` (`invite-{nonce}`), `INVITE_REVOKED` (`invite-{nonce}-revoked-{uid}`); cả hai có `inviteKey` = sha256 hex thường của khóa email (không ghi email) và `timestamp` = thời điểm máy chủ. Không client nào đọc được các nhật ký này.
+- Không migration dữ liệu thật; sổ được tạo từ danh sách quản trị viên hiện có bằng script ở PR sau.

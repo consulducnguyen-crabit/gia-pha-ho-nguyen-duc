@@ -121,3 +121,10 @@
 - Logo chữ Đức (德) kiểu thư pháp (SVG nhúng, xem FONT_LICENSES.md) thay cho ký tự ❧.
 - Nút cuộn nổi lên đầu / xuống cuối trên mọi màn hình (kể cả đăng nhập).
 - Quản trị viên: nút "Thêm thành viên" ở Tổng quan và Cây gia phả, mở trang `#/add-member` chọn người gốc rồi mở sẵn biểu mẫu Thêm con / Thêm vợ/chồng hiện có (`?add=child|spouse`, tham số bị xóa sau khi mở). Không thêm đường ghi mới; rules và nhật ký không đổi.
+
+# PR-A: rules cấp quyền trong app — 2026-11-13
+
+- `firestore.rules`: sổ quản trị viên `accessControl/admins`, quản trị viên sửa `users` (enabled/quản trị/tên) kèm nhật ký `account-{uid}-{accessVersion}`, lời mời `accountInvites` (chỉ Chỉ xem, hạn <= 7 ngày), nhận lời mời tự tạo `users/{uid}`. Nhánh `edit-N` giữ nguyên.
+- Thêm `tests/accountRules.test.ts` (dữ liệu giả) vào `test:rules`; cập nhật đoạn "manager" trong `tests/rules.test.ts`.
+- Chỉ rules/test/tài liệu: chưa có UI, chưa có script khởi tạo sổ, chưa deploy, không chạm dữ liệu thật. Sổ phải được khởi tạo trước khi dùng thao tác tài khoản (xem ACCOUNTS.md).
+- Sửa theo review độc lập: nhật ký lời mời cùng yêu cầu và gắn 1:1 bằng `inviteKey` (sha256), mã nhật ký thu hồi kèm uid; `approvedBy/At`, `disabledBy/At` bị ràng buộc; sổ chỉ đổi cùng lô với users đổi trạng thái admin; nhận lời mời đòi người phát hành còn trong sổ. Kiểm chứng bằng Auth emulator: đăng nhập liên kết email có provider `password`.
