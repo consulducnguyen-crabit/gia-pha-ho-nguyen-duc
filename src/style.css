@@ -1400,3 +1400,56 @@ input:not([type="checkbox"]):not([type="radio"]) {
     border-left-width: 3px;
   }
 }
+
+/* ===== Sổ gia phả — PR4: bảng quản trị, danh sách kiểm tra, khối lệnh (chỉ trình bày) ===== */
+/* Bảng: đường kẻ ngang như sổ ghi chép; tiêu đề cột nhỏ, đậm, có đường kẻ đậm bên dưới; vùng cuộn ngang giữ nguyên. */
+.users-table-wrap {
+  border: 0;
+  border-top: 2px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-rule);
+  border-radius: 0;
+  background: transparent;
+}
+.users-table {
+  font-size: var(--text-small);
+}
+.users-table th {
+  background: transparent;
+  border-bottom: 1px solid var(--color-control-border);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.users-table tbody tr:hover {
+  background: var(--color-soft);
+}
+.users-table td {
+  border-bottom-color: var(--color-rule);
+}
+.users-table caption {
+  text-align: left;
+  font-family: var(--font-heading);
+  font-size: var(--text-sub);
+  padding-bottom: var(--space-2);
+}
+/* Khối lệnh: nền nhạt, vạch trái, chữ đơn cách dễ chọn; không đổi nội dung. */
+.users-howto code {
+  background: var(--color-soft);
+  border-left: 3px solid var(--color-rule);
+  border-radius: 0;
+  font-size: 13px;
+}
+/* Danh sách theo nhóm (Cần kiểm tra): bỏ chấm đầu dòng, mỗi người một hàng có đường kẻ mảnh. */
+main section[aria-label]:not(.edit-panel):not(.tree-results) > ul {
+  list-style: none;
+  padding-left: 0;
+}
+main section[aria-label]:not(.edit-panel):not(.tree-results) > ul > li {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+/* Dải thông báo trạng thái dùng cùng ngôn ngữ vạch trái với .notice. */
+[role="status"].notice,
+.notice {
+  background: var(--color-soft);
+}
