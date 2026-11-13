@@ -128,3 +128,12 @@
 - Thêm `tests/accountRules.test.ts` (dữ liệu giả) vào `test:rules`; cập nhật đoạn "manager" trong `tests/rules.test.ts`.
 - Chỉ rules/test/tài liệu: chưa có UI, chưa có script khởi tạo sổ, chưa deploy, không chạm dữ liệu thật. Sổ phải được khởi tạo trước khi dùng thao tác tài khoản (xem ACCOUNTS.md).
 - Sửa theo review độc lập: nhật ký lời mời cùng yêu cầu và gắn 1:1 bằng `inviteKey` (sha256), mã nhật ký thu hồi kèm uid; `approvedBy/At`, `disabledBy/At` bị ràng buộc; sổ chỉ đổi cùng lô với users đổi trạng thái admin; nhận lời mời đòi người phát hành còn trong sổ. Kiểm chứng bằng Auth emulator: đăng nhập liên kết email có provider `password`.
+
+# PR-B: script giữ sổ quản trị viên đồng bộ — 2026-11-13
+
+- `accounts-core.ts`: `ledgerAfter`, `buildRegistry`, `diffRegistry`, `normalizeUser`; `buildRevoke` đặt `canManageMembership: false`; `buildGrant`/`buildRole` luôn ghi bool tường minh.
+- `accounts.ts`: ghi users + sổ + nhật ký trong một giao dịch; lệnh `registry` (`--verify` chỉ đọc, mã 1 nếu lệch; `--rebuild` dry-run mặc định, `--apply` mới ghi, nhật ký `ACCOUNT_LEDGER_REBUILT` không email). `--force` không còn cho phép làm số quản trị viên về 0 (từ chối vô điều kiện).
+- Kiểm chứng end-to-end trên emulator (Auth + Firestore) và bằng rules; chưa chạy trên project thật. Không có migration dữ liệu thật (`docs/migrations.json` không đổi: chưa có migration nào được duyệt chạy trên prod).
+- Sửa theo review: ghi users đổi quyền quản trị bị từ chối khi sổ thiếu/lệch (không tự dựng sổ), kiểm tra giao rỗng sau ghi, nhật ký rebuild chỉ `create`, kiểm tra version sổ/users hỏng, `create` kiểm tra trước khi tạo Auth, cảnh báo grant khôi phục quyền cũ.
+- Bằng chứng: `npm run test:accounts:e2e` (`scripts/accounts-e2e-check.mjs`) chạy tự động trên emulator Auth + Firestore, gồm bước dùng sổ do script dựng làm fixture cho rules.
+- Review lần hai: mã nhật ký rebuild duy nhất (`ledger-rebuild-{version}-{epochMillis}`); `grant`/`create` kiểm tra sổ trước khi tạo tài khoản Auth hoặc xác minh email; thông báo sổ lệch nêu rõ (uid trùng/sổ hỏng/thiếu/thừa); kiểm giới hạn 400 trong giao dịch rebuild; e2e thêm ca rebuild sau khi xóa sổ và ca từ chối không tác dụng phụ.
