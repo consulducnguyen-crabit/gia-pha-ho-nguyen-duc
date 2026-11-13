@@ -13,7 +13,7 @@ Trang hồ sơ của quản trị viên có hai nút: **Thêm con** và **Thêm 
 - `lineageTransmission` = quan hệ với cha và con thuộc dòng họ (kể cả con nuôi). Đời = đời cha + 1 (suy ra,
   ghi trong snapshot; `persons.generation` chỉ là giá trị lịch sử).
 - Thêm vợ/chồng: người mới (Kết hôn vào / Họ ngoại) hoặc nối với người đã có; từ chối tự cưới và trùng quan hệ.
-- Ghi chú riêng nằm ở `personPrivate`; nhật ký chỉ lưu độ dài ghi chú.
+- Ghi chú nằm đầy đủ ở `personPrivate`; ảnh chụp cây giữ bản cắt 300 ký tự cho mọi thành viên (quyết định 2026-11-14); nhật ký chỉ lưu độ dài ghi chú.
 
 ## Lô ghi nguyên tử và rules
 

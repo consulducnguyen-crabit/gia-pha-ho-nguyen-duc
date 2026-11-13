@@ -10,7 +10,8 @@ export type ProdAction =
   | "KHOI PHUC"
   | "QUAN LY TAI KHOAN"
   | "XOA TAI KHOAN"
-  | "DONG BO GIOI TINH";
+  | "DONG BO GIOI TINH"
+  | "CONG BO GHI CHU";
 
 /** Câu xác nhận phải gõ nguyên văn bằng --ack. */
 export function ackPhrase(action: ProdAction, project: string): string {

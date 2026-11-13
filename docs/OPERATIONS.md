@@ -83,3 +83,9 @@ Dùng thư mục export mới mỗi lần, không ghi đè backup chưa kiểm t
 số lượng và SHA-256 nội dung của 10 collections fixture cùng subcollection names,
 kiểm tra sáu hồ sơ giả, UID/đăng nhập Auth và SHA-256 media. Đây là diễn tập fixture
 emulator, không chứng minh restore production hoặc kiểm kê toàn bộ schema.
+
+## Công bố ghi chú vào ảnh chụp cây (quyết định 2026-11-14)
+Ghi chú từng người hiển thị cho mọi thành viên ở Cây gia phả (bản cắt 300 ký tự, phần tử thứ 10 của bộ). Ghi chú ĐÃ CÓ không tự công bố; chỉ công bố khi quản trị viên lưu lại người đó trong app hoặc khi chạy lệnh dưới đây. Điều kiện: ảnh chụp đã có giới tính (`gia-pha:snapshot-sex` trước).
+1. `npm run gia-pha:snapshot-note -- --project <id> --show` (dry-run, chỉ đọc): in số đếm và `editVersion`; `--show` in thêm từng dòng `mã | số ký tự | nội dung sẽ hiện cho mọi thành viên` ra màn hình (không ghi file) để RÀ SOÁT. Nếu có ghi chú không muốn công bố: sửa/xóa ghi chú đó trong app (hoặc để nguyên và KHÔNG chạy bước 2), rồi chạy lại dry-run. Dừng nếu bộ chưa có giới tính, người không có hồ sơ/đã ẩn, hoặc vượt trần kích thước.
+2. `... --apply --expect-version <editVersion đã thấy> --confirm <project>`; prod thêm `--ack "CONG BO GHI CHU <project>"` và `GOOGLE_APPLICATION_CREDENTIALS`. Một giao dịch, KHÔNG tăng `editVersion`, ghi `auditLogs/maint-snapshot-note-<ISO>` (`SNAPSHOT_NOTE_PUBLISHED`, chỉ số đếm).
+3. Hoàn tác: `--strip` (cắt về 9 phần tử, giữ "đã mất"). Lệnh idempotent. Chưa chạy trên production. Sau khi phát hành, tab đang mở bản cũ phải tải lại (Ctrl+F5): bản cũ không đọc được bộ 9–10 phần tử.

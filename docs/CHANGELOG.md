@@ -176,3 +176,11 @@
 - `persons.deceased` (boolean, tùy chọn) và phần tử thứ 9 của bộ dữ liệu trong `treeSnapshots/main` (giữ `schemaVersion` 1; `parseSnapshot` nhận 6–9 phần tử). Rules `persons` cho phép khóa `deceased` kiểu boolean khi sửa/tạo; `memberProfiles` không đổi.
 - Form Thêm/Sửa có checkbox "Đã mất"; có năm mất thì checkbox tự chọn và khóa (năm mất vẫn là nguồn chuẩn). Cây và hồ sơ hiện "đã mất" khi không có năm mất; Tổng quan tính là đã mất (không có tuổi, không bị coi là đang sống).
 - `reconcile` thêm `DECEASED_MISMATCH`. Không cần backfill: dữ liệu cũ mặc định chưa đánh dấu. Chưa deploy rules lên production.
+
+# Ghi chú hiển thị cho mọi thành viên — 2026-11-14
+
+- Người dùng duyệt (phương án "Mọi thành viên"): ghi chú từng người hiện dạng tooltip ở Cây gia phả. Ảnh chụp cây thêm phần tử thứ 10 `note` (đã cắt 300 ký tự); `parseSnapshot` nhận 6–10 phần tử; `personPrivate` giữ bản đầy đủ cho quản trị viên.
+- App công bố ghi chú khi sửa/thêm/khôi phục người (lưu lại một người = công bố ghi chú hiện có của họ); nhãn form đổi thành "Ghi chú (mọi thành viên đã đăng nhập đều xem được)" kèm cảnh báo; nhật ký đổi nhãn "Ghi chú" (vẫn chỉ ghi độ dài).
+- Tooltip `PersonNameLink`: rê chuột/focus, giữ ~0,5 giây trên cảm ứng, Esc/chạm ngoài/cuộn để tắt, `aria-describedby`, chữ thuần.
+- Lệnh mới `npm run gia-pha:snapshot-note` (dry-run mặc định, `--show` để rà soát, `--apply --expect-version`, `--strip`), hành động cổng prod `CONG BO GHI CHU`. Ghi chú cũ KHÔNG tự công bố hàng loạt. Chưa chạy trên production.
+- Sửa kèm: `gia-pha:snapshot-sex` đọc được bộ 9–10 phần tử.

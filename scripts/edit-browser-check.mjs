@@ -676,6 +676,47 @@ try {
     throw Error("Nhật ký gỡ/khôi phục liên kết sai: " + events.join());
   reconcileOk("sau khi khôi phục liên kết vợ/chồng");
 
+  stage = "note tooltip: hover, focus, Escape, touch long-press, plain text";
+  await page.goto(`${URL}/#/tree`);
+  await page.getByRole("button", { name: "Mở rộng tất cả" }).click();
+  const noteLink = page.getByRole("link", { name: "Giả Văn Ân" }).first();
+  const tip = page.getByRole("tooltip");
+  await expect(tip).toBeHidden();
+  await noteLink.hover();
+  await expect(tip).toBeVisible();
+  await expect(tip).toHaveText("ghi chú mới");
+  if (process.env.SHOT_DIR)
+    await page.screenshot({ path: `${process.env.SHOT_DIR}/tooltip-1280.png` });
+  await page.mouse.move(5, 5);
+  await expect(tip).toBeHidden();
+  await noteLink.focus();
+  await expect(tip).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(tip).toBeHidden();
+  await noteLink.blur();
+  // Người không có ghi chú: không có tooltip, vẫn là liên kết bình thường.
+  const plain = page.getByRole("link", { name: "Giả Thị Bình" }).first();
+  await plain.hover();
+  await expect(plain).not.toHaveAttribute("aria-describedby", /.+/);
+  await expect(tip).toBeHidden();
+  // Cảm ứng: giữ ~0,5 giây hiện ghi chú và KHÔNG chuyển trang; bấm nhanh thì mở hồ sơ.
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.getByRole("button", { name: "Mở rộng tất cả" }).click();
+  await noteLink.dispatchEvent("touchstart");
+  await page.waitForTimeout(700);
+  await expect(tip).toBeVisible();
+  if (process.env.SHOT_DIR)
+    await page.screenshot({ path: `${process.env.SHOT_DIR}/tooltip-360.png` });
+  await noteLink.dispatchEvent("touchend", { cancelable: true });
+  await expect(tip).toBeVisible();
+  if (!page.url().includes("#/tree")) throw Error("Giữ không được mở hồ sơ");
+  const box = await tip.boundingBox();
+  if (!box || box.x < 0 || box.x + box.width > 360)
+    throw Error("Tooltip tràn khỏi màn hình 360px");
+  await page.mouse.click(300, 5);
+  await expect(tip).toBeHidden();
+  await page.setViewportSize({ width: 1280, height: 900 });
+
   stage =
     "deceased checkbox: save, shown on tree/profile, locked when a death year exists";
   await page.goto(`${URL}/#/person/b`);
