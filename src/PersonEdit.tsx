@@ -16,6 +16,7 @@ import { DuplicateNote } from "./DuplicateNote";
 import {
   FLAG_LABELS,
   FLAG_ORDER,
+  NOTE_CLIP,
   sameNamePeople,
   type FlagCode,
   type SnapPerson,
@@ -353,7 +354,7 @@ export function PersonEdit({
             </select>
           </label>
           <label>
-            Ghi chú riêng (chỉ quản trị viên xem)
+            Ghi chú (mọi thành viên đã đăng nhập đều xem được)
             <textarea
               className="form-note-field"
               value={values.note}
@@ -363,6 +364,11 @@ export function PersonEdit({
             />
             <span className="tree-meta">
               {values.note.length}/{NOTE_MAX} ký tự
+            </span>
+            <span className="tree-meta">
+              Chỉ ghi nội dung phù hợp để mọi thành viên đọc. Cây gia phả hiện{" "}
+              {NOTE_CLIP} ký tự đầu khi rê chuột (hoặc giữ trên điện thoại) vào
+              họ tên.
             </span>
             {err("note")}
           </label>

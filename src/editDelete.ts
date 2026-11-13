@@ -11,7 +11,12 @@ import {
   type EditWrite,
 } from "./editCore";
 import { recomputeGenerations } from "./editRelation";
-import { setTupleDeceased, setTupleSex } from "./treeModel";
+import {
+  clipNote,
+  setTupleDeceased,
+  setTupleNote,
+  setTupleSex,
+} from "./treeModel";
 
 type Doc = Record<string, unknown>;
 type Row = unknown[];
@@ -38,6 +43,8 @@ export interface DeleteState {
   relations: Record<string, Doc | null>;
   /** auditLogs/edit-{deleteVersion}; chỉ cần khi khôi phục. */
   audit?: Doc | null;
+  /** personPrivate/{personId}; chỉ cần khi khôi phục (để công bố lại ghi chú trong ảnh chụp). */
+  priv?: Doc | null;
 }
 export interface DeleteInput {
   op: DeleteOp;
@@ -367,6 +374,11 @@ export function applyDelete(
       person.sex === "M" || person.sex === "F" ? person.sex : null,
     );
     setTupleDeceased(restored, person.deceased === true);
+    // Ghi chú lấy lại từ personPrivate (nguồn chuẩn); không có/không đọc được thì để trống.
+    setTupleNote(
+      restored,
+      clipNote(typeof state.priv?.note === "string" ? state.priv.note : ""),
+    );
     data.persons[id] = restored;
     for (const r of saved.relations) data.relations.push(r);
     for (const u of saved.unions) data.unions.push(u);

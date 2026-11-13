@@ -244,7 +244,7 @@ try {
     throw Error("Đã chạy mã từ dữ liệu nhật ký");
   const body = await page.locator("body").innerText();
   if (body.includes(SECRET)) throw Error("Lộ nguyên văn ghi chú riêng");
-  if (!body.includes("Ghi chú riêng: đã thay đổi"))
+  if (!body.includes("Ghi chú: đã thay đổi"))
     throw Error("Thiếu dòng ghi chú đã thay đổi");
   if (body.includes("Â".repeat(250))) throw Error("Chuỗi dài chưa bị cắt");
   await expect(page.getByText("Năm sinh: 1927 → 1928")).toBeVisible();

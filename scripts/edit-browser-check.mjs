@@ -117,7 +117,9 @@ try {
   await expect(page.getByRole("textbox", { name: /^Năm sinh/ })).toHaveValue(
     "1927",
   );
-  await expect(page.getByLabel(/Ghi chú riêng/)).toHaveValue("ghi chú giả");
+  await expect(page.getByLabel(/^Ghi chú \(mọi thành viên/)).toHaveValue(
+    "ghi chú giả",
+  );
 
   stage = "focus moves into the form on open and back on cancel";
   const activeText = () =>
@@ -162,7 +164,7 @@ try {
   stage = "save a change";
   await page.getByRole("textbox", { name: /^Năm sinh/ }).fill("1928");
   await page.getByLabel("Họ tên (bắt buộc)").fill("Giả Văn Ân");
-  await page.getByLabel(/Ghi chú riêng/).fill("ghi chú mới");
+  await page.getByLabel(/^Ghi chú \(mọi thành viên/).fill("ghi chú mới");
   await page.getByRole("button", { name: "Lưu thay đổi" }).click();
   await expect(page.getByText("Đã lưu thay đổi và ghi nhật ký.")).toBeVisible();
   await expect(

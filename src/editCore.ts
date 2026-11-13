@@ -3,7 +3,9 @@
 // treeSnapshots/main + auditLogs/edit-{phiên bản}. firestore.rules kiểm tra lô này (xem editGate).
 import {
   FLAG_ORDER,
+  clipNote,
   setTupleDeceased,
+  setTupleNote,
   setTupleSex,
   type FlagCode,
 } from "./treeModel";
@@ -377,6 +379,8 @@ export function applyEdit(state: EditState, input: EditInput): EditResult {
   // Giới tính luôn ghi theo persons (nguồn chuẩn) để ảnh chụp không lệch; bộ 6 phần tử được nâng lên 8.
   setTupleSex(newTuple, next.sex);
   setTupleDeceased(newTuple, next.deceased);
+  // Ghi chú công bố cho mọi thành viên (đã cắt). Lưu lại một người là công bố ghi chú hiện có của họ.
+  setTupleNote(newTuple, clipNote(next.note));
   data.persons[id] = newTuple;
 
   const writes: EditWrite[] = [];

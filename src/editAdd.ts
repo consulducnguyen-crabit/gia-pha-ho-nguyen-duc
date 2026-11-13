@@ -15,6 +15,7 @@ import {
   type EditWrite,
 } from "./editCore";
 import { normalizeName } from "./domain";
+import { clipNote } from "./treeModel";
 
 type Doc = Record<string, unknown>;
 
@@ -330,6 +331,7 @@ export function applyAdd(state: AddState, input: AddInput): AddResult {
       [],
       child.sex,
       child.deceased === true,
+      clipNote(child.note),
     ];
     personId = op.newId;
     focusId = op.newId;
@@ -376,6 +378,7 @@ export function applyAdd(state: AddState, input: AddInput): AddResult {
         [],
         person.sex,
         person.deceased === true,
+        clipNote(person.note),
       ];
       created = [spouseId];
     }

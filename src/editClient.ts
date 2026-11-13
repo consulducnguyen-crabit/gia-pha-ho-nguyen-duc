@@ -306,6 +306,10 @@ export async function commitDelete(
     if (!snapshot.exists())
       throw new EditError("BAD_STATE", "Chưa có ảnh chụp cây.");
     const person = await tx.get(doc(db, "persons", op.personId));
+    const priv =
+      op.type === "restorePerson"
+        ? await tx.get(doc(db, "personPrivate", op.personId))
+        : null;
     let audit: DocumentData | null = null;
     let relationIds: string[];
     if (op.type === "restorePerson") {
@@ -328,6 +332,7 @@ export async function commitDelete(
         person: person.exists() ? person.data() : null,
         relations,
         audit,
+        priv: priv?.exists() ? priv.data() : null,
       },
       input,
     );

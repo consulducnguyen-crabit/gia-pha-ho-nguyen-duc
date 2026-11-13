@@ -208,7 +208,7 @@ const FIELD_LABEL: Record<string, string> = {
   name: "Họ tên",
   birthYear: "Năm sinh",
   deathYear: "Năm mất",
-  note: "Ghi chú riêng",
+  note: "Ghi chú",
   branch: "Chi",
   sex: "Giới tính",
   deceased: "Đã mất",
@@ -265,8 +265,8 @@ function noteLine(before: unknown, after: unknown): string {
   const b = isRec(before) ? int(before.chars) : null;
   const a = isRec(after) ? int(after.chars) : null;
   return b !== null && a !== null
-    ? `Ghi chú riêng: đã thay đổi (${b} → ${a} ký tự)`
-    : "Ghi chú riêng: đã thay đổi";
+    ? `Ghi chú: đã thay đổi (${b} → ${a} ký tự)`
+    : "Ghi chú: đã thay đổi";
 }
 
 /**

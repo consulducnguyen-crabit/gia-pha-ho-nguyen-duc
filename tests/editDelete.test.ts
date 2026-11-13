@@ -289,7 +289,7 @@ describe("khôi phục người", () => {
     );
     const d = data(r);
     // Giới tính lấy từ persons/k (fixture không có sex => null), không lấy từ nhật ký.
-    expect(d.persons.k).toEqual([...tree().persons.k, null, false]);
+    expect(d.persons.k).toEqual([...tree().persons.k, null, false, null]);
     expect(d.relations).toHaveLength(3);
     const w = Object.fromEntries(r.writes.map((x) => [x.path, x]));
     expect(w["memberProfiles/k"]).toMatchObject({
@@ -386,6 +386,41 @@ describe("giới tính trong ảnh chụp", () => {
     expect(restoreWith("F")[7]).toBe("F");
     expect(restoreWith(undefined)[7]).toBeNull();
     expect(restoreWith("X")[7]).toBeNull();
-    expect(restoreWith("F")).toHaveLength(9);
+    expect(restoreWith("F")).toHaveLength(10);
+  });
+});
+
+describe("ghi chú khi khôi phục", () => {
+  it("lấy lại từ personPrivate, đã cắt; không có thì null", () => {
+    const base = run(delState("k"), del("k"));
+    const audit = base.writes.find((w) => w.path === "auditLogs/edit-6")!.data;
+    const snapshot = snap(data(base), 6);
+    const restoreWith = (priv: Record<string, unknown> | null) =>
+      data(
+        run(
+          {
+            snapshot,
+            person: person({
+              deleted: true,
+              deletedAtVersion: 6,
+              profileVersion: 3,
+            }),
+            relations: {
+              "r-a-k": { version: 4, deleted: true },
+              "r-b-k": { version: 4, deleted: true },
+            },
+            audit,
+            priv,
+          },
+          { type: "restorePerson", personId: "k", deleteVersion: 6 },
+          6,
+        ),
+      ).persons.k;
+    expect(restoreWith({ note: "ghi chú" })[9]).toBe("ghi chú");
+    expect(restoreWith({ note: "z".repeat(400) })[9]).toBe(
+      `${"z".repeat(300)}…`,
+    );
+    expect(restoreWith(null)[9]).toBeNull();
+    expect(restoreWith({ note: 5 })[9]).toBeNull();
   });
 });
