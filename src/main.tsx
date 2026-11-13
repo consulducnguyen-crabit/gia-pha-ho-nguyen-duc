@@ -332,20 +332,30 @@ function App() {
 function Gate({ state, user }: { state: string; user: User | null }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [linking, setLinking] = useState(false); // đang hoàn tất đăng nhập bằng liên kết email
+  const [inviteBusy, setInviteBusy] = useState(true); // đang kiểm tra/kích hoạt lời mời
+  const signingIn =
+    (state === "login" && linking) ||
+    state === "loading" ||
+    (state === "pending" && inviteBusy);
   // Tiêu đề tab theo trạng thái thật của màn hình cổng (khớp tiêu đề hiển thị).
   useEffect(() => {
     const t =
       state === "setup"
         ? "Sẵn sàng kết nối"
         : state === "pending"
-          ? "Chờ cấp quyền"
+          ? inviteBusy
+            ? "Đang đăng nhập"
+            : "Chờ cấp quyền"
           : state === "loading"
-            ? "Đang kiểm tra quyền truy cập"
+            ? "Đang đăng nhập"
             : state === "error"
               ? "Không thể kiểm tra quyền truy cập"
-              : "Đăng nhập";
+              : linking
+                ? "Đang đăng nhập"
+                : "Đăng nhập";
     document.title = `${t} · Gia phả`;
-  }, [state]);
+  }, [state, inviteBusy, linking]);
   return (
     <div className="gate">
       <section className="story">
@@ -369,10 +379,17 @@ function Gate({ state, user }: { state: string; user: User | null }) {
         <h2>
           {state === "setup"
             ? "Sẵn sàng kết nối"
-            : state === "pending"
-              ? "Chờ cấp quyền"
-              : "Chào mừng trở về"}
+            : signingIn
+              ? "Đang đăng nhập…"
+              : state === "pending"
+                ? "Chờ cấp quyền"
+                : "Chào mừng trở về"}
         </h2>
+        {state === "login" && linking && (
+          <p role="status" className="login-link-status">
+            Đang đăng nhập bằng liên kết trong thư, vui lòng chờ trong giây lát…
+          </p>
+        )}
         {state === "setup" ? (
           <>
             <p>
@@ -386,27 +403,33 @@ function Gate({ state, user }: { state: string; user: User | null }) {
           </>
         ) : state === "loading" ? (
           <>
-            <p role="status">Đang kiểm tra quyền truy cập…</p>
+            <p role="status">
+              Đang mở không gian dòng họ, vui lòng chờ trong giây lát…
+            </p>
             {user && (
               <button onClick={() => void signOut(auth!)}>Đăng xuất</button>
             )}
           </>
         ) : state === "pending" || state === "error" ? (
           <>
-            <p>
-              {state === "pending"
-                ? "Tài khoản chưa được cấp quyền hoặc đã bị vô hiệu hóa. Vui lòng liên hệ người quản lý gia phả."
-                : "Không thể kiểm tra quyền truy cập. Vui lòng thử đăng nhập lại."}
-            </p>
-            <button onClick={() => void signOut(auth!)}>
-              Đăng xuất {user?.email}
-            </button>
+            {!(state === "pending" && inviteBusy) && (
+              <>
+                <p>
+                  {state === "pending"
+                    ? "Tài khoản chưa được cấp quyền hoặc đã bị vô hiệu hóa. Vui lòng liên hệ người quản lý gia phả."
+                    : "Không thể kiểm tra quyền truy cập. Vui lòng thử đăng nhập lại."}
+                </p>
+                <button onClick={() => void signOut(auth!)}>
+                  Đăng xuất {user?.email}
+                </button>
+              </>
+            )}
             {state === "pending" && user && (
-              <InviteAccept key={user.uid} user={user} />
+              <InviteAccept key={user.uid} user={user} onBusy={setInviteBusy} />
             )}
           </>
         ) : (
-          <>
+          <div hidden={linking}>
             <p>Đăng nhập bằng tài khoản đã được cấp quyền.</p>
             <form
               onSubmit={async (e) => {
@@ -488,8 +511,8 @@ function Gate({ state, user }: { state: string; user: User | null }) {
             >
               Đăng nhập bằng Google
             </button>
-            <EmailLinkLogin />
-          </>
+            <EmailLinkLogin onCompleting={setLinking} />
+          </div>
         )}
         <div className="privacy">
           ◈ Dữ liệu gia phả chỉ mở sau khi kiểm tra quyền truy cập.

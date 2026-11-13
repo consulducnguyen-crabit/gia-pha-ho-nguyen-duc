@@ -114,7 +114,7 @@ try {
 
   await page.context().setOffline(true);
   await expect(page.getByRole("status")).toHaveText(
-    "Đang kiểm tra quyền truy cập…",
+    "Đang mở không gian dòng họ, vui lòng chờ trong giây lát…",
     { timeout: 30000 },
   );
   await expect(page.locator(".person, .detail")).toHaveCount(0);
