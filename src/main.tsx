@@ -132,13 +132,11 @@ function App() {
         <p className="nav-label">KHÔNG GIAN DÒNG HỌ</p>
         <nav aria-label="Điều hướng chính">
           <NavLink to="/" end>
-            <span aria-hidden="true">⌂</span> Tổng quan
+            Tổng quan
           </NavLink>
           <NavLink to="/tree">Cây gia phả</NavLink>
           <NavLink to="/review-queue">Cần kiểm tra</NavLink>
-          <NavLink to="/persons">
-            <span aria-hidden="true">♧</span> Tra cứu thành viên
-          </NavLink>
+          <NavLink to="/persons">Tra cứu thành viên</NavLink>
           {emulator && <NavLink to="/changes">Đề xuất thay đổi</NavLink>}
           {emulator && canReviewChanges && (
             <NavLink to="/review">Hộp duyệt</NavLink>
@@ -152,9 +150,7 @@ function App() {
           {emulator && canManageMembership && (
             <NavLink to="/accounts">Tài khoản và lời mời</NavLink>
           )}
-          <NavLink to="/roadmap">
-            <span aria-hidden="true">☷</span> Tiến độ triển khai
-          </NavLink>
+          <NavLink to="/roadmap">Tiến độ triển khai</NavLink>
         </nav>
         <div className="aside-foot">
           Tư liệu riêng tư
