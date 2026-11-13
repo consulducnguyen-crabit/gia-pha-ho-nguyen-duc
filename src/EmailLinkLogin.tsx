@@ -18,7 +18,11 @@ import {
 // StrictMode chạy effect hai lần; oobCode chỉ dùng được một lần nên hoàn tất tự động đúng một lần cho mỗi liên kết.
 let autoAttemptedHref = "";
 
-export function EmailLinkLogin() {
+export function EmailLinkLogin({
+  onCompleting,
+}: {
+  onCompleting?: (completing: boolean) => void;
+}) {
   const hasLink = !!getPendingLink();
   const [phase, setPhase] = useState<
     "idle" | "sent" | "completing" | "needEmail"
@@ -61,6 +65,9 @@ export function EmailLinkLogin() {
     if (prefilled) void complete(prefilled);
     else setPhase("needEmail");
   }, []);
+  useEffect(() => {
+    onCompleting?.(phase === "completing");
+  }, [phase, onCompleting]);
   useEffect(() => {
     if (phase === "sent" || error) msgRef.current?.focus();
   }, [phase, error]);

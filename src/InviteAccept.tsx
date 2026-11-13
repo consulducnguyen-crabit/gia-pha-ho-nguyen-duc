@@ -27,7 +27,13 @@ const autoStarted = new Set<string>();
 const inFlight = new Map<string, Promise<string | null>>();
 const lastError = new Map<string, string>();
 
-export function InviteAccept({ user }: { user: User }) {
+export function InviteAccept({
+  user,
+  onBusy,
+}: {
+  user: User;
+  onBusy?: (busy: boolean) => void;
+}) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -138,6 +144,10 @@ export function InviteAccept({ user }: { user: User }) {
   useEffect(() => {
     if (error) msgRef.current?.focus();
   }, [error]);
+  // Báo cho màn cổng biết đang xử lý (để hiện "Đang đăng nhập" thay vì màn "Chờ cấp quyền").
+  useEffect(() => {
+    onBusy?.(phase === "loading" || phase === "activating" || phase === "done");
+  }, [phase, onBusy]);
 
   if (phase === "loading") return <p role="status">Đang kiểm tra lời mời…</p>;
   if (phase === "activating")
