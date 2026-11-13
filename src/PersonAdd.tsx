@@ -104,6 +104,20 @@ function PersonFieldsInputs({
         />
         {err("deathYear")}
       </label>
+      <label className="checkbox-field">
+        <input
+          type="checkbox"
+          checked={values.deceased || values.deathYear.trim() !== ""}
+          disabled={values.deathYear.trim() !== ""}
+          onChange={(e) => set("deceased", e.target.checked)}
+        />
+        Đã mất
+        <span className="tree-meta">
+          {values.deathYear.trim() !== ""
+            ? "Đã có năm mất nên được tính là đã mất."
+            : "Tích khi biết đã mất nhưng chưa rõ năm mất."}
+        </span>
+      </label>
       <label>
         Ghi chú riêng (chỉ quản trị viên xem)
         <textarea

@@ -289,7 +289,7 @@ describe("khôi phục người", () => {
     );
     const d = data(r);
     // Giới tính lấy từ persons/k (fixture không có sex => null), không lấy từ nhật ký.
-    expect(d.persons.k).toEqual([...tree().persons.k, null]);
+    expect(d.persons.k).toEqual([...tree().persons.k, null, false]);
     expect(d.relations).toHaveLength(3);
     const w = Object.fromEntries(r.writes.map((x) => [x.path, x]));
     expect(w["memberProfiles/k"]).toMatchObject({
@@ -386,6 +386,6 @@ describe("giới tính trong ảnh chụp", () => {
     expect(restoreWith("F")[7]).toBe("F");
     expect(restoreWith(undefined)[7]).toBeNull();
     expect(restoreWith("X")[7]).toBeNull();
-    expect(restoreWith("F")).toHaveLength(8);
+    expect(restoreWith("F")).toHaveLength(9);
   });
 });

@@ -358,3 +358,52 @@ describe("comparePeople", () => {
     ]);
   });
 });
+
+describe("Đã mất không rõ năm", () => {
+  it("lifeStatus: đánh dấu đã mất, không năm mất thì đã mất và không có tuổi", () => {
+    expect(
+      lifeStatus(
+        { flags: [], birthYear: 1950, deathYear: null, deceased: true },
+        2026,
+      ),
+    ).toEqual({ status: "deceased", age: null });
+    expect(
+      lifeStatus(
+        { flags: [], birthYear: null, deathYear: null, deceased: true },
+        2026,
+      ),
+    ).toEqual({ status: "deceased", age: null });
+  });
+  it("có năm mất thì dùng năm mất; năm sinh vô lý vẫn là invalid", () => {
+    expect(
+      lifeStatus(
+        { flags: [], birthYear: 1900, deathYear: 1970, deceased: true },
+        2026,
+      ),
+    ).toEqual({ status: "deceased", age: 70 });
+    expect(
+      lifeStatus(
+        { flags: [], birthYear: 3000, deathYear: null, deceased: true },
+        2026,
+      ).status,
+    ).toBe("invalid");
+  });
+  it("không bị tính là đang sống, không vào tháp tuổi, được đếm riêng", () => {
+    const s = computeOverviewStats(
+      snap([
+        p("a", { birthYear: 1950 }), // sống
+        p("b", { birthYear: 1950, deceased: true }), // đã mất, không năm mất
+        p("c", { birthYear: null, deceased: true }), // đã mất, thiếu cả hai
+      ]),
+      { currentYear: 2026 },
+    );
+    expect(s.ages).toMatchObject({
+      living: 1,
+      deceased: 2,
+      deceasedNoBirth: 1,
+      deceasedNoDeathYear: 2,
+      unknown: 0,
+      counted: 1,
+    });
+  });
+});

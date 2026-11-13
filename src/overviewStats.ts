@@ -29,12 +29,12 @@ export interface LifeInfo {
 /**
  * Phân loại sống/mất và tuổi.
  * - invalid: cờ BIRTH_CONFLICT, năm sinh/mất sau năm hiện tại, năm mất trước năm sinh, thọ quá MAX_LIFESPAN (loại khỏi thống kê tuổi).
- * - deceased: có năm mất (tuổi null nếu không có năm sinh).
+ * - deceased: có năm mất hoặc được đánh dấu "đã mất" (tuổi null nếu thiếu năm mất hoặc năm sinh).
  * - living: không năm mất, có năm sinh, 0 ≤ tuổi ≤ livingMaxAge.
  * - unknown: còn lại (không có năm sinh, hoặc quá ngưỡng mà không có năm mất).
  */
 export function lifeStatus(
-  p: Pick<SnapPerson, "birthYear" | "deathYear" | "flags">,
+  p: Pick<SnapPerson, "birthYear" | "deathYear" | "flags" | "deceased">,
   currentYear: number,
   livingMaxAge: number = LIVING_MAX_AGE,
 ): LifeInfo {
@@ -47,6 +47,7 @@ export function lifeStatus(
   )
     return { status: "invalid", age: null };
   if (d !== null) return { status: "deceased", age: b === null ? null : d - b };
+  if (p.deceased === true) return { status: "deceased", age: null };
   if (b === null) return { status: "unknown", age: null };
   const age = currentYear - b;
   return age <= livingMaxAge
@@ -182,6 +183,8 @@ export interface OverviewStats {
     unknown: number;
     /** Một phần của `deceased`: đã mất nhưng chưa có năm sinh (không tính được tuổi). */
     deceasedNoBirth: number;
+    /** Một phần của `deceased`: được đánh dấu "đã mất" nhưng chưa có năm mất (không tính được tuổi). */
+    deceasedNoDeathYear: number;
     /** Dữ liệu năm cần kiểm tra (BIRTH_CONFLICT, năm sinh/mất không hợp lệ). */
     invalid: number;
     /** Người còn trong thống kê tuổi, nghĩa là có tuổi tính được. */
@@ -295,7 +298,8 @@ export function computeOverviewStats(
     deceased = 0,
     unknown = 0,
     invalid = 0,
-    deceasedNoBirth = 0;
+    deceasedNoBirth = 0,
+    deceasedNoDeathYear = 0;
   const aged: Array<{ ref: PersonRef; age: number }> = [];
   const livingAged: Array<{ ref: PersonRef; age: number }> = [];
   const bands: AgeBand[] = [];
@@ -320,11 +324,12 @@ export function computeOverviewStats(
     else if (info.status === "unknown") unknown++;
     else if (info.status === "deceased") deceased++;
     else living++;
-    if (info.age === null) {
-      // Đã mất nhưng không có năm sinh: vẫn là "đã mất" (không đếm lại ở nhóm khác), chỉ không có tuổi.
-      if (info.status === "deceased") deceasedNoBirth++;
-      continue;
+    // Đã mất nhưng thiếu năm sinh hoặc năm mất: vẫn là "đã mất" (không đếm lại ở nhóm khác), chỉ không có tuổi.
+    if (info.status === "deceased") {
+      if (p.birthYear === null) deceasedNoBirth++;
+      if (p.deathYear === null) deceasedNoDeathYear++;
     }
+    if (info.age === null) continue;
     const row = { ref: ref(p), age: info.age };
     aged.push(row);
     if (info.status === "living") {
@@ -387,6 +392,7 @@ export function computeOverviewStats(
       unknown,
       invalid,
       deceasedNoBirth,
+      deceasedNoDeathYear,
       counted: aged.length,
       oldest: extreme(aged, "max"),
       oldestLiving: extreme(livingAged, "max"),

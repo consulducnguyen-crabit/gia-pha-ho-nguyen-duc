@@ -157,13 +157,20 @@ function StatsBody({ stats }: { stats: OverviewStats }) {
             <p className="stats-note">
               Đang sống: {nf.format(ages.living)} · Đã mất:{" "}
               {nf.format(ages.deceased)}
-              {ages.deceasedNoBirth > 0 &&
-                ` (trong đó ${nf.format(ages.deceasedNoBirth)} người chưa có năm sinh)`}{" "}
+              {(ages.deceasedNoBirth > 0 || ages.deceasedNoDeathYear > 0) &&
+                ` (trong đó ${[
+                  ages.deceasedNoBirth > 0 &&
+                    `${nf.format(ages.deceasedNoBirth)} người chưa có năm sinh`,
+                  ages.deceasedNoDeathYear > 0 &&
+                    `${nf.format(ages.deceasedNoDeathYear)} người chưa rõ năm mất`,
+                ]
+                  .filter(Boolean)
+                  .join(", ")})`}{" "}
               · Chưa đủ dữ liệu tính tuổi: {nf.format(ages.unknown)} · Dữ liệu
               năm cần kiểm tra: {nf.format(ages.invalid)} (bốn nhóm này cộng
               bằng tổng số người; thọ trên {MAX_LIFESPAN} tuổi cũng xếp vào nhóm
-              cần kiểm tra). Coi là đang sống khi không có năm mất, có năm sinh
-              và không quá {stats.livingMaxAge} tuổi.
+              cần kiểm tra). Coi là đang sống khi không có năm mất, không đánh
+              dấu “Đã mất”, có năm sinh và không quá {stats.livingMaxAge} tuổi.
             </p>
           </div>
           <Pyramid bands={stats.livingAgeBands} unsynced={sex.allUnsynced} />

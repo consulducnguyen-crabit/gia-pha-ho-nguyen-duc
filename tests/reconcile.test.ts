@@ -399,3 +399,32 @@ describe("giới tính trong ảnh chụp", () => {
     expect(JSON.stringify(w)).not.toContain("Giả");
   });
 });
+
+describe("đã mất trong ảnh chụp", () => {
+  const nine = () => {
+    const g = good();
+    const t = tree();
+    for (const [id, v] of Object.entries(t.persons)) {
+      v.push(null, false);
+      g.persons.get(id)!.sex = null;
+    }
+    setData(g, t);
+    return { g, t };
+  };
+  it("bộ 9 phần tử khớp persons.deceased (thiếu = false): đạt", () => {
+    const { g } = nine();
+    expect(codes(g)).toEqual([]);
+  });
+  it("lệch bị bắt là DECEASED_MISMATCH", () => {
+    const { g, t } = nine();
+    g.persons.get("a")!.deceased = true;
+    setData(g, t);
+    expect(reconcile(g)).toContainEqual({
+      code: "DECEASED_MISMATCH",
+      ref: "a",
+    });
+  });
+  it("bộ cũ chưa có phần tử 9: bỏ qua", () => {
+    expect(codes(good())).toEqual([]);
+  });
+});

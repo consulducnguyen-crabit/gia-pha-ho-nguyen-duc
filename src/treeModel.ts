@@ -34,6 +34,11 @@ export interface SnapPerson {
    * (bộ cũ 6/7 phần tử); null = chưa rõ.
    */
   sex?: "M" | "F" | null;
+  /**
+   * Đã mất (checkbox "Đã mất", dùng khi biết đã mất mà không rõ năm). undefined = ảnh chụp chưa có dữ liệu
+   * (bộ < 9 phần tử), coi như false. Người có năm mất luôn được coi là đã mất, bất kể trường này.
+   */
+  deceased?: boolean;
   normalized: string;
 }
 export interface SnapRelation {
@@ -85,6 +90,16 @@ export function setTupleSex(tuple: unknown[], sex: "M" | "F" | null): void {
   if (tuple.length < 7) tuple[6] = [];
   tuple[7] = sex;
 }
+/**
+ * Ghi cờ "đã mất" vào phần tử thứ 9 của bộ dữ liệu (thay tại chỗ). Bộ ngắn hơn được đệm: cờ rỗng ở vị trí 7,
+ * giới tính chưa rõ (null) ở vị trí 8, để không tạo mảng thưa. Người gọi nên ghi giới tính thật bằng
+ * setTupleSex trước (giữ nguyên nếu đã có).
+ */
+export function setTupleDeceased(tuple: unknown[], deceased: boolean): void {
+  if (tuple.length < 7) tuple[6] = [];
+  if (tuple.length < 8) tuple[7] = null;
+  tuple[8] = deceased;
+}
 function numOrNull(value: unknown): number | null {
   return value === null ? null : typeof value === "number" ? value : fail();
 }
@@ -105,21 +120,28 @@ export function parseSnapshot(doc: unknown): Snapshot {
   for (const [id, value] of Object.entries(
     data.persons as Record<string, unknown>,
   )) {
-    // Bản cũ có 6 phần tử (chưa có cờ), 7 (có cờ), 8 (có thêm giới tính).
-    if (
-      !Array.isArray(value) ||
-      (value.length !== 6 && value.length !== 7 && value.length !== 8)
-    )
+    // Bản cũ có 6 phần tử (chưa có cờ), 7 (có cờ), 8 (có thêm giới tính), 9 (có thêm "đã mất").
+    if (!Array.isArray(value) || value.length < 6 || value.length > 9)
       return fail();
-    const [name, birth, death, generation, category, branch, rawFlags, rawSex] =
-      value;
+    const [
+      name,
+      birth,
+      death,
+      generation,
+      category,
+      branch,
+      rawFlags,
+      rawSex,
+      rawDeceased,
+    ] = value;
     if (
-      value.length === 8 &&
+      value.length >= 8 &&
       rawSex !== "M" &&
       rawSex !== "F" &&
       rawSex !== null
     )
       return fail();
+    if (value.length === 9 && typeof rawDeceased !== "boolean") return fail();
     const flags: FlagCode[] = [];
     if (rawFlags !== undefined) {
       if (!Array.isArray(rawFlags)) return fail();
@@ -139,7 +161,8 @@ export function parseSnapshot(doc: unknown): Snapshot {
       category: cat,
       branch: branch === null ? null : str(branch),
       flags,
-      ...(value.length === 8 ? { sex: rawSex as "M" | "F" | null } : {}),
+      ...(value.length >= 8 ? { sex: rawSex as "M" | "F" | null } : {}),
+      ...(value.length === 9 ? { deceased: rawDeceased as boolean } : {}),
       normalized: normalizeName(str(name)),
     });
   }
@@ -334,10 +357,14 @@ export function buildIndex(snapshot: Snapshot): TreeIndex {
   };
 }
 
-export function yearsLabel(p: Pick<SnapPerson, "birthYear" | "deathYear">) {
+export function yearsLabel(
+  p: Pick<SnapPerson, "birthYear" | "deathYear" | "deceased">,
+) {
   if (p.birthYear && p.deathYear) return `${p.birthYear}–${p.deathYear}`;
-  if (p.birthYear) return `s. ${p.birthYear}`;
   if (p.deathYear) return `m. ${p.deathYear}`;
+  // Đã mất nhưng không rõ năm: vẫn phải thấy được trên cây.
+  if (p.deceased) return p.birthYear ? `s. ${p.birthYear} · đã mất` : "đã mất";
+  if (p.birthYear) return `s. ${p.birthYear}`;
   return "";
 }
 

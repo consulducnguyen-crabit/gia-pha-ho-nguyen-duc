@@ -12,6 +12,7 @@ const base: FormValues = {
   name: "Nguyễn Văn A",
   birthYear: "1900",
   deathYear: "1970",
+  deceased: false,
   sex: "M",
   branch: "c1",
   note: "ghi chú",
@@ -122,5 +123,19 @@ describe("syncDupNameFlag", () => {
   it("không đổi gì khi đã đúng trạng thái", () => {
     const v = { ...base, name: "Nguyễn Văn B" };
     expect(syncDupNameFlag(base.name, v, 1)).toBe(v);
+  });
+});
+
+describe("Đã mất", () => {
+  it("chỉ gửi khi đổi", () => {
+    expect(change({ deceased: true })).toEqual({
+      changes: { deceased: true },
+    });
+    expect(
+      buildChanges({ ...base, deceased: true }, { ...base, deceased: false }),
+    ).toEqual({ changes: { deceased: false } });
+    expect(change({})).toMatchObject({
+      errors: { form: expect.any(String) },
+    });
   });
 });

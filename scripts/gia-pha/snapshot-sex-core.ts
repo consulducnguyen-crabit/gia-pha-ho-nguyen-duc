@@ -65,7 +65,8 @@ export function planSnapshotSex(
     changed: 0,
   };
   for (const [id, raw] of Object.entries(data.persons)) {
-    if (!Array.isArray(raw) || raw.length < 6 || raw.length > 8) {
+    // Chấp nhận cả bộ đã có "đã mất" (9) và ghi chú (10): lệnh này chỉ đụng phần tử giới tính.
+    if (!Array.isArray(raw) || raw.length < 6 || raw.length > 10) {
       errors.push(`BAD_TUPLE: ${id}`);
       continue;
     }
@@ -94,7 +95,7 @@ export function planSnapshotSex(
     if (sex === "M") stats.male++;
     else if (sex === "F") stats.female++;
     else stats.unknown++;
-    if (raw.length === 8 && raw[7] === sex) continue;
+    if (raw.length >= 8 && raw[7] === sex) continue;
     // Bộ 6 phần tử: điền cờ rỗng ở vị trí 7 để không tạo mảng thưa.
     if (raw.length < 7) raw[6] = [];
     raw[7] = sex;

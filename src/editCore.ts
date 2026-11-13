@@ -1,7 +1,12 @@
 // Lõi sửa dữ liệu trực tiếp trong app (hàm thuần, không phụ thuộc React/Firebase).
 // Mỗi lần sửa tạo ra MỘT lô ghi nguyên tử: persons + memberProfiles + personPrivate +
 // treeSnapshots/main + auditLogs/edit-{phiên bản}. firestore.rules kiểm tra lô này (xem editGate).
-import { FLAG_ORDER, setTupleSex, type FlagCode } from "./treeModel";
+import {
+  FLAG_ORDER,
+  setTupleDeceased,
+  setTupleSex,
+  type FlagCode,
+} from "./treeModel";
 import { normalizeName } from "./domain";
 
 /**
@@ -36,6 +41,8 @@ export interface PersonChanges {
   note?: string;
   branch?: string | null;
   sex?: "M" | "F" | null;
+  /** Đã mất (không rõ năm). Chỉ có nghĩa là true/false; năm mất vẫn quản lý riêng bằng deathYear. */
+  deceased?: boolean;
   addFlags?: FlagCode[];
   /** Gỡ cờ = đã xác minh. */
   removeFlags?: FlagCode[];
@@ -92,6 +99,7 @@ const KNOWN_FIELDS = [
   "note",
   "branch",
   "sex",
+  "deceased",
   "addFlags",
   "removeFlags",
   "replaceRawDate",
@@ -223,6 +231,7 @@ export function applyEdit(state: EditState, input: EditInput): EditResult {
         ? "F"
         : null) as "M" | "F" | null,
     note: typeof state.priv?.note === "string" ? state.priv.note : "",
+    deceased: state.person.deceased === true,
   };
   const ch = op.changes;
   const next = { ...cur };
@@ -270,6 +279,10 @@ export function applyEdit(state: EditState, input: EditInput): EditResult {
       invalid("Chi không tồn tại.");
     next.branch = ch.branch;
   }
+  if (ch.deceased !== undefined) {
+    if (typeof ch.deceased !== "boolean") invalid("Đã mất phải là đúng/sai.");
+    next.deceased = ch.deceased;
+  }
   if (ch.sex !== undefined) {
     if (ch.sex !== null && ch.sex !== "M" && ch.sex !== "F")
       invalid("Giới tính không hợp lệ.");
@@ -316,6 +329,8 @@ export function applyEdit(state: EditState, input: EditInput): EditResult {
     track("note", { chars: cur.note.length }, { chars: next.note.length });
   if (next.branch !== cur.branch) track("branch", cur.branch, next.branch);
   if (next.sex !== cur.sex) track("sex", cur.sex, next.sex);
+  if (next.deceased !== cur.deceased)
+    track("deceased", cur.deceased, next.deceased);
   if (
     !sameFlags(
       next.flags,
@@ -361,6 +376,7 @@ export function applyEdit(state: EditState, input: EditInput): EditResult {
   newTuple[6] = next.flags;
   // Giới tính luôn ghi theo persons (nguồn chuẩn) để ảnh chụp không lệch; bộ 6 phần tử được nâng lên 8.
   setTupleSex(newTuple, next.sex);
+  setTupleDeceased(newTuple, next.deceased);
   data.persons[id] = newTuple;
 
   const writes: EditWrite[] = [];
@@ -380,6 +396,7 @@ export function applyEdit(state: EditState, input: EditInput): EditResult {
     personData.sex = next.sex;
     personData.sexBasis = "MANUAL";
   }
+  if (changedFields.includes("deceased")) personData.deceased = next.deceased;
   if (changedFields.includes("flags")) personData.reviewFlags = next.flags;
   writes.push({ path: `persons/${id}`, mode: "merge", data: personData });
 

@@ -211,6 +211,7 @@ const FIELD_LABEL: Record<string, string> = {
   note: "Ghi chú riêng",
   branch: "Chi",
   sex: "Giới tính",
+  deceased: "Đã mất",
   flags: "Cờ cần kiểm tra",
 };
 
@@ -218,6 +219,12 @@ function fieldValue(field: string, value: unknown): string {
   if (value === null || value === undefined) return "không có";
   if (field === "sex")
     return value === "M" ? "nam" : value === "F" ? "nữ" : "chưa rõ";
+  if (field === "deceased")
+    return value === true
+      ? "đã mất"
+      : value === false
+        ? "chưa đánh dấu"
+        : "không hợp lệ";
   if (field === "flags") {
     if (!Array.isArray(value)) return "không hợp lệ";
     if (!value.length) return "không có";

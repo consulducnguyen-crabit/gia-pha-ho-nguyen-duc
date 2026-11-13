@@ -116,6 +116,7 @@ describe("addChild", () => {
       "c1",
       [],
       "M",
+      false,
     ]);
     expect(d.relations).toContainEqual(["a", "p-new", "F", "B", 1]);
     expect(d.relations).toContainEqual(["b", "p-new", "M", "B", 0]);
@@ -364,5 +365,35 @@ describe("giới tính trong ảnh chụp", () => {
       }),
     );
     expect(s.persons["p-new"][7]).toBe("M");
+  });
+});
+
+describe("Đã mất khi thêm người", () => {
+  it("con mới: persons.deceased và phần tử thứ 9; mặc định false", () => {
+    const r = run(child({ child: { ...kid, deceased: true } }));
+    expect(snapData(r).persons["p-new"][8]).toBe(true);
+    const w = r.writes.find((x) => x.path === "persons/p-new")!;
+    expect(w.data.deceased).toBe(true);
+    const r2 = run(child({ child: { ...kid } }));
+    expect(snapData(r2).persons["p-new"][8]).toBe(false);
+    expect(
+      r2.writes.find((x) => x.path === "persons/p-new")!.data.deceased,
+    ).toBe(false);
+  });
+  it("vợ/chồng mới đánh dấu đã mất; kiểu sai bị từ chối", () => {
+    const op = (deceased: unknown) =>
+      ({
+        type: "addSpouse",
+        personId: "c",
+        spouse: {
+          kind: "new",
+          newId: "p-new",
+          category: "SPOUSE",
+          person: { ...kid, name: "Vợ Mới", sex: "F", deceased },
+        },
+        order: null,
+      }) as unknown as Parameters<typeof run>[0];
+    expect(snapData(run(op(true))).persons["p-new"][8]).toBe(true);
+    expect(() => run(op("x"))).toThrow();
   });
 });

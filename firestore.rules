@@ -492,8 +492,9 @@ service cloud.firestore {
     && request.resource.data.profileVersion is int
     && request.resource.data.profileVersion == resource.data.profileVersion + 1
     && (request.resource.data.get('sex', null) == null || request.resource.data.sex in ['M', 'F']) && request.resource.data.get('reviewFlags', []) is list
+    && request.resource.data.get('deceased', false) is bool
     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'normalizedName',
-        'birth', 'death', 'branchCode', 'sex', 'sexBasis', 'reviewFlags', 'profileVersion', 'updatedAt', 'updatedBy'])
+        'birth', 'death', 'branchCode', 'sex', 'sexBasis', 'deceased', 'reviewFlags', 'profileVersion', 'updatedAt', 'updatedBy'])
     && request.resource.data.updatedAt == request.time
     && request.resource.data.updatedBy == request.auth.uid;
    allow create: if createGate(id) && personCreateShapeOk();
@@ -501,8 +502,9 @@ service cloud.firestore {
   function personCreateShapeOk() {
    let d = request.resource.data;
    return d.keys().hasOnly(['displayName', 'normalizedName', 'sex', 'sexBasis', 'category', 'branchCode',
-        'generation', 'declaredGeneration', 'birth', 'death', 'kyNhat', 'reviewFlags', 'profileVersion',
+        'generation', 'declaredGeneration', 'birth', 'death', 'deceased', 'kyNhat', 'reviewFlags', 'profileVersion',
         'schemaVersion', 'createdAt', 'createdBy'])
+    && d.get('deceased', false) is bool
     && d.displayName is string && d.displayName.size() > 0 && d.displayName.size() <= 120
     && d.normalizedName is string && d.normalizedName.size() <= 240
     && d.category in ['CLAN', 'SPOUSE', 'EXTERNAL']
