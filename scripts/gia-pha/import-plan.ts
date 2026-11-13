@@ -92,8 +92,8 @@ function year(date: ReturnType<typeof solarDate>): number | null {
   return date && date.year !== null ? date.year : null;
 }
 
-// Ảnh chụp cây (một tài liệu, một lượt đọc) cho thành viên: chỉ tên, năm sinh/mất, đời, chi và quan hệ.
-// Dữ liệu nhạy cảm (ghi chú, ngày đầy đủ, kỵ nhật, giới tính) không đưa vào đây.
+// Ảnh chụp cây (một tài liệu, một lượt đọc) cho thành viên: tên, năm sinh/mất, đời, chi, cờ, giới tính và quan hệ.
+// Giới tính được đưa vào theo quyết định 2026-11-13 (mọi thành viên đọc được). Ghi chú, ngày đầy đủ, kỵ nhật vẫn KHÔNG đưa vào.
 export function buildTreeSnapshot(
   model: Model,
   batchId: string,
@@ -116,6 +116,8 @@ export function buildTreeSnapshot(
       p.category === "CLAN" ? "C" : p.category === "SPOUSE" ? "S" : "E",
       p.branch || null,
       flags.get(p.id) ?? [],
+      // Cùng giá trị với persons.sex ở buildImportPlan ("?" = chưa rõ → null).
+      p.sex === "?" ? null : p.sex,
     ];
   }
   const data = {

@@ -32,6 +32,12 @@ Người dùng phê duyệt trực tiếp. Mục nào mâu thuẫn với danh s�
 - **Nhập dữ liệu ban đầu:** từ file gia phả Word (nằm ở `private-data/`, không đưa lên GitHub), chuyển sang Excel, tài khoản quản trị rà soát trước khi nạp.
 - **Quyền riêng tư người còn sống (mục 7):** thành viên chỉ thấy tên và năm sinh/mất (`memberProfiles`); nơi ở, nơi làm việc, nghề nghiệp và ghi chú nằm ở `personPrivate`, chỉ quản trị viên xem. Không nhập thông tin sức khỏe. Có thể mở dần sau.
 
+## Cập nhật chính sách — 2026-11-13 (giới tính trong ảnh chụp cây)
+
+- **Người dùng duyệt đưa giới tính (`sex`: M/F/chưa rõ) vào `treeSnapshots/main`**: mọi thành viên được cấp quyền đọc được giới tính của từng người. Thay thế quyết định 2026-11-11 về việc loại giới tính khỏi ảnh chụp; `memberProfiles` vẫn chỉ có tên và năm sinh/mất. Ghi chú, ngày đầy đủ, kỵ nhật vẫn không đưa vào.
+- Giới tính chỉ là dữ liệu hiển thị; vẫn KHÔNG suy truyền dòng từ giới tính hoặc họ.
+- Triển khai: phần tử thứ 8 của bộ dữ liệu người; backfill ảnh chụp sẵn có bằng `gia-pha:snapshot-sex` (dry-run mặc định; prod cần cổng `DONG BO GIOI TINH`, không cần sao lưu vì chỉ ghi trường phái sinh, hoàn tác bằng `--strip`).
+
 ## Cập nhật chính sách — 2026-11-13 (cấp quyền trong app)
 
 Thiết kế do người dùng duyệt; chưa deploy.

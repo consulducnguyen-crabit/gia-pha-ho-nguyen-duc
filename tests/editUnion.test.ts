@@ -367,3 +367,13 @@ describe("hỗ trợ", () => {
     });
   });
 });
+
+describe("giới tính trong ảnh chụp", () => {
+  it("gỡ liên kết vợ/chồng giữ nguyên phần tử thứ 8", () => {
+    const sexed = structuredClone(tree) as typeof tree;
+    for (const v of Object.values(sexed.persons) as unknown[][]) v.push("F");
+    const r = run(remove(), state({ snapshot: snapshotDoc(sexed) }));
+    for (const t of Object.values(rows(r).persons) as unknown[][])
+      expect(t[7]).toBe("F");
+  });
+});

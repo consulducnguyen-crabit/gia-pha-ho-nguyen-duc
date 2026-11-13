@@ -29,6 +29,11 @@ export interface SnapPerson {
   category: Category;
   branch: string | null;
   flags: FlagCode[];
+  /**
+   * Giới tính (quyết định 2026-11-13: mọi thành viên đọc được). undefined = ảnh chụp chưa có dữ liệu
+   * (bộ cũ 6/7 phần tử); null = chưa rõ.
+   */
+  sex?: "M" | "F" | null;
   normalized: string;
 }
 export interface SnapRelation {
@@ -72,6 +77,14 @@ function fail(): never {
 function str(value: unknown): string {
   return typeof value === "string" ? value : fail();
 }
+/**
+ * Ghi giới tính vào phần tử thứ 8 của bộ dữ liệu một người (thay tại chỗ). Bộ chỉ có 6 phần tử thì điền
+ * danh sách cờ rỗng vào vị trí 7 để không tạo mảng thưa (JSON.stringify sẽ ghi null và parseSnapshot từ chối).
+ */
+export function setTupleSex(tuple: unknown[], sex: "M" | "F" | null): void {
+  if (tuple.length < 7) tuple[6] = [];
+  tuple[7] = sex;
+}
 function numOrNull(value: unknown): number | null {
   return value === null ? null : typeof value === "number" ? value : fail();
 }
@@ -92,10 +105,21 @@ export function parseSnapshot(doc: unknown): Snapshot {
   for (const [id, value] of Object.entries(
     data.persons as Record<string, unknown>,
   )) {
-    // Bản cũ có 6 phần tử (chưa có cờ); bản mới có 7.
-    if (!Array.isArray(value) || (value.length !== 6 && value.length !== 7))
+    // Bản cũ có 6 phần tử (chưa có cờ), 7 (có cờ), 8 (có thêm giới tính).
+    if (
+      !Array.isArray(value) ||
+      (value.length !== 6 && value.length !== 7 && value.length !== 8)
+    )
       return fail();
-    const [name, birth, death, generation, category, branch, rawFlags] = value;
+    const [name, birth, death, generation, category, branch, rawFlags, rawSex] =
+      value;
+    if (
+      value.length === 8 &&
+      rawSex !== "M" &&
+      rawSex !== "F" &&
+      rawSex !== null
+    )
+      return fail();
     const flags: FlagCode[] = [];
     if (rawFlags !== undefined) {
       if (!Array.isArray(rawFlags)) return fail();
@@ -115,6 +139,7 @@ export function parseSnapshot(doc: unknown): Snapshot {
       category: cat,
       branch: branch === null ? null : str(branch),
       flags,
+      ...(value.length === 8 ? { sex: rawSex as "M" | "F" | null } : {}),
       normalized: normalizeName(str(name)),
     });
   }

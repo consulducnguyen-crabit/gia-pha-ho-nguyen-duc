@@ -909,3 +909,23 @@ describe("restoreRemovedParent (khôi phục việc gỡ cha/mẹ)", () => {
     expect(JSON.stringify(s)).toBe(before);
   });
 });
+
+describe("giới tính trong ảnh chụp", () => {
+  it("đổi cha giữ nguyên phần tử thứ 8 của mọi người (kể cả khi tính lại đời)", () => {
+    const sexed = structuredClone(tree) as typeof tree;
+    for (const v of Object.values(sexed.persons) as unknown[][]) v.push("M");
+    const s = state({
+      snapshot: {
+        schemaVersion: 1,
+        dataVersion: "x",
+        editVersion: 5,
+        data: JSON.stringify(sexed),
+      },
+    });
+    const r = run(parent("k", "a3", { confirmReplace: true }), s);
+    for (const t of Object.values(snap(r).persons) as unknown[][]) {
+      expect(t).toHaveLength(8);
+      expect(t[7]).toBe("M");
+    }
+  });
+});

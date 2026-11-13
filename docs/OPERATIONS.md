@@ -35,6 +35,13 @@ Công cụ sao lưu/khôi phục cục bộ và kết quả diễn tập: xem [B
 Prod đã có dữ liệu thật. Từ 2026-11-13 sao lưu là tùy chọn do quản trị viên tự quyết, không bắt buộc cho quy trình sửa trong app; riêng nạp/khôi phục-ghi-đè trên prod vẫn bị cổng của công cụ đòi bản sao lưu (xem BACKUP.md, PROD_ROLLOUT.md). Emulator có thể export bằng `npx firebase emulators:export /tmp/gia-pha-backup --project demo-gia-pha`; import bằng `npm run emulators -- --import /tmp/gia-pha-backup`. Không commit export.
 Trước migration thật: người phụ trách được chỉ định tạo Firestore export và bản sao Storage vào kho riêng có ACL, ghi checksum/phiên bản schema và thời điểm; dry-run trên project cô lập; đối chiếu số lượng, quan hệ, quyền và tài liệu mẫu sau restore. Chưa tuyên bố khả năng restore production khi chưa diễn tập. Thay đổi production cần phê duyệt rõ ràng.
 
+## Đồng bộ giới tính vào ảnh chụp cây (sau quyết định 2026-11-13)
+Ảnh chụp đã nạp trước đó chưa có phần tử `sex`; `gia-pha:reconcile` cảnh báo `SEX_NOT_IN_SNAPSHOT` (chỉ in mã người). Quy trình:
+1. `npm run gia-pha:snapshot-sex -- --project <id>` (dry-run, chỉ đọc): in số đếm (nam/nữ/chưa rõ/cần đổi) và `editVersion`, không in tên. Dừng nếu người trong ảnh chụp không có hồ sơ `persons`/đã ẩn, `sex` lạ hoặc vượt trần kích thước.
+2. `... --apply --expect-version <editVersion đã thấy> --confirm <project>`; prod thêm `--ack "DONG BO GIOI TINH <project>"` và `GOOGLE_APPLICATION_CREDENTIALS`. Ghi `data` trong một giao dịch, KHÔNG tăng `editVersion`, và ghi `auditLogs/maint-snapshot-sex-<ISO>` (`SNAPSHOT_SEX_SYNCED`, chỉ số đếm). Cổng prod không đòi sao lưu (chỉ ghi trường phái sinh; sao lưu đã bỏ khỏi phạm vi).
+3. Chạy lại `gia-pha:reconcile`: không còn `SEX_MISMATCH` và cảnh báo `SEX_NOT_IN_SNAPSHOT`. Lệnh idempotent; chạy lại sau khi sửa tay nếu cần.
+4. Hoàn tác: `--strip` (cắt về 7 phần tử). Chưa chạy trên production; chỉ chạy sau khi frontend/rules mới đã phát hành và người dùng đồng ý. Sau khi phát hành, mọi tab đang mở bản cũ phải tải lại (Ctrl+F5): bản cũ không đọc được bộ 8 phần tử. Ràng buộc này áp dụng cả cho `gia-pha:import`, vì lệnh này cũng sinh bộ 8 phần tử.
+
 ## Rollback
 Bản nền không migrate dữ liệu. Rollback frontend bằng build commit trước; rollback rules chỉ về bản đã review và vẫn default-deny, sau khi chạy emulator tests. Không dùng rules mở để chữa lỗi truy cập. Mọi migration tương lai phải có manifest, dry-run, backup được xác minh và hướng phục hồi trước khi áp dụng.
 

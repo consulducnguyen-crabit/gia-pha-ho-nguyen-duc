@@ -151,3 +151,24 @@ describe("chọn đích có cho phép prod", () => {
     ).toMatchObject({ ok: true, kind: "emulator" });
   });
 });
+
+describe("hành động đồng bộ giới tính", () => {
+  const sex = (): GateInput => ({
+    action: "DONG BO GIOI TINH",
+    project: PROD_PROJECT,
+    confirm: PROD_PROJECT,
+    ack: ackPhrase("DONG BO GIOI TINH", PROD_PROJECT),
+    needsBackup: false,
+    now,
+  });
+  it("đạt khi đủ xác nhận, không cần sao lưu", () => {
+    expect(evaluateProdGate(sex())).toEqual({ ok: true, reasons: [] });
+  });
+  it("sai câu xác nhận (của hành động khác) hoặc sai project bị chặn", () => {
+    expect(
+      evaluateProdGate({ ...sex(), ack: ackPhrase("KHOI PHUC", PROD_PROJECT) })
+        .ok,
+    ).toBe(false);
+    expect(evaluateProdGate({ ...sex(), confirm: undefined }).ok).toBe(false);
+  });
+});

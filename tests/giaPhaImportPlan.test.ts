@@ -109,7 +109,23 @@ describe("kế hoạch nạp Firestore", () => {
     });
   });
 
-  it("ảnh chụp cây chỉ chứa tên, năm sinh/mất, đời, chi, quan hệ", () => {
+  it('giới tính ảnh chụp cùng giá trị persons.sex; "?" thành null', () => {
+    const m = parseDsl(
+      [
+        "P|ts|Cụ Giả|M|CLAN|I|I||",
+        "P|u|Người Chưa Rõ|?|CLAN|II|I||",
+        "K|ts|-|u",
+      ].join("\n"),
+    );
+    const docs = buildImportPlan(m, "b").docs;
+    const get = (path: string) => docs.find((d) => d.path === path)!.data;
+    const data = JSON.parse(get("treeSnapshots/main").data as string);
+    expect(data.persons.u[7]).toBeNull();
+    expect(data.persons.ts[7]).toBe("M");
+    expect(get("persons/u").sex).toBeNull();
+    expect(get("persons/ts").sex).toBe("M");
+  });
+  it("ảnh chụp cây chứa tên, năm sinh/mất, đời, chi, cờ, giới tính, quan hệ", () => {
     const snap = byPath("treeSnapshots/main") as {
       schemaVersion: number;
       dataVersion: string;
@@ -120,7 +136,16 @@ describe("kế hoạch nạp Firestore", () => {
       dataVersion: "import-test",
     });
     const data = JSON.parse(snap.data);
-    expect(data.persons.a).toEqual(["Giả Văn A", 1927, 1973, 2, "C", "I", []]);
+    expect(data.persons.a).toEqual([
+      "Giả Văn A",
+      1927,
+      1973,
+      2,
+      "C",
+      "I",
+      [],
+      "M",
+    ]);
     expect(data.persons.va).toEqual([
       "Vợ Giả A",
       null,
@@ -129,6 +154,7 @@ describe("kế hoạch nạp Firestore", () => {
       "S",
       null,
       ["BIRTH_CONFLICT"],
+      "F",
     ]);
     expect(data.relations).toContainEqual(["ts", "a", "F", "B", 1]);
     expect(data.relations).toContainEqual(["va", "c", "M", "B", 0]);

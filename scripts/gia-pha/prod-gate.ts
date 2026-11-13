@@ -6,7 +6,11 @@ export const PROD_PROJECT = "gia-pha-nguyen-duc-prod";
 export const BACKUP_MAX_AGE_MINUTES = 30;
 
 export type ProdAction =
-  "NAP DU LIEU THAT" | "KHOI PHUC" | "QUAN LY TAI KHOAN" | "XOA TAI KHOAN";
+  | "NAP DU LIEU THAT"
+  | "KHOI PHUC"
+  | "QUAN LY TAI KHOAN"
+  | "XOA TAI KHOAN"
+  | "DONG BO GIOI TINH";
 
 /** Câu xác nhận phải gõ nguyên văn bằng --ack. */
 export function ackPhrase(action: ProdAction, project: string): string {

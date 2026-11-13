@@ -115,6 +115,7 @@ describe("addChild", () => {
       "C",
       "c1",
       [],
+      "M",
     ]);
     expect(d.relations).toContainEqual(["a", "p-new", "F", "B", 1]);
     expect(d.relations).toContainEqual(["b", "p-new", "M", "B", 0]);
@@ -340,5 +341,28 @@ describe("newPersonId", () => {
     const a = newPersonId();
     expect(a).toMatch(/^p-[a-z0-9]{12}$/);
     expect(newPersonId()).not.toBe(a);
+  });
+});
+
+describe("giới tính trong ảnh chụp", () => {
+  it("con và vợ/chồng mới có phần tử thứ 8 theo giới tính nhập", () => {
+    const c = snapData(run(child({ child: { ...kid, sex: "F" } })));
+    expect(c.persons["p-new"][7]).toBe("F");
+    const c2 = snapData(run(child({ child: { ...kid, sex: null } })));
+    expect(c2.persons["p-new"][7]).toBeNull();
+    const s = snapData(
+      run({
+        type: "addSpouse",
+        personId: "c",
+        order: "1",
+        spouse: {
+          kind: "new",
+          newId: "p-new",
+          category: "SPOUSE",
+          person: { ...kid, name: "Chồng Mới", sex: "M" },
+        },
+      }),
+    );
+    expect(s.persons["p-new"][7]).toBe("M");
   });
 });

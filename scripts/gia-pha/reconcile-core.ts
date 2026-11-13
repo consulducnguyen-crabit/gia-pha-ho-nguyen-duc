@@ -65,6 +65,9 @@ export function reconcile(input: ReconcileInput): Issue[] {
       if ((t[2] ?? null) !== (mp.deathYear ?? null))
         add("DEATH_YEAR_MISMATCH", id);
     }
+    // Giới tính trong ảnh chụp (phần tử 8) phải bằng persons.sex; bộ cũ chưa có thì chỉ cảnh báo (reconcileWarnings).
+    if (t.length >= 8 && t[7] !== ((p!.sex as unknown) ?? null))
+      add("SEX_MISMATCH", id);
     const flags = (Array.isArray(t[6]) ? t[6] : []).map(String).sort();
     const want = (Array.isArray(p!.reviewFlags) ? p!.reviewFlags : [])
       .map(String)
@@ -252,6 +255,10 @@ export function reconcileWarnings(input: ReconcileInput): Issue[] {
   }
   if (!data || typeof data !== "object") return out;
   const persons = data.persons ?? {};
+  // Ảnh chụp chưa có giới tính (bộ < 8 phần tử): chạy gia-pha:snapshot-sex để đồng bộ. Chỉ in mã người.
+  for (const [id, t] of Object.entries(persons))
+    if (Array.isArray(t) && t.length < 8 && live(input.persons.get(id)))
+      out.push({ code: "SEX_NOT_IN_SNAPSHOT", ref: id });
   // founderId → các mã chi mà người đó khai.
   const founded = new Map<string, Set<string>>();
   for (const [code, v] of Object.entries(data.branches ?? {})) {

@@ -5,6 +5,7 @@ import {
   buildIndex,
   parseSnapshot,
   sameNamePeople,
+  setTupleSex,
   yearsLabel,
   type SnapPerson,
 } from "../src/treeModel";
@@ -163,5 +164,43 @@ describe("sameNamePeople", () => {
     expect(sameNamePeople(all, "Giả Văn Ân", 3, "d")).toEqual([]);
     expect(sameNamePeople(all, "Giả Văn An", null, null)).toEqual([]);
     expect(sameNamePeople(all, "   ", 3, null)).toEqual([]);
+  });
+});
+
+describe("giới tính trong bộ dữ liệu người", () => {
+  const parse = (tuple: unknown[]) =>
+    parseSnapshot({
+      schemaVersion: 1,
+      dataVersion: "x",
+      data: JSON.stringify({
+        v: 1,
+        persons: { a: tuple },
+        relations: [],
+        unions: [],
+        branches: {},
+      }),
+    }).persons.get("a")!;
+  const base = ["Giả A", null, null, 1, "C", null];
+  it("6 và 7 phần tử: sex undefined (chưa có dữ liệu)", () => {
+    expect(parse(base).sex).toBeUndefined();
+    expect(parse([...base, []]).sex).toBeUndefined();
+  });
+  it("8 phần tử: M, F, null", () => {
+    expect(parse([...base, [], "M"]).sex).toBe("M");
+    expect(parse([...base, [], "F"]).sex).toBe("F");
+    expect(parse([...base, [], null]).sex).toBeNull();
+  });
+  it("sex sai hoặc quá 8 phần tử bị từ chối", () => {
+    expect(() => parse([...base, [], "X"])).toThrow();
+    expect(() => parse([...base, [], "m"])).toThrow();
+    expect(() => parse([...base, [], "M", 1])).toThrow();
+  });
+  it("setTupleSex không tạo mảng thưa", () => {
+    const t: unknown[] = [...base];
+    setTupleSex(t, "F");
+    expect(t).toHaveLength(8);
+    expect(t[6]).toEqual([]);
+    expect(JSON.parse(JSON.stringify(t))[7]).toBe("F");
+    expect(parse(t).sex).toBe("F");
   });
 });
