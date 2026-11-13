@@ -37,7 +37,7 @@ persons và memberProfiles của người trong nhật ký cùng tăng phiên b�
 chỉ ghi khi snapshot và nhật ký có trong lô.
 
 Allowlist trường: `memberProfiles` chỉ tên + năm sinh/mất (đúng quyết định riêng tư, đúng kiểu);
-`persons` chỉ displayName, normalizedName, birth, death, branchCode, sex, sexBasis, reviewFlags,
+`persons` chỉ displayName, normalizedName, birth, death, branchCode, sex, sexBasis, deceased, reviewFlags,
 profileVersion, updatedAt (= `request.time`), updatedBy (= người gọi); `personPrivate` chỉ `note` ≤ 2000
 ký tự và chỉ cho người đã tồn tại; nhật ký chỉ các khóa cố định. Không tạo/xóa `persons`, không sửa/xóa
 nhật ký. Admin đọc được `persons`, `personPrivate` và `get` từng nhật ký `PERSON_EDITED`; nhật ký tài khoản/lời mời vẫn đóng với mọi client, không liệt kê được.

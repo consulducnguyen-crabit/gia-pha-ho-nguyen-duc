@@ -13,6 +13,8 @@ export interface FormValues {
   name: string;
   birthYear: string;
   deathYear: string;
+  /** Đã mất mà không rõ năm (làm sạch dữ liệu). */
+  deceased: boolean;
   sex: "" | "M" | "F";
   branch: string;
   note: string;
@@ -101,6 +103,7 @@ export function buildChanges(
   else if (values.note.trim() !== initial.note.trim())
     changes.note = values.note.trim();
   if (values.sex !== initial.sex) changes.sex = values.sex || null;
+  if (values.deceased !== initial.deceased) changes.deceased = values.deceased;
   if (values.branch !== initial.branch) changes.branch = values.branch || null;
 
   const add = FLAG_ORDER.filter(

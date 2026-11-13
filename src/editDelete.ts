@@ -11,7 +11,7 @@ import {
   type EditWrite,
 } from "./editCore";
 import { recomputeGenerations } from "./editRelation";
-import { setTupleSex } from "./treeModel";
+import { setTupleDeceased, setTupleSex } from "./treeModel";
 
 type Doc = Record<string, unknown>;
 type Row = unknown[];
@@ -366,6 +366,7 @@ export function applyDelete(
       restored,
       person.sex === "M" || person.sex === "F" ? person.sex : null,
     );
+    setTupleDeceased(restored, person.deceased === true);
     data.persons[id] = restored;
     for (const r of saved.relations) data.relations.push(r);
     for (const u of saved.unions) data.unions.push(u);

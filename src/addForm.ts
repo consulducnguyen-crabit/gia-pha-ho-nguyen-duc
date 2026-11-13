@@ -8,6 +8,8 @@ export interface PersonFields {
   sex: "" | "M" | "F";
   birthYear: string;
   deathYear: string;
+  /** Đã mất mà không rõ năm. */
+  deceased: boolean;
   note: string;
 }
 export interface ChildForm extends PersonFields {
@@ -31,6 +33,7 @@ export const emptyPerson: PersonFields = {
   sex: "",
   birthYear: "",
   deathYear: "",
+  deceased: false,
   note: "",
 };
 
@@ -54,6 +57,7 @@ function toPerson(f: PersonFields, errors: AddErrors): NewPerson | null {
     sex: f.sex || null,
     birthYear: birth as number | null,
     deathYear: death as number | null,
+    deceased: f.deceased,
     note: f.note.trim(),
   };
 }

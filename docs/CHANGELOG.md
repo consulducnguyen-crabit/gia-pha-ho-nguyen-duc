@@ -169,3 +169,10 @@
 - Người dùng duyệt: `treeSnapshots/main` thêm phần tử thứ 8 `sex` cho mỗi người (giữ `schemaVersion` 1); `parseSnapshot` nhận 6/7/8 phần tử.
 - App ghi/giữ `sex` khi sửa, thêm, khôi phục; nạp dữ liệu (`import-plan`) ghi `sex`; `reconcile` thêm `SEX_MISMATCH` và cảnh báo `SEX_NOT_IN_SNAPSHOT`.
 - Lệnh mới `npm run gia-pha:snapshot-sex` (backfill/`--strip`), hành động cổng prod `DONG BO GIOI TINH`. Chưa chạy trên production.
+
+# Đã mất không rõ năm — 2026-11-14
+
+- Người dùng yêu cầu: checkbox "Đã mất" cho từng thành viên để làm sạch dữ liệu khi biết đã mất nhưng không rõ năm mất.
+- `persons.deceased` (boolean, tùy chọn) và phần tử thứ 9 của bộ dữ liệu trong `treeSnapshots/main` (giữ `schemaVersion` 1; `parseSnapshot` nhận 6–9 phần tử). Rules `persons` cho phép khóa `deceased` kiểu boolean khi sửa/tạo; `memberProfiles` không đổi.
+- Form Thêm/Sửa có checkbox "Đã mất"; có năm mất thì checkbox tự chọn và khóa (năm mất vẫn là nguồn chuẩn). Cây và hồ sơ hiện "đã mất" khi không có năm mất; Tổng quan tính là đã mất (không có tuổi, không bị coi là đang sống).
+- `reconcile` thêm `DECEASED_MISMATCH`. Không cần backfill: dữ liệu cũ mặc định chưa đánh dấu. Chưa deploy rules lên production.

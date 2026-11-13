@@ -272,15 +272,16 @@ describe("giới tính trong ảnh chụp", () => {
     // fixture persons.a.sex = "M"
     expect(tupleOf(run({ name: "Tên Mới" }))[7]).toBe("M");
   });
-  it("bộ 6 phần tử được nâng lên 8, không tạo mảng thưa", () => {
+  it("bộ 6 phần tử được nâng lên 9, không tạo mảng thưa", () => {
     const s = state();
     const d = JSON.parse(s.snapshot.data as string);
     d.persons.b = d.persons.b.slice(0, 6);
     s.snapshot.data = JSON.stringify(d);
     const t = tupleOf(run({ sex: "F" }, s, 0, "b"), "b");
-    expect(t).toHaveLength(8);
+    expect(t).toHaveLength(9);
     expect(t[6]).toEqual([]);
     expect(t[7]).toBe("F");
+    expect(t[8]).toBe(false);
   });
   it("người khác giữ nguyên bộ dữ liệu của họ", () => {
     const s = state();
@@ -288,5 +289,54 @@ describe("giới tính trong ảnh chụp", () => {
     d.persons.b.push("F");
     s.snapshot.data = JSON.stringify(d);
     expect(tupleOf(run({ name: "Tên Mới" }, s), "b")).toEqual(d.persons.b);
+  });
+});
+
+describe("Đã mất", () => {
+  const tupleOf = (r: ReturnType<typeof run>, id = "a") =>
+    JSON.parse(byPath(r)["treeSnapshots/main"].data.data as string).persons[id];
+  it("bật: ghi persons.deceased, phần tử thứ 9 và nhật ký", () => {
+    const r = run({ deceased: true }, state(), 0, "b");
+    const w = byPath(r);
+    expect(r.changedFields).toEqual(["deceased"]);
+    expect(w["persons/b"].data.deceased).toBe(true);
+    expect(tupleOf(r, "b")[8]).toBe(true);
+    expect(w["auditLogs/edit-1"].data).toMatchObject({
+      fields: ["deceased"],
+      before: { deceased: false },
+      after: { deceased: true },
+    });
+  });
+  it("không đổi (false → false) là NO_CHANGE; kiểu sai bị từ chối", () => {
+    expect(code(() => run({ deceased: false }))).toBe("NO_CHANGE");
+    expect(code(() => run({ deceased: "true" as unknown as boolean }))).toBe(
+      "INVALID",
+    );
+  });
+  it("sửa trường khác đồng bộ phần tử 9 theo persons.deceased, giữ giới tính", () => {
+    const s = state({
+      person: { displayName: "A", sex: "M", profileVersion: 1, deceased: true },
+    });
+    const t = tupleOf(run({ name: "Tên Mới" }, s));
+    expect(t[7]).toBe("M");
+    expect(t[8]).toBe(true);
+  });
+  it("tắt: false được ghi, bộ 6 phần tử được nâng lên 9", () => {
+    const s = state({
+      person: {
+        displayName: "B",
+        sex: null,
+        profileVersion: 1,
+        deceased: true,
+      },
+    });
+    const d = JSON.parse(s.snapshot.data as string);
+    d.persons.b = d.persons.b.slice(0, 6);
+    s.snapshot.data = JSON.stringify(d);
+    const r = run({ deceased: false }, s, 0, "b");
+    const t = tupleOf(r, "b");
+    expect(t).toHaveLength(9);
+    expect(t[8]).toBe(false);
+    expect(byPath(r)["persons/b"].data.deceased).toBe(false);
   });
 });

@@ -68,6 +68,9 @@ export function reconcile(input: ReconcileInput): Issue[] {
     // Giới tính trong ảnh chụp (phần tử 8) phải bằng persons.sex; bộ cũ chưa có thì chỉ cảnh báo (reconcileWarnings).
     if (t.length >= 8 && t[7] !== ((p!.sex as unknown) ?? null))
       add("SEX_MISMATCH", id);
+    // "Đã mất" trong ảnh chụp (phần tử 9) phải bằng persons.deceased; bộ cũ chưa có thì bỏ qua (mặc định false).
+    if (t.length >= 9 && t[8] !== (p!.deceased === true))
+      add("DECEASED_MISMATCH", id);
     const flags = (Array.isArray(t[6]) ? t[6] : []).map(String).sort();
     const want = (Array.isArray(p!.reviewFlags) ? p!.reviewFlags : [])
       .map(String)

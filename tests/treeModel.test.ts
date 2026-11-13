@@ -5,6 +5,7 @@ import {
   buildIndex,
   parseSnapshot,
   sameNamePeople,
+  setTupleDeceased,
   setTupleSex,
   yearsLabel,
   type SnapPerson,
@@ -202,5 +203,52 @@ describe("giới tính trong bộ dữ liệu người", () => {
     expect(t[6]).toEqual([]);
     expect(JSON.parse(JSON.stringify(t))[7]).toBe("F");
     expect(parse(t).sex).toBe("F");
+  });
+});
+
+describe("đã mất trong ảnh chụp", () => {
+  const parse = (tuple: unknown[]) =>
+    parseSnapshot({
+      schemaVersion: 1,
+      dataVersion: "x",
+      data: JSON.stringify({
+        v: 1,
+        persons: { a: tuple },
+        relations: [],
+        unions: [],
+        branches: {},
+      }),
+    }).persons.get("a")!;
+  const base = ["Giả A", null, null, 1, "C", null, [], "M"];
+  it("bộ < 9 phần tử: deceased undefined", () => {
+    expect(parse(base).deceased).toBeUndefined();
+  });
+  it("9 phần tử: true/false; không phải boolean thì bị từ chối; quá 9 bị từ chối", () => {
+    expect(parse([...base, true]).deceased).toBe(true);
+    expect(parse([...base, false]).deceased).toBe(false);
+    expect(() => parse([...base, null])).toThrow();
+    expect(() => parse([...base, "true"])).toThrow();
+    expect(() => parse([...base, true, 1])).toThrow();
+  });
+  it("setTupleDeceased đệm cờ/giới tính, không tạo mảng thưa", () => {
+    const t: unknown[] = ["Giả A", null, null, 1, "C", null];
+    setTupleDeceased(t, true);
+    expect(t).toHaveLength(9);
+    expect(t[6]).toEqual([]);
+    expect(t[7]).toBeNull();
+    expect(JSON.parse(JSON.stringify(t))[8]).toBe(true);
+    expect(parse(t).deceased).toBe(true);
+  });
+  it("yearsLabel: đã mất không rõ năm vẫn hiện, có năm mất thì dùng năm", () => {
+    const y = (o: object) =>
+      yearsLabel({ birthYear: null, deathYear: null, ...o });
+    expect(y({ deceased: true })).toBe("đã mất");
+    expect(y({ birthYear: 1930, deceased: true })).toBe("s. 1930 · đã mất");
+    expect(y({ birthYear: 1930, deathYear: 1990, deceased: true })).toBe(
+      "1930–1990",
+    );
+    expect(y({ deathYear: 1990, deceased: true })).toBe("m. 1990");
+    expect(y({ birthYear: 1930 })).toBe("s. 1930");
+    expect(y({})).toBe("");
   });
 });

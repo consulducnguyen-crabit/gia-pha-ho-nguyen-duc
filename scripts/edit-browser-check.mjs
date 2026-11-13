@@ -674,6 +674,39 @@ try {
     throw Error("Nhật ký gỡ/khôi phục liên kết sai: " + events.join());
   reconcileOk("sau khi khôi phục liên kết vợ/chồng");
 
+  stage =
+    "deceased checkbox: save, shown on tree/profile, locked when a death year exists";
+  await page.goto(`${URL}/#/person/b`);
+  await page.getByRole("button", { name: "Sửa hồ sơ" }).click();
+  const deceased = page.getByRole("checkbox", { name: /Đã mất/ });
+  await expect(deceased).not.toBeChecked();
+  await deceased.check();
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByText("Đã lưu thay đổi và ghi nhật ký.")).toBeVisible();
+  if ((await db.doc("persons/b").get()).data().deceased !== true)
+    throw Error("persons.deceased chưa được ghi");
+  const decSnap = JSON.parse(
+    (await db.doc("treeSnapshots/main").get()).data().data,
+  );
+  if (decSnap.persons.b[8] !== true)
+    throw Error("Ảnh chụp thiếu cờ đã mất ở phần tử 9");
+  await expect(page.getByText("s. 1930 · đã mất").first()).toBeVisible();
+  await page.getByRole("button", { name: "Sửa hồ sơ" }).click();
+  await expect(page.getByRole("checkbox", { name: /Đã mất/ })).toBeChecked();
+  await page.getByRole("textbox", { name: /^Năm mất/ }).fill("1990");
+  await expect(page.getByRole("checkbox", { name: /Đã mất/ })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /Đã mất/ })).toBeDisabled();
+  await page.getByRole("button", { name: "Hủy" }).click();
+  for (const width of [360, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const wide = await page.evaluate(
+      () => document.documentElement.scrollWidth > globalThis.innerWidth,
+    );
+    if (wide) throw Error(`Tràn ngang ở hồ sơ đã mất ${width}px`);
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  reconcileOk("sau khi đánh dấu đã mất");
+
   stage = "version conflict is reported, nothing written";
   await page.goto(`${URL}/#/person/b`);
   await page.getByRole("button", { name: "Sửa hồ sơ" }).click();

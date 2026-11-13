@@ -98,6 +98,7 @@ export function PersonEdit({
         name: normalizeNameInput(p.name),
         birthYear: p.birthYear === null ? "" : String(p.birthYear),
         deathYear: p.deathYear === null ? "" : String(p.deathYear),
+        deceased: d.deceased === true,
         sex: d.sex === "M" || d.sex === "F" ? d.sex : "",
         branch: p.branch ?? "",
         note: typeof priv.data()?.note === "string" ? priv.data()!.note : "",
@@ -288,6 +289,20 @@ export function PersonEdit({
               </span>
             )}
             {err("deathYear")}
+          </label>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={values.deceased || values.deathYear.trim() !== ""}
+              disabled={values.deathYear.trim() !== ""}
+              onChange={(e) => set("deceased", e.target.checked)}
+            />
+            Đã mất
+            <span className="tree-meta">
+              {values.deathYear.trim() !== ""
+                ? "Đã có năm mất nên được tính là đã mất."
+                : "Tích khi biết đã mất nhưng chưa rõ năm mất."}
+            </span>
           </label>
           {rawNeedsConfirm && (
             <label className="checkbox-field">

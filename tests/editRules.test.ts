@@ -422,6 +422,32 @@ describe("ghi trực tiếp trong app: rules", () => {
     );
   });
 
+  it("Đã mất: admin ghi được persons.deceased kèm ảnh chụp; kiểu không phải boolean bị chặn", async () => {
+    const db = admin();
+    const r = await plan(db, { deceased: true }, 0, "b");
+    const mutate = (extra: Record<string, unknown>) =>
+      r.writes.map((w) =>
+        w.path === "persons/b" ? { ...w, data: { ...w.data, ...extra } } : w,
+      );
+    await assertFails(commit(db, mutate({ deceased: "yes" })));
+    await assertFails(commit(db, mutate({ deceased: 1 })));
+    await assertSucceeds(commit(db, r.writes));
+    expect((await getDoc(doc(db, "persons", "b"))).data()!.deceased).toBe(true);
+    expect(
+      JSON.parse((await getDoc(doc(db, "treeSnapshots", "main"))).data()!.data)
+        .persons.b[8],
+    ).toBe(true);
+  });
+
+  it("Đã mất: thành viên thường không ghi được", async () => {
+    const adminDb = admin();
+    const r = await plan(adminDb, { deceased: true }, 0, "b");
+    const member = env
+      .authenticatedContext("member")
+      .firestore() as unknown as Firestore;
+    await assertFails(commit(member, r.writes));
+  });
+
   it("manager bị khóa (enabled=false) không ghi được", async () => {
     const r = await plan(admin(), { name: "Tên khác" });
     await env.withSecurityRulesDisabled(async (c) => {
@@ -549,6 +575,32 @@ describe("thêm con / vợ chồng: rules", () => {
     expect((await getDoc(doc(db, "auditLogs", "edit-1"))).data()!.event).toBe(
       "PERSON_ADDED",
     );
+  });
+
+  it("thêm con đã mất: persons.deceased là boolean; giá trị khác bị chặn", async () => {
+    const db = admin();
+    const kid = (deceased: unknown) =>
+      newChild({
+        child: {
+          name: "Giả Con",
+          sex: "M",
+          birthYear: 1960,
+          deathYear: null,
+          note: "",
+          deceased: deceased as boolean,
+        },
+      });
+    const bad = await planAdd(db, kid(true));
+    const tampered = bad.writes.map((w) =>
+      w.path === "persons/p-newkid"
+        ? { ...w, data: { ...w.data, deceased: "yes" } }
+        : w,
+    );
+    await assertFails(commit(db, tampered));
+    await assertSucceeds(commit(db, bad.writes));
+    expect(
+      (await getDoc(doc(db, "persons", "p-newkid"))).data()!.deceased,
+    ).toBe(true);
   });
 
   it("thành viên thường không thêm được", async () => {

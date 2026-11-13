@@ -23,6 +23,8 @@ export interface NewPerson {
   sex: "M" | "F" | null;
   birthYear: number | null;
   deathYear: number | null;
+  /** Đã mất mà không rõ năm; bỏ trống = chưa mất. */
+  deceased?: boolean;
   note: string;
 }
 export interface AddChildOp {
@@ -103,6 +105,8 @@ function cleanPerson(p: NewPerson): NewPerson {
     );
   if (p.sex !== null && p.sex !== "M" && p.sex !== "F")
     invalid("Giới tính không hợp lệ.");
+  if (p.deceased !== undefined && typeof p.deceased !== "boolean")
+    invalid("Đã mất phải là đúng/sai.");
   checkYear("Năm sinh", p.birthYear);
   checkYear("Năm mất", p.deathYear);
   if (p.birthYear !== null && p.deathYear !== null && p.deathYear < p.birthYear)
@@ -140,6 +144,7 @@ function personWrites(
         declaredGeneration: null,
         birth: yearDate(p.birthYear),
         death: yearDate(p.deathYear),
+        deceased: p.deceased === true,
         kyNhat: null,
         reviewFlags: [],
         profileVersion: 1,
@@ -324,6 +329,7 @@ export function applyAdd(state: AddState, input: AddInput): AddResult {
       op.branch,
       [],
       child.sex,
+      child.deceased === true,
     ];
     personId = op.newId;
     focusId = op.newId;
@@ -369,6 +375,7 @@ export function applyAdd(state: AddState, input: AddInput): AddResult {
         null,
         [],
         person.sex,
+        person.deceased === true,
       ];
       created = [spouseId];
     }
