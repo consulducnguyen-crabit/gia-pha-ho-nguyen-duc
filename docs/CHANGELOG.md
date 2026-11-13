@@ -150,3 +150,9 @@
 - Kiểm thử: `tests/invitesClient.test.ts`, `tests/invitesClientRules.test.ts`, `npm run test:browser:invites` (Auth emulator thật: liên kết email, nhận lời mời, thu hồi/hết hạn/email lạ bị chặn; thêm vào CI).
 - Chưa kiểm chứng: Firebase Auth thật, hạn mức/độ tin cậy gửi thư, Firestore thật.
 - Review PR-D: liên kết email xử lý ở cấp App (chụp + làm sạch URL ngay, màn "đang đăng nhập tài khoản khác"); `updatePassword` ngẫu nhiên sau đăng nhập liên kết để chặn pre-hijacking (chưa kiểm chứng trên Firebase thật); giữ href khi email sai/mất mạng; email tạm hết hạn 1 giờ; thời gian chờ 60 giây giữa các lần gửi; khu mời chỉ báo khóa sau khi tải xong; không nuốt lỗi mạng thành "chưa có lời mời"; ẩn "Mời lại" cho email đã có tài khoản; thêm ca rules âm (anonymous, khai gian hết hạn/thu hồi/đã dùng, đồng hồ lệch).
+
+# Lệnh xóa hẳn tài khoản (delete) — 2026-11-13
+
+- `accounts.ts`/`accounts-core.ts`: lệnh `delete --email E [--apply --confirm-delete E]` (hàm thuần `planDelete`): chỉ xóa tài khoản đã vô hiệu hóa, không phải quản trị viên, sổ khớp users, còn quản trị viên sau khi xóa; giao dịch xóa `users/{uid}` + nhật ký `ACCOUNT_DELETED` (không email/tên) rồi mới xóa Auth; lời mời PENDING chỉ cảnh báo. Chạy thử có đọc dữ liệu (chỉ đọc) để in kế hoạch thật.
+- Cập nhật hướng dẫn trong `#/users` và `docs/ACCOUNTS.md`; `scripts/accounts-e2e-check.mjs` thêm kịch bản delete trên emulator. Chưa chạy trên Firebase thật.
+- Review `delete`: lời mời PENDING còn hạn nay CHẶN xóa (xóa xong người đó đăng nhập lại cùng email sẽ nhận lại quyền qua chính lời mời đang chờ, không cần ai mời lại); hàm thuần `recheckDelete` cho bước kiểm lại trong giao dịch; câu `--ack` riêng `XOA TAI KHOAN <project>` cho lệnh xóa; nhật ký `authOnly: true`; `auth/user-not-found` coi là đã xong.
