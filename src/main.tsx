@@ -539,15 +539,7 @@ function Overview({
   return (
     <>
       <WelcomeBanner uid={uid} email={email} />
-      <div className="eyebrow">KÝ ỨC ĐƯỢC TIẾP NỐI</div>
-      <h1>
-        Người có tổ,
-        <br />
-        cây có nguồn.
-      </h1>
-      <p className="intro">
-        Không gian chung để lưu giữ và tìm hiểu gia phả dòng họ.
-      </p>
+      <h1 className="sr-only">Tổng quan</h1>
       <div className="hero">
         <span className="tree-mark" aria-hidden="true">
           <BrandMark />
