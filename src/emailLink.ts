@@ -16,8 +16,30 @@ export const STORED_EMAIL_TTL_MS = 60 * 60 * 1000;
 /** Thời gian chờ phía client giữa các lần gửi liên kết tới cùng một email (Firebase còn có hạn mức riêng). */
 export const SEND_COOLDOWN_MS = 60 * 1000;
 
-export function actionCodeSettings(loc: { origin: string; pathname: string }) {
-  return { url: `${loc.origin}${loc.pathname}`, handleCodeInApp: true };
+/**
+ * URL tiếp tục = origin + pathname (+ ?invitee=<email viết thường đã mã hóa>). Email trong URL CHỈ để điền sẵn khi hoàn tất
+ * đăng nhập (Firebase tự kiểm email khớp oobCode); KHÔNG bao giờ dùng để quyết định quyền.
+ */
+export function actionCodeSettings(
+  loc: { origin: string; pathname: string },
+  inviteeEmail?: string,
+) {
+  const query = inviteeEmail
+    ? `?invitee=${encodeURIComponent(inviteeEmail.trim().toLowerCase())}`
+    : "";
+  return { url: `${loc.origin}${loc.pathname}${query}`, handleCodeInApp: true };
+}
+
+/** Email điền sẵn từ tham số `invitee` của URL (đã chuẩn hóa); rỗng nếu thiếu/không hợp lệ. */
+export function readInviteeParam(search: string): string {
+  const raw = new URLSearchParams(search).get("invitee");
+  if (!raw) return "";
+  const email = raw.trim().toLowerCase();
+  // Chặt như khóa lời mời (ASCII): giá trị lạ không bao giờ đi vào Firebase.
+  return email.length <= 254 &&
+    /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(email)
+    ? email
+    : "";
 }
 
 /** URL sau khi bỏ tham số oobCode/apiKey/mode/lang nhưng giữ phần hash của router. */
@@ -113,7 +135,11 @@ export class EmailLinkError extends Error {
 export async function sendLoginLink(
   auth: Auth,
   email: string,
-  options: { remember: boolean },
+  options: {
+    remember: boolean;
+    /** Gắn ?invitee= vào liên kết: CHỈ cho thư do quản trị viên gửi (điền sẵn email khi mở trên thiết bị khác). */
+    invitee?: boolean;
+  },
 ) {
   const address = normalizeLinkEmail(email);
   const wait = cooldownRemaining(lastSent.get(address), Date.now());
@@ -123,7 +149,11 @@ export async function sendLoginLink(
       `Vừa gửi liên kết tới email này. Vui lòng đợi ${Math.ceil(wait / 1000)} giây rồi gửi lại.`,
       wait,
     );
-  await sendSignInLinkToEmail(auth, address, actionCodeSettings(location));
+  await sendSignInLinkToEmail(
+    auth,
+    address,
+    actionCodeSettings(location, options.invitee ? address : undefined),
+  );
   lastSent.set(address, Date.now());
   if (options.remember) {
     try {
@@ -140,17 +170,25 @@ export async function sendLoginLink(
 
 // ---- Liên kết đang chờ xử lý (cấp App, độc lập trạng thái đăng nhập) ----
 let pendingHref = "";
-/** Đọc liên kết từ URL (nếu có), làm sạch oobCode/apiKey khỏi thanh địa chỉ NGAY và giữ href trong bộ nhớ. Idempotent. */
+let pendingEmail = "";
+/**
+ * Đọc liên kết từ URL (nếu có), ghi nhận email điền sẵn từ ?invitee=, rồi làm sạch oobCode/apiKey/mode/lang/invitee
+ * khỏi thanh địa chỉ NGAY (giữ hash) và giữ href trong bộ nhớ. Idempotent.
+ */
 export function capturePendingLink(auth: Auth): string {
   if (!pendingHref && isSignInWithEmailLink(auth, location.href)) {
     pendingHref = location.href;
+    pendingEmail = readInviteeParam(location.search);
     history.replaceState(null, "", cleanedUrl(location));
   }
   return pendingHref;
 }
 export const getPendingLink = () => pendingHref;
+/** Email dùng để tự hoàn tất: ưu tiên ?invitee= (khớp liên kết), rồi email tạm cùng thiết bị. Chỉ là đầu vào cho Firebase. */
+export const getPendingEmail = () => pendingEmail || storedEmail();
 export const consumePendingLink = () => {
   pendingHref = "";
+  pendingEmail = "";
 };
 /** Đặt lại liên kết khi hoàn tất thất bại nhưng thử lại được (email sai, mất mạng). */
 export const restorePendingLink = (href: string) => {
@@ -194,6 +232,23 @@ export const isDeadLinkError = (error: unknown) => {
     code === "client/password-neutralize-failed"
   );
 };
+
+/** Lý do ngắn (một cụm) khi gửi thư lỗi, dùng trong thông báo "đã tạo lời mời nhưng chưa gửi được thư". */
+export function emailLinkShortReason(error: unknown): string {
+  if (error instanceof EmailLinkError) return "đợi ít giây rồi gửi lại";
+  const code = (error as { code?: string } | null)?.code ?? "";
+  if (code === "auth/quota-exceeded" || code === "auth/too-many-requests")
+    return "hết hạn mức gửi thư";
+  if (code === "auth/operation-not-allowed")
+    return "đăng nhập bằng liên kết email chưa được bật trong Firebase";
+  if (
+    code === "auth/unauthorized-continue-uri" ||
+    code === "auth/invalid-continue-uri"
+  )
+    return "tên miền chưa được Firebase cho phép";
+  if (code === "auth/network-request-failed") return "lỗi mạng";
+  return "lỗi không xác định";
+}
 
 export function emailLinkErrorMessage(error: unknown): string {
   if (error instanceof EmailLinkError) return error.message;

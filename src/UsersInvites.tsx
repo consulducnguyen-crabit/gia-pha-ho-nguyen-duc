@@ -2,12 +2,17 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { auth, db } from "./firebase";
 import { formatVnTime } from "./auditView";
-import { emailLinkErrorMessage, sendLoginLink } from "./emailLink";
+import {
+  emailLinkErrorMessage,
+  emailLinkShortReason,
+  sendLoginLink,
+} from "./emailLink";
 import {
   createInvite,
   inviteErrorMessage,
   inviteStatus,
   listInvites,
+  normalizeInviteEmail,
   revokeInvite,
   type InviteStatus,
 } from "./invitesClient";
@@ -98,37 +103,80 @@ export function InvitesSection({
       setBusy("");
     }
   }
-  const invite = (address: string, displayName?: string) =>
-    run(
-      `create:${address}`,
-      async () => {
-        const r = await createInvite(db!, uid, { email: address, displayName });
-        return `Đã tạo lời mời cho ${r.emailKey} (quyền Chỉ xem, hạn ${formatVnTime(new Date(r.expiresAtMs))}). Bấm "Gửi liên kết đăng nhập" để Firebase gửi thư.`;
-      },
-      "create",
-    );
-  async function sendLink(address: string) {
-    setBusy(`send:${address}`);
+  /**
+   * Một thao tác: tạo lời mời (trừ khi chỉ gửi lại) rồi NGAY SAU ĐÓ gửi thư đăng nhập qua Firebase. Tạo xong mà gửi lỗi thì
+   * lời mời vẫn còn (không mất) và báo rõ để bấm "Gửi lại thư". Trả true nếu lời mời đã có (form có thể xóa).
+   */
+  async function sendMail(
+    address: string,
+    displayName: string | undefined,
+    mode: "create+send" | "resend",
+  ): Promise<boolean> {
+    setBusy(`mail:${address}`);
     setMessage(null);
+    let created = false;
     try {
-      await sendLoginLink(auth!, address, { remember: false });
+      if (mode === "create+send") {
+        await createInvite(db!, uid, { email: address, displayName });
+        created = true;
+      }
+      await sendLoginLink(auth!, address, { remember: false, invitee: true });
       setMessage({
         ok: true,
-        text: `Firebase gửi thư tới ${address}; người nhận mở liên kết trên thiết bị của họ. Thư có thể nằm trong mục thư rác; hạn mức thư theo ngày của Firebase chưa được kiểm chứng.`,
+        text: `Đã gửi thư mời tới ${address} (Firebase gửi thư; hạn mức ngày chưa kiểm chứng). Thư có thể nằm trong mục thư rác.`,
       });
+      await load();
+      return true;
     } catch (error) {
-      setMessage({ ok: false, text: emailLinkErrorMessage(error) });
+      if (created) {
+        setMessage({
+          ok: false,
+          text: `Đã tạo lời mời nhưng chưa gửi được thư (${emailLinkShortReason(error)}). Bấm "Gửi lại thư" trong bảng.`,
+        });
+        await load();
+        return true;
+      }
+      setMessage({
+        ok: false,
+        text:
+          mode === "resend"
+            ? emailLinkErrorMessage(error)
+            : inviteErrorMessage(error, "create"),
+      });
+      return false;
     } finally {
       setBusy("");
     }
   }
+  // Nhãn nút chính theo trạng thái lời mời hiện có của email đang nhập.
+  const typed = (() => {
+    try {
+      return normalizeInviteEmail(email);
+    } catch {
+      return null;
+    }
+  })();
+  const existing = typed
+    ? rows?.find((r) => r.email.toLowerCase() === typed)
+    : undefined;
+  const resend = existing?.status === "PENDING";
+  // Email đã có hồ sơ users (kể cả lời mời ACCEPTED): không tạo lời mời mới, dùng Sửa → Bật lại.
+  const hasAccount = !!typed && existingEmails.has(typed);
+  const mainLabel = busy.startsWith("mail:")
+    ? "Đang gửi…"
+    : resend
+      ? "Gửi lại thư mời"
+      : existing
+        ? "Mời lại và gửi thư"
+        : "Gửi thư mời";
   return (
     <section className="users-invites" aria-labelledby={`${uniq}-h`}>
       <h2 id={`${uniq}-h`}>Mời thành viên</h2>
       <p className="tree-meta">
-        Lời mời chỉ cấp quyền <b>Chỉ xem</b> và hết hạn sau khoảng 7 ngày. Người
-        được mời đăng nhập bằng liên kết gửi qua email (không cần mật khẩu) hoặc
-        bằng Google với đúng email này, rồi bấm “Nhận lời mời”.
+        Bấm <b>Gửi thư mời</b> để tạo lời mời và gửi thư luôn. Lời mời chỉ cấp
+        quyền <b>Chỉ xem</b>, hết hạn sau khoảng 7 ngày. Người được mời mở liên
+        kết trong thư là vào thẳng hệ thống (không cần mật khẩu, không phải bấm
+        thêm); hoặc đăng nhập bằng Google với đúng email này.
       </p>
       {loaded && !enabled && (
         <p role="alert" className="notice">
@@ -141,7 +189,12 @@ export function InvitesSection({
         className="users-invite-form"
         onSubmit={(e) => {
           e.preventDefault();
-          void invite(email, name || undefined).then((ok) => {
+          if (hasAccount) return;
+          void sendMail(
+            email,
+            name || undefined,
+            resend ? "resend" : "create+send",
+          ).then((ok) => {
             if (!ok) return;
             setEmail("");
             setName("");
@@ -164,17 +217,25 @@ export function InvitesSection({
           <input
             className="form-field"
             value={name}
-            disabled={!enabled || !!busy}
+            disabled={!enabled || !!busy || resend}
             onChange={(e) => setName(e.target.value)}
           />
         </label>
+        {resend && (
+          <p className="tree-meta">Tên không đổi khi gửi lại thư mời.</p>
+        )}
+        {hasAccount && (
+          <p role="alert" className="notice">
+            Email này đã có tài khoản; dùng Sửa → Bật lại trong bảng tài khoản.
+          </p>
+        )}
         <div className="edit-actions">
           <button
             type="submit"
             className="primary"
-            disabled={!enabled || !!busy}
+            disabled={!enabled || !!busy || hasAccount}
           >
-            {busy.startsWith("create:") ? "Đang tạo…" : "Tạo lời mời"}
+            {mainLabel}
           </button>
         </div>
       </form>
@@ -233,11 +294,13 @@ export function InvitesSection({
                       <>
                         <button
                           type="button"
-                          aria-label={`Gửi liên kết đăng nhập tới ${r.email}`}
+                          aria-label={`Gửi lại thư tới ${r.email}`}
                           disabled={!!busy}
-                          onClick={() => void sendLink(r.email)}
+                          onClick={() =>
+                            void sendMail(r.email, undefined, "resend")
+                          }
                         >
-                          Gửi liên kết đăng nhập
+                          Gửi lại thư
                         </button>
                         <button
                           type="button"
@@ -266,13 +329,17 @@ export function InvitesSection({
                     ) : (
                       <button
                         type="button"
-                        aria-label={`Mời lại ${r.email}`}
+                        aria-label={`Mời lại và gửi thư tới ${r.email}`}
                         disabled={!!busy}
                         onClick={() =>
-                          void invite(r.email, r.displayName || undefined)
+                          void sendMail(
+                            r.email,
+                            r.displayName || undefined,
+                            "create+send",
+                          )
                         }
                       >
-                        Mời lại
+                        Mời lại và gửi thư
                       </button>
                     )}
                   </td>
