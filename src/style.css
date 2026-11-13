@@ -762,6 +762,32 @@ textarea {
 .users-table tr:last-child td {
   border-bottom: 0;
 }
+/* Bảng tài khoản nhiều cột: giữ chiều rộng tối thiểu để cuộn ngang trong vùng của nó thay vì bóp chữ ở màn hình hẹp. */
+.users-table-accounts {
+  min-width: 46rem;
+}
+.users-table td:last-child {
+  min-width: 10rem;
+}
+.users-self-note {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+}
+/* Vùng vô hiệu hóa tách khỏi nút "Lưu thay đổi" bằng đường kẻ và khoảng cách để khó bấm nhầm. */
+.users-danger-zone {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.users-danger-zone h3 {
+  font-size: 17px;
+  margin: 0 0 var(--space-2);
+}
+.users-panel fieldset:disabled {
+  opacity: 0.75;
+}
 .users-howto {
   margin-top: var(--space-5);
   overflow-wrap: anywhere;

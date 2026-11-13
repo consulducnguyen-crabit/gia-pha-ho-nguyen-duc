@@ -61,3 +61,7 @@ Chưa có Cloud Functions nên tài khoản được quản lý bằng **công c
 - **Thứ tự vận hành bắt buộc trước khi deploy rules PR-A:** (1) `registry --verify` (dự kiến báo lệch vì chưa có sổ) → (2) `registry --rebuild` (dry-run, đọc kế hoạch) → (3) `registry --rebuild --apply` trên emulator/dev → (4) `registry --verify` phải sạch (mã 0) → chỉ khi người dùng duyệt mới lặp lại trên prod rồi deploy rules.
 - Lưu ý: `--rebuild` tăng `accessVersion` của mỗi users được chuẩn hóa, có thể làm mất hiệu lực phiếu duyệt đang treo của Functions emulator-only (phiếu gắn `accessVersion`). Nhật ký rebuild được tạo bằng `create` (không ghi đè); version sổ hỏng hoặc nhật ký trùng mã thì dừng và báo cụ thể.
 - Kiểm chứng tự động trên emulator: `npm run test:accounts:e2e` (`scripts/accounts-e2e-check.mjs`, dữ liệu giả, chỉ loopback; chạy `accounts.ts` thật rồi dùng sổ do script dựng làm fixture cho `firestore.rules`).
+
+## Giao diện #/users (PR-C)
+
+- Quản trị viên (có trong sổ) dùng nút **Sửa** để đổi tên hiển thị, đổi quyền Quản trị/Chỉ xem, vô hiệu hóa hoặc bật lại tài khoản ĐÃ CÓ; ghi qua firestore.rules cùng sổ và nhật ký trong một giao dịch. Không tự sửa chính mình. Sổ thiếu/không chứa bạn thì các nút bị khóa và trang hướng dẫn `registry --rebuild`. Vô hiệu hóa quản trị viên cũng hạ quyền Quản trị; bật lại chỉ trả quyền Chỉ xem. Mời người mới: PR sau.
