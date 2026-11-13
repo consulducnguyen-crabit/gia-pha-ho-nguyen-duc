@@ -64,6 +64,7 @@ function App() {
   const location = useLocation();
   const mainRef = useRef<HTMLElement | null>(null);
   const firstRoute = useRef(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [access, setAccess] = useState("loading");
   const [canManageMembership, setCanManageMembership] = useState(false);
@@ -125,6 +126,16 @@ function App() {
     }
     mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname]);
+  // Menu thu gọn (màn hẹp): đóng khi đổi trang hoặc bấm Esc.
+  useEffect(() => setMenuOpen(false), [location.pathname]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
   if (user && getPendingLink())
     return (
       <LinkConflict
@@ -150,44 +161,47 @@ function App() {
       >
         Bỏ qua tới nội dung chính
       </a>
-      <aside>
-        <a className="brand" href="#/">
-          <BrandMark className="brand-mark" />{" "}
-          <span>
-            Gia phả<small>GÌN GIỮ CỘI NGUỒN</small>
-          </span>
-        </a>
-        <p className="nav-label">KHÔNG GIAN DÒNG HỌ</p>
-        <nav aria-label="Điều hướng chính">
-          <NavLink to="/" end>
-            Tổng quan
-          </NavLink>
-          <NavLink to="/tree">Cây gia phả</NavLink>
-          <NavLink to="/review-queue">Cần kiểm tra</NavLink>
-          <NavLink to="/persons">Tra cứu thành viên</NavLink>
-          {emulator && <NavLink to="/changes">Đề xuất thay đổi</NavLink>}
-          {emulator && canReviewChanges && (
-            <NavLink to="/review">Hộp duyệt</NavLink>
-          )}
-          {canManageMembership && (
-            <NavLink to="/users">Quản lý tài khoản</NavLink>
-          )}
-          {canManageMembership && (
-            <NavLink to="/audit">Nhật ký chỉnh sửa</NavLink>
-          )}
-          <NavLink to="/roadmap">Tiến độ triển khai</NavLink>
-        </nav>
-        <div className="aside-foot">
-          Tư liệu riêng tư
-          <br />
-          <small>Chỉ dành cho thành viên được cấp quyền</small>
+      <header className="topbar">
+        <div className="topbar-bar">
+          <a className="brand" href="#/">
+            <BrandMark className="brand-mark" />{" "}
+            <span>
+              Gia phả<small>GÌN GIỮ CỘI NGUỒN</small>
+            </span>
+          </a>
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-expanded={menuOpen}
+            aria-controls="menu-chinh"
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            {menuOpen ? "Đóng" : "Menu"}
+          </button>
         </div>
-      </aside>
-      <div className="workspace">
-        <header>
-          <span>
-            Gia phả dòng họ <b>/ Không gian riêng tư</b>
-          </span>
+        <div
+          id="menu-chinh"
+          className={menuOpen ? "topbar-menu open" : "topbar-menu"}
+        >
+          <nav aria-label="Điều hướng chính">
+            <NavLink to="/" end>
+              Tổng quan
+            </NavLink>
+            <NavLink to="/tree">Cây gia phả</NavLink>
+            <NavLink to="/review-queue">Cần kiểm tra</NavLink>
+            <NavLink to="/persons">Tra cứu thành viên</NavLink>
+            {emulator && <NavLink to="/changes">Đề xuất thay đổi</NavLink>}
+            {emulator && canReviewChanges && (
+              <NavLink to="/review">Hộp duyệt</NavLink>
+            )}
+            {canManageMembership && (
+              <NavLink to="/users">Quản lý tài khoản</NavLink>
+            )}
+            {canManageMembership && (
+              <NavLink to="/audit">Nhật ký chỉnh sửa</NavLink>
+            )}
+            <NavLink to="/roadmap">Tiến độ triển khai</NavLink>
+          </nav>
           <span className="header-user">
             <span className="header-user-email" title={user?.email ?? ""}>
               <span className="header-user-label">Đang đăng nhập: </span>
@@ -195,7 +209,9 @@ function App() {
             </span>
             <button onClick={() => void signOut(auth!)}>Đăng xuất</button>
           </span>
-        </header>
+        </div>
+      </header>
+      <div className="workspace">
         <main id="main" tabIndex={-1} ref={mainRef}>
           <Routes>
             <Route

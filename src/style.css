@@ -2138,7 +2138,7 @@ rect.stats-seg-f {
    lớp kem mờ phía trên giữ chữ dễ đọc. Thay các lớp hoa văn lặp cũ ở trên. */
 :root {
   --nen-rong: url("./assets/nen-rong.jpg");
-  --nen-rong-phu: rgb(243 234 212 / 62%);
+  --nen-rong-phu: rgb(243 234 212 / 82%);
 }
 body {
   background-image:
@@ -2147,9 +2147,7 @@ body {
   background-position:
     0 0,
     center;
-  background-size:
-    auto,
-    cover;
+  background-size: auto, cover;
   background-attachment: fixed, fixed;
   background-blend-mode: normal, multiply;
 }
@@ -2166,5 +2164,111 @@ body {
 @media print {
   body {
     background-image: none;
+  }
+}
+
+/* ===== Thanh menu trên đầu (thay cột trái); màn hẹp thu thành nút Menu (chỉ trình bày) ===== */
+.shell {
+  display: block;
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: var(--space-5);
+  padding: var(--space-3) clamp(16px, 3vw, 40px) 0;
+  min-height: 0;
+  background: rgb(243 234 212 / 98%);
+  border-bottom: 3px double var(--color-rule);
+}
+.topbar-bar {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.topbar .brand {
+  border-bottom: 0;
+  padding-bottom: 0;
+  font-size: 26px;
+  align-items: center;
+}
+.topbar .brand-mark {
+  margin-top: 0;
+}
+.topbar-menu {
+  display: contents;
+}
+.topbar .header-user {
+  grid-area: 1 / 2;
+  font-size: var(--text-small);
+}
+.topbar .header-user-email {
+  max-width: 40ch;
+}
+.topbar nav {
+  grid-area: 2 / 1 / 3 / 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-1);
+  margin-top: var(--space-2);
+}
+.topbar nav a {
+  margin-top: 0;
+  border-left-width: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: var(--space-2) var(--space-3);
+}
+.topbar nav a.active {
+  background: var(--color-active);
+  border-bottom-color: var(--color-primary);
+}
+.menu-toggle {
+  display: none;
+}
+@media (max-width: 800px) {
+  .topbar {
+    display: block;
+    padding: var(--space-2) var(--space-4);
+  }
+  .menu-toggle {
+    display: inline-block;
+  }
+  .topbar-menu {
+    display: none;
+  }
+  .topbar-menu.open {
+    display: block;
+    padding-bottom: var(--space-3);
+  }
+  .topbar nav {
+    flex-direction: column;
+    margin-top: var(--space-3);
+  }
+  .topbar nav a {
+    border-bottom-width: 0;
+    border-left: 3px solid transparent;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    min-height: 44px;
+  }
+  .topbar nav a.active {
+    border-left-color: var(--color-primary);
+  }
+  .topbar .header-user {
+    justify-content: space-between;
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-rule);
+  }
+  .topbar .header-user-label {
+    display: inline;
+  }
+  .topbar .header-user-email {
+    max-width: none;
+    flex: 1;
   }
 }

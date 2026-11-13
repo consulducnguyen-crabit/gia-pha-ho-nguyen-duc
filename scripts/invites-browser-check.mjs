@@ -401,6 +401,8 @@ try {
   if ((await guest.locator(".welcome-banner b").count()) !== 0)
     throw Error("Tên chứa HTML bị biên dịch thành thẻ");
   await guest.setViewportSize({ width: 360, height: 800 });
+  // Màn hẹp: email và nút Đăng xuất nằm trong menu thu gọn; mở menu trước khi kiểm tra.
+  await guest.getByRole("button", { name: "Menu" }).click();
   await expect(
     guest.getByText(`Đang đăng nhập: ${EMAILS.accept}`),
   ).toBeVisible();
@@ -410,6 +412,7 @@ try {
     guest.getByRole("button", { name: "Đăng xuất", exact: true }),
   ]);
   await shot(guest, "welcome-360");
+  await guest.getByRole("button", { name: "Đóng" }).click();
   await guest.setViewportSize({ width: 1280, height: 900 });
   await guest.getByRole("button", { name: "Đã hiểu" }).click();
   await expect(guest.getByText("Chào mừng")).toHaveCount(0);
