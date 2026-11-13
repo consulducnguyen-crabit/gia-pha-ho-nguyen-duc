@@ -1194,3 +1194,134 @@ input:not([type="checkbox"]):not([type="radio"]) {
     animation: none !important;
   }
 }
+
+/* ===== Sổ gia phả — PR2: trang chủ, cây phả hệ, hồ sơ người (chỉ trình bày) ===== */
+/* Trang chủ: một trọng tâm (lời giới thiệu + lối vào tra cứu); ba ý phụ là cột có đường kẻ, không phải thẻ. */
+.hero {
+  background: transparent;
+  border: 0;
+  border-left: 4px solid var(--color-primary);
+  border-radius: 0;
+  padding: var(--space-2) 0 var(--space-2) var(--space-5);
+  gap: var(--space-5);
+}
+.hero h2 {
+  margin-top: 0;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.cards {
+  gap: 0;
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--color-rule);
+}
+.cards article {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-5) var(--space-5) var(--space-3) 0;
+}
+.cards article + article {
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--color-rule);
+}
+.cards h3 {
+  margin-top: var(--space-3);
+}
+/* Cây: đường nối mảnh theo cấp đời, nút mở/đóng vuông viền rõ, tên người là trọng tâm mỗi dòng. */
+.tree-list {
+  border-left: 1px solid var(--color-rule);
+  margin-left: 15px;
+  padding-left: var(--space-5);
+}
+.tree-root {
+  margin-left: 0;
+}
+.tree-toggle {
+  background: var(--color-surface);
+  border: 1px solid var(--color-control-border);
+  color: var(--color-primary);
+}
+.tree-leaf {
+  background: transparent;
+  border: 0;
+}
+.tree-name {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+}
+.tree-badge {
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.tree-toolbar {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-rule);
+}
+/* Danh sách tra cứu và khung chi tiết: phẳng, ngăn bằng đường kẻ. */
+.person {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-rule);
+  border-radius: 0;
+  padding: var(--space-3) var(--space-2);
+}
+.person:not(:disabled):hover {
+  background: var(--color-soft);
+}
+.detail {
+  background: transparent;
+  border: 0;
+  border-top: 2px solid var(--color-primary);
+  border-radius: 0;
+  padding: var(--space-5) 0 0;
+}
+/* Khối thao tác quản trị trong hồ sơ: phụ so với nội dung phả hệ — vạch trái, không khung, hàng nút thẳng hàng. */
+.edit-panel {
+  background: transparent;
+  border: 0;
+  border-left: 3px solid var(--color-rule);
+  border-radius: 0;
+  padding: var(--space-1) 0 var(--space-1) var(--space-4);
+  margin: var(--space-5) 0;
+}
+.edit-panel h2 {
+  font-size: var(--text-sub);
+  margin-top: 0;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.edit-panel ul {
+  list-style: none;
+  padding: 0;
+}
+.edit-panel li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-border);
+}
+.edit-panel li > button,
+.edit-panel li > .link-button {
+  margin-inline: 0;
+}
+@media (max-width: 800px) {
+  .cards {
+    border-top: 0;
+  }
+  .cards article,
+  .cards article + article {
+    padding: var(--space-4) 0;
+    border-left: 0;
+    border-top: 1px solid var(--color-rule);
+  }
+  .hero {
+    padding-left: var(--space-4);
+  }
+}
+.search button {
+  white-space: nowrap;
+}
