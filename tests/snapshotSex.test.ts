@@ -138,6 +138,32 @@ describe("planSnapshotSex", () => {
     );
     expect(again.stats.changed).toBe(0);
   });
+  it("bộ đã có đã mất (9) và ghi chú (10) vẫn đọc được; giữ nguyên phần tử sau giới tính", () => {
+    const t = tuples();
+    t.a = ["Giả A", 1900, null, 1, "C", "c1", [], "M", true];
+    t.b = ["Vợ A", null, null, null, "S", null, [], "F", false, "ghi chú"];
+    const r = ok(planSnapshotSex(snapshot(t), people()));
+    const p = JSON.parse(r.json).persons;
+    expect(p.a).toEqual(t.a);
+    expect(p.b).toEqual(t.b);
+    // Lệch giới tính ở bộ 10 phần tử: chỉ sửa phần tử 8.
+    const r2 = ok(planSnapshotSex(snapshot(t), people({ b: { sex: "M" } })));
+    expect(JSON.parse(r2.json).persons.b).toEqual([
+      "Vợ A",
+      null,
+      null,
+      null,
+      "S",
+      null,
+      [],
+      "M",
+      false,
+      "ghi chú",
+    ]);
+    // --strip cắt về 7 phần tử, kể cả bộ dài hơn.
+    const s = ok(planSnapshotSex(snapshot(t), new Map(), { strip: true }));
+    expect(JSON.parse(s.json).persons.b).toHaveLength(7);
+  });
   it("trần khớp src/editCore", () => {
     expect(SNAPSHOT_MAX_BYTES).toBe(APP_MAX);
   });
