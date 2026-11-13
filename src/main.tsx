@@ -270,7 +270,7 @@ function App() {
                 path="/users"
                 element={
                   <Titled title="Quản lý tài khoản">
-                    <UsersPage key={user!.uid} />
+                    <UsersPage key={user!.uid} uid={user!.uid} />
                   </Titled>
                 }
               />

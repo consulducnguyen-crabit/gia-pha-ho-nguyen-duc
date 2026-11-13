@@ -137,3 +137,8 @@
 - Sửa theo review: ghi users đổi quyền quản trị bị từ chối khi sổ thiếu/lệch (không tự dựng sổ), kiểm tra giao rỗng sau ghi, nhật ký rebuild chỉ `create`, kiểm tra version sổ/users hỏng, `create` kiểm tra trước khi tạo Auth, cảnh báo grant khôi phục quyền cũ.
 - Bằng chứng: `npm run test:accounts:e2e` (`scripts/accounts-e2e-check.mjs`) chạy tự động trên emulator Auth + Firestore, gồm bước dùng sổ do script dựng làm fixture cho rules.
 - Review lần hai: mã nhật ký rebuild duy nhất (`ledger-rebuild-{version}-{epochMillis}`); `grant`/`create` kiểm tra sổ trước khi tạo tài khoản Auth hoặc xác minh email; thông báo sổ lệch nêu rõ (uid trùng/sổ hỏng/thiếu/thừa); kiểm giới hạn 400 trong giao dịch rebuild; e2e thêm ca rebuild sau khi xóa sổ và ca từ chối không tác dụng phụ.
+
+# PR-C: giao diện cấp quyền/sửa/vô hiệu hóa tài khoản — 2026-11-13
+
+- `src/accountsClient.ts`: `buildAccountUpdate` (thuần) + `updateAccount` (giao dịch Firestore ghi users, sổ `accessControl/admins`, nhật ký `account-{uid}-{accessVersion}` qua firestore.rules hiện có; giá trị cụ thể, không increment/arrayUnion). `src/Users.tsx`: nút Sửa, panel đổi tên/quyền Quản trị-Chỉ xem, vô hiệu hóa có xác nhận/bật lại, khóa khi sổ thiếu. Chưa có lời mời (PR-D). Không sửa `firestore.rules`.
+- Kiểm thử: tests/accountsClient.test.ts, tests/accountsClientRules.test.ts, `npm run test:browser:users` (thêm vào CI).
