@@ -32,3 +32,11 @@ Người dùng phê duyệt trực tiếp. Mục nào mâu thuẫn với danh s�
 - **Nhập dữ liệu ban đầu:** từ file gia phả Word (nằm ở `private-data/`, không đưa lên GitHub), chuyển sang Excel, tài khoản quản trị rà soát trước khi nạp.
 - **Quyền riêng tư người còn sống (mục 7):** thành viên chỉ thấy tên và năm sinh/mất (`memberProfiles`); nơi ở, nơi làm việc, nghề nghiệp và ghi chú nằm ở `personPrivate`, chỉ quản trị viên xem. Không nhập thông tin sức khỏe. Có thể mở dần sau.
 
+## Cập nhật chính sách — 2026-11-13 (cấp quyền trong app)
+
+Thiết kế do người dùng duyệt; chưa deploy.
+
+- **Cấp quyền trong app qua Firestore rules** (gói Spark, không Cloud Functions): quản trị viên bật/tắt, nâng/hạ quyền quản trị, đổi tên hiển thị; sổ `accessControl/admins` giữ bất biến "quản trị viên khi và chỉ khi users đang bật + canManageMembership" (SECURITY_RULES.md).
+- **Lời mời qua email**; **đăng nhập không mật khẩu bằng liên kết email** được chấp nhận làm cách vào (provider `password` được cho phép khi email đã xác minh).
+- **Lời mời chỉ cấp vai trò Chỉ xem** (Q1=A); không mời quản trị viên bằng lời mời. Nâng quyền quản trị là bước riêng của quản trị viên hiện hữu.
+- Vẫn: đăng nhập chưa đồng nghĩa được cấp quyền; không tự đăng ký, không tự nâng quyền.

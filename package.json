@@ -15,7 +15,7 @@
     "gia-pha:accounts": "node scripts/gia-pha/accounts.ts",
     "gia-pha:reconcile": "node scripts/gia-pha/reconcile.ts",
     "gia-pha:backup": "node scripts/gia-pha/backup.ts",
-    "test:rules": "firebase emulators:exec --project demo-gia-pha --only firestore,storage \"vitest run tests/rules.test.ts tests/editRules.test.ts --no-file-parallelism\"",
+    "test:rules": "firebase emulators:exec --project demo-gia-pha --only firestore,storage \"vitest run tests/rules.test.ts tests/editRules.test.ts tests/accountRules.test.ts --no-file-parallelism\"",
     "test:browser": "node scripts/browser-check.mjs",
     "test:browser:edit": "firebase emulators:exec --project demo-gia-pha --only auth,firestore \"node scripts/edit-browser-check.mjs\"",
     "test:browser:audit": "firebase emulators:exec --project demo-gia-pha --only auth,firestore \"node scripts/audit-browser-check.mjs\"",
