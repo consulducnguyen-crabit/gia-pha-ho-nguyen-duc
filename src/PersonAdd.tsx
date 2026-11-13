@@ -1,7 +1,7 @@
 // Biểu mẫu thêm con / thêm vợ chồng — chỉ quản trị viên thấy; ghi qua commitAdd (lô nguyên tử có nhật ký).
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { DuplicateNote } from "./DuplicateNote";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { db } from "./firebase";
 import { commitAdd, commitUnion, findRemovedUnion } from "./editClient";
 import { latestRequest } from "./latestRequest";
@@ -671,7 +671,19 @@ function SpousePanel({
 }
 
 export function PersonAdd(props: Props) {
-  const [mode, setMode] = useState<Mode>("closed");
+  // Lối "Thêm thành viên": đường dẫn ?add=child|spouse chỉ mở sẵn biểu mẫu, rồi được xóa để lần tải lại/lưu xong không mở lại.
+  const [params, setParams] = useSearchParams();
+  const [mode, setMode] = useState<Mode>(() => {
+    const a = params.get("add");
+    return a === "child" || a === "spouse" ? a : "closed";
+  });
+  useEffect(() => {
+    if (params.has("add")) {
+      const next = new URLSearchParams(params);
+      next.delete("add");
+      setParams(next, { replace: true });
+    }
+  }, []);
   const [restore, setRestore] = useState<Mode | null>(null);
   const childBtn = useRef<HTMLButtonElement | null>(null);
   const spouseBtn = useRef<HTMLButtonElement | null>(null);

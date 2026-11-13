@@ -1654,3 +1654,115 @@ body {
       auto;
   }
 }
+
+/* ===== Logo chữ Đức (thư pháp), nút cuộn nổi, lối vào Thêm thành viên (chỉ trình bày) ===== */
+.brand-mark {
+  flex: none;
+  width: 1.15em;
+  height: 1.15em;
+  color: var(--color-seal);
+}
+.tree-mark svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+.scroll-fab {
+  position: fixed;
+  right: max(var(--space-4), env(safe-area-inset-right));
+  bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.scroll-fab button {
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-control-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: 0 2px 6px rgb(58 43 29 / 25%);
+}
+.scroll-fab button:not(:disabled):hover {
+  background: var(--color-primary);
+  color: var(--color-surface);
+}
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+.add-member-link {
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  padding: var(--space-2) var(--space-5);
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  background: transparent;
+}
+.add-member-link:hover {
+  background: var(--color-soft);
+}
+.tree-add-member {
+  margin: 0 0 var(--space-3);
+}
+.tree-add-member .link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+}
+.add-member-search {
+  display: block;
+  max-width: 480px;
+  font-weight: 600;
+}
+.add-member-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0 0;
+}
+.add-member-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+.add-member-list .link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+.add-member-list .link-button:hover {
+  background: var(--color-soft);
+}
+@media print {
+  .scroll-fab {
+    display: none;
+  }
+}
+.add-member-list .edit-actions {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+.story .tree-mark {
+  margin-top: var(--space-4);
+}

@@ -326,6 +326,13 @@ function TreeView({ index, isAdmin }: { index: TreeIndex; isAdmin: boolean }) {
   return (
     <>
       <h1>Cây gia phả</h1>
+      {isAdmin && (
+        <p className="tree-add-member">
+          <Link className="primary link" to="/add-member">
+            + Thêm thành viên
+          </Link>
+        </p>
+      )}
       <p className="tree-summary">
         {clanCount} thành viên thuộc dòng họ, {maxGeneration} đời. Bấm tên để
         xem hồ sơ.

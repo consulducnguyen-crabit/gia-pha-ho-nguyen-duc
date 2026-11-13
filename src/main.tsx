@@ -30,7 +30,10 @@ import {
 import { auth, db, emulator } from "./firebase";
 import { normalizeName, type Person } from "./domain";
 import { latestRequest } from "./latestRequest";
+import { AddMemberPage } from "./AddMember";
 import { AuditLogPage } from "./AuditLog";
+import { BrandMark } from "./BrandMark";
+import { ScrollButtons } from "./ScrollButtons";
 import { AcceptInvitation, MembershipAdmin } from "./Membership";
 import { Proposals } from "./Proposals";
 import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
@@ -125,7 +128,7 @@ function App() {
       </a>
       <aside>
         <a className="brand" href="#/">
-          <span aria-hidden="true">❧</span>{" "}
+          <BrandMark className="brand-mark" />{" "}
           <span>
             Gia phả<small>GÌN GIỮ CỘI NGUỒN</small>
           </span>
@@ -172,7 +175,7 @@ function App() {
               path="/"
               element={
                 <Titled title="Tổng quan">
-                  <Overview />
+                  <Overview isAdmin={canManageMembership} />
                 </Titled>
               }
             />
@@ -254,6 +257,16 @@ function App() {
             )}
             {canManageMembership && (
               <Route
+                path="/add-member"
+                element={
+                  <Titled title="Thêm thành viên">
+                    <AddMemberPage key={user!.uid} uid={user!.uid} />
+                  </Titled>
+                }
+              />
+            )}
+            {canManageMembership && (
+              <Route
                 path="/users"
                 element={
                   <Titled title="Quản lý tài khoản">
@@ -318,7 +331,7 @@ function Gate({ state, user }: { state: string; user: User | null }) {
       <section className="story">
         <div className="eyebrow">GIA PHẢ DÒNG HỌ</div>
         <div className="tree-mark" aria-hidden="true">
-          ❧
+          <BrandMark />
         </div>
         <h1>
           Từ cội nguồn,
@@ -469,7 +482,7 @@ function Gate({ state, user }: { state: string; user: User | null }) {
     </div>
   );
 }
-function Overview() {
+function Overview({ isAdmin }: { isAdmin: boolean }) {
   return (
     <>
       <div className="eyebrow">KÝ ỨC ĐƯỢC TIẾP NỐI</div>
@@ -483,7 +496,7 @@ function Overview() {
       </p>
       <div className="hero">
         <span className="tree-mark" aria-hidden="true">
-          ❧
+          <BrandMark />
         </span>
         <div>
           <h2>Từng hồ sơ, một câu chuyện</h2>
@@ -492,9 +505,16 @@ function Overview() {
             trị viên quản lý; mỗi thay đổi được ghi nhật ký để kiểm tra và khôi
             phục.
           </p>
-          <NavLink className="primary link" to="/persons">
-            Tra cứu thành viên →
-          </NavLink>
+          <div className="hero-actions">
+            <NavLink className="primary link" to="/persons">
+              Tra cứu thành viên →
+            </NavLink>
+            {isAdmin && (
+              <NavLink className="link add-member-link" to="/add-member">
+                + Thêm thành viên
+              </NavLink>
+            )}
+          </div>
         </div>
       </div>
       <div className="cards">
@@ -671,6 +691,7 @@ createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <HashRouter>
       <App />
+      <ScrollButtons />
     </HashRouter>
   </React.StrictMode>,
 );

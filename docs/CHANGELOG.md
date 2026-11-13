@@ -115,3 +115,9 @@
 - Sửa: skip link, `<main>` cho trang đăng nhập/chờ cấp quyền, title theo route, chuyển focus vào nội dung khi đổi route, nav cao >= 44px, vùng bấm >= 24px cho tên trong cây/danh sách, ô chọn/radio 24px với nhãn cao >= 44px, bỏ h3 trong button, caption bảng tài khoản, icon trang trí aria-hidden, lỗi đăng nhập gắn aria-describedby, trả focus khi đóng panel ẩn/khôi phục người và hồ sơ tra cứu, viền control đủ 3:1 trên nền hero/story, cỡ chữ nhãn nhỏ nhất 11px.
 - Không đổi nghiệp vụ, API, quyền, route hay dữ liệu.
 - Title đặt theo từng Route (kể cả 404/route bị chặn) và theo trạng thái cổng; `.person-name` giữ diện mạo cũ của thẻ tra cứu; đóng hồ sơ tra cứu focus ô tìm kiếm nếu thẻ đã mất.
+
+# Giao diện: logo, nút cuộn, lối vào Thêm thành viên — 2026-11-13
+
+- Logo chữ Đức (德) kiểu thư pháp (SVG nhúng, xem FONT_LICENSES.md) thay cho ký tự ❧.
+- Nút cuộn nổi lên đầu / xuống cuối trên mọi màn hình (kể cả đăng nhập).
+- Quản trị viên: nút "Thêm thành viên" ở Tổng quan và Cây gia phả, mở trang `#/add-member` chọn người gốc rồi mở sẵn biểu mẫu Thêm con / Thêm vợ/chồng hiện có (`?add=child|spouse`, tham số bị xóa sau khi mở). Không thêm đường ghi mới; rules và nhật ký không đổi.
