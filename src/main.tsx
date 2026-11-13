@@ -34,12 +34,21 @@ import { AddMemberPage } from "./AddMember";
 import { AuditLogPage } from "./AuditLog";
 import { BrandMark } from "./BrandMark";
 import { ScrollButtons } from "./ScrollButtons";
-import { AcceptInvitation, MembershipAdmin } from "./Membership";
+// Hệ lời mời cũ (Membership.tsx, emulator-only) đã được thay bằng lời mời trong #/users; giữ mã, ẩn khỏi giao diện.
+import { EmailLinkLogin, LinkConflict } from "./EmailLinkLogin";
+import {
+  capturePendingLink,
+  consumePendingLink,
+  getPendingLink,
+} from "./emailLink";
+import { InviteAccept } from "./InviteAccept";
 import { Proposals } from "./Proposals";
 import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
 import "@fontsource-variable/source-serif-4/wght.css";
 import "./style.css";
+// Chụp liên kết đăng nhập email (nếu có) và làm sạch oobCode khỏi URL ngay khi trang tải, trước mọi trạng thái đăng nhập.
+if (auth) capturePendingLink(auth);
 // Tiêu đề tab (WCAG 2.4.2) đặt ngay trong phần tử của từng <Route> để luôn khớp trang thật đang render
 // (kể cả route bị chặn quyền, không tồn tại, hoặc chỉ có trên emulator).
 function Titled({ title, children }: { title: string; children: ReactNode }) {
@@ -56,6 +65,7 @@ function App() {
   const [access, setAccess] = useState("loading");
   const [canManageMembership, setCanManageMembership] = useState(false);
   const [canReviewChanges, setCanReviewChanges] = useState(false);
+  const [, refreshLink] = useState(0);
   useEffect(() => {
     if (!auth || !db) {
       setAccess("setup");
@@ -111,6 +121,16 @@ function App() {
     }
     mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname]);
+  if (user && getPendingLink())
+    return (
+      <LinkConflict
+        user={user}
+        onDiscard={() => {
+          consumePendingLink();
+          refreshLink((n) => n + 1);
+        }}
+      />
+    );
   if (access !== "member")
     return <Gate key={user?.uid ?? "signed-out"} state={access} user={user} />;
   return (
@@ -150,9 +170,6 @@ function App() {
           )}
           {canManageMembership && (
             <NavLink to="/audit">Nhật ký chỉnh sửa</NavLink>
-          )}
-          {emulator && canManageMembership && (
-            <NavLink to="/accounts">Tài khoản và lời mời</NavLink>
           )}
           <NavLink to="/roadmap">Tiến độ triển khai</NavLink>
         </nav>
@@ -285,16 +302,6 @@ function App() {
                 }
               />
             )}
-            {emulator && canManageMembership && (
-              <Route
-                path="/accounts"
-                element={
-                  <Titled title="Tài khoản và lời mời">
-                    <MembershipAdmin key={user?.uid} />
-                  </Titled>
-                }
-              />
-            )}
             <Route
               path="*"
               element={
@@ -381,8 +388,8 @@ function Gate({ state, user }: { state: string; user: User | null }) {
             <button onClick={() => void signOut(auth!)}>
               Đăng xuất {user?.email}
             </button>
-            {state === "pending" && user && emulator && (
-              <AcceptInvitation key={user.uid} />
+            {state === "pending" && user && (
+              <InviteAccept key={user.uid} user={user} />
             )}
           </>
         ) : (
@@ -468,6 +475,7 @@ function Gate({ state, user }: { state: string; user: User | null }) {
             >
               Đăng nhập bằng Google
             </button>
+            <EmailLinkLogin />
           </>
         )}
         <div className="privacy">

@@ -67,7 +67,7 @@ async function contrast(locator, focus = false) {
 try {
   const author = await session("nguoidexuat@example.test");
   const reviewer = await session("duyetmot@example.test");
-  const manager = await session("quanly@example.test");
+  await session("quanly@example.test"); // tài khoản quản lý vẫn được đăng nhập; trang #/accounts cũ đã bị ẩn
   for (const width of [360, 768, 1280, 1440]) {
     for (const page of pages)
       await page.setViewportSize({ width, height: 900 });
@@ -214,14 +214,7 @@ try {
       .getByRole("heading", { name: "Hộp duyệt", exact: true })
       .waitFor();
     await fits(reviewer, `review ${width}`);
-    await manager.goto("http://127.0.0.1:5173/#/accounts");
-    await manager
-      .getByRole("heading", { name: "Tài khoản và lời mời", exact: true })
-      .waitFor();
-    await manager
-      .getByLabel("UID tài khoản cần thu hồi", { exact: true })
-      .fill("fake-uid-" + "x".repeat(120));
-    await fits(manager, `accounts ${width}`);
+    // Trang #/accounts (hệ lời mời cũ emulator-only) đã bị ẩn; lời mời mới nằm trong #/users (users-browser-check, invites-browser-check).
     const controls = await author
       .locator("input,select,textarea")
       .evaluateAll((elements) =>
@@ -243,7 +236,6 @@ try {
           "long input",
           "keyboard checkbox and focus",
           "review queue",
-          "accounts form",
           "reduced motion",
           "loading/disabled",
           "permission-denied/recovery",

@@ -51,3 +51,4 @@ jobs:
       - run: npm run test:browser:audit
       - run: npm run test:browser:branch
       - run: npm run test:browser:users
+      - run: npm run test:browser:invites

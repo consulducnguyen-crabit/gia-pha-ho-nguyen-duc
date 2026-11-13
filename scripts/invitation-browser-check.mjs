@@ -1,3 +1,4 @@
+// NGỪNG DÙNG (PR-D): kiểm tra UI #/accounts của hệ lời mời cũ emulator-only; giao diện đó đã bị ẩn. Lời mời hiện tại: invites-browser-check.mjs.
 import { randomUUID } from "node:crypto";
 import { chromium, expect } from "@playwright/test";
 

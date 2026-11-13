@@ -69,12 +69,12 @@ quyền ghi client; canonical và media vẫn khóa.
 
 ## API callable
 
-| Hàm | Dữ liệu vào | Kết quả |
-| --- | --- | --- |
-| createInvitation | email | invitationId, token (chỉ trả khi tạo) |
-| acceptInvitation | token | accepted=true |
-| revokeInvitation | invitationId | changed |
-| disableMembership | targetUid, requestId UUIDv4 | changed |
+| Hàm               | Dữ liệu vào                 | Kết quả                               |
+| ----------------- | --------------------------- | ------------------------------------- |
+| createInvitation  | email                       | invitationId, token (chỉ trả khi tạo) |
+| acceptInvitation  | token                       | accepted=true                         |
+| revokeInvitation  | invitationId                | changed                               |
+| disableMembership | targetUid, requestId UUIDv4 | changed                               |
 
 Chỉ nhận các trường đã liệt kê; dữ liệu role, enabled, approvedBy từ client bị
 từ chối. Lời mời/membership schema lạ, sai kiểu hoặc version null bị từ chối.
@@ -87,6 +87,8 @@ chấp nhận như legacy. Bản ghi được backend ghi mới có schemaVersio
 npm run test:backend:unit
 npm run test:backend
 ```
+
+> **Hệ lời mời cũ này (Cloud Functions, emulator-only) đã bị ẩn khỏi giao diện (PR-D):** `#/accounts`, `AcceptInvitation` và `scripts/invitation-browser-check.mjs` không còn là đường dùng thật. Lời mời hiện tại nằm trong `#/users` (xem ACCOUNTS.md, `scripts/invites-browser-check.mjs`). Phần dưới chỉ để tham khảo mã backend.
 
 Khi emulator/Vite đã chạy và seed như trên:
 

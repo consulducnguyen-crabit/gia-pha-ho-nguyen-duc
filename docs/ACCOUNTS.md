@@ -65,3 +65,24 @@ Chưa có Cloud Functions nên tài khoản được quản lý bằng **công c
 ## Giao diện #/users (PR-C)
 
 - Quản trị viên (có trong sổ) dùng nút **Sửa** để đổi tên hiển thị, đổi quyền Quản trị/Chỉ xem, vô hiệu hóa hoặc bật lại tài khoản ĐÃ CÓ; ghi qua firestore.rules cùng sổ và nhật ký trong một giao dịch. Không tự sửa chính mình. Sổ thiếu/không chứa bạn thì các nút bị khóa và trang hướng dẫn `registry --rebuild`. Vô hiệu hóa quản trị viên cũng hạ quyền Quản trị; bật lại chỉ trả quyền Chỉ xem. Mời người mới: PR sau.
+
+## Mời thành viên bằng email (PR-D)
+
+- Trang `#/users` có khu **Mời thành viên**: quản trị viên (có trong sổ) nhập email (+ tên hiển thị tùy chọn) và bấm "Tạo lời mời". Lời mời **chỉ cấp "Chỉ xem"**, hạn khoảng 7 ngày (ghi 6 ngày 22 giờ để tránh lệch đồng hồ so với giới hạn 7 ngày của rules). Bảng lời mời (tối đa 100, mới nhất trước) có trạng thái Đang chờ / Đã nhận / Đã thu hồi / Hết hạn, nút **Thu hồi**, **Mời lại** (khi hết hạn/thu hồi/đã nhận) và **Gửi liên kết đăng nhập**.
+- **Gửi liên kết đăng nhập** gọi `sendSignInLinkToEmail` của Firebase: Firebase gửi thư tới email đó; người nhận mở liên kết (nên trên thiết bị của họ). Hạn mức thư theo ngày của Firebase, SMTP/thư rác **chưa được kiểm chứng trên Firebase thật**.
+- Người được mời đăng nhập bằng một trong hai cách ở màn đăng nhập: **"Gửi liên kết"** (đăng nhập không mật khẩu bằng liên kết email; mở liên kết trên thiết bị khác thì nhập lại email) hoặc **Google** với đúng email được mời. Hệ thống KHÔNG có đăng ký mật khẩu. Sau đăng nhập, màn "Chờ cấp quyền" hiện nút **Nhận lời mời** nếu email đã xác minh và có lời mời đang chờ còn hạn; nhận xong tự vào hệ thống với quyền Chỉ xem.
+- Rules ràng buộc: người phát hành phải còn là quản trị viên trong sổ; người đã có `users` (kể cả đã tắt) không nhận được lời mời; mỗi nhật ký lời mời (`invite-{nonce}`, `invite-{nonce}-revoked-{uid}`, `account-{uid}-1`) tạo cùng lô, không chứa email. Hệ lời mời cũ emulator-only (`#/accounts`, Cloud Functions) đã bị ẩn; mã giữ lại trong `src/Membership.tsx` và `functions/`.
+
+### Việc thủ công cần người dùng (một lần, trước khi dùng thật)
+
+1. **Firebase Console** (project prod `gia-pha-nguyen-duc-prod`, và dev nếu dùng): Authentication → Sign-in method → **Email/Password** → bật mục **Email link (passwordless sign-in)** (giữ nguyên "Email/Password" ở trạng thái bật; ứng dụng không có màn đăng ký mật khẩu). Kết quả cần xác nhận: mục "Email link" ở trạng thái Enabled.
+2. Authentication → Settings → **Authorized domains**: thêm tên miền GitHub Pages của trang (dạng `<tên-tài-khoản>.github.io`) nếu chưa có. Kết quả cần xác nhận: tên miền xuất hiện trong danh sách.
+3. Thử một vòng thật: dùng một email của người dùng, tạo lời mời trong `#/users`, bấm "Gửi liên kết đăng nhập", mở thư (kiểm tra cả thư rác), bấm liên kết, nhấn "Nhận lời mời". Kết quả cần xác nhận: vào được hệ thống với quyền Chỉ xem, không thấy "Quản lý tài khoản"; ghi lại thư có tới hộp thư chính hay thư rác.
+4. Không cần gửi cho tôi khóa hay mật khẩu nào; chỉ báo kết quả các bước trên.
+
+### Chống "đăng ký trước" (pre-hijacking) khi đăng nhập bằng liên kết email
+
+- Rủi ro: kẻ khác có thể đăng ký trước một tài khoản mật khẩu cho email của người được mời (email chưa xác minh). Khi người đó chứng minh sở hữu hộp thư bằng liên kết email, tài khoản cùng email được dùng chung và kẻ kia vẫn giữ mật khẩu đã đặt.
+- Biện pháp trong mã: ngay sau `signInWithEmailLink` thành công, ứng dụng gọi `updatePassword` với chuỗi ngẫu nhiên 40 ký tự (`crypto.getRandomValues`, không lưu, không hiển thị) để vô hiệu mật khẩu cũ (đổi mật khẩu cũng thu hồi token cũ). Lỗi bước này không bị nuốt: ứng dụng đăng xuất và báo gửi liên kết mới. Hệ quả: người dùng không có mật khẩu; họ đăng nhập bằng liên kết email hoặc Google.
+- Liên kết đăng nhập được chụp và xóa `oobCode`/`apiKey` khỏi URL ngay khi trang tải; email tạm trong localStorage hết hạn sau 1 giờ và bị xóa khi lỗi hết hạn/đã dùng; giữa hai lần "Gửi liên kết" tới cùng email có thời gian chờ 60 giây phía client.
+- Trạng thái: **đã giảm thiểu, chưa kiểm chứng trên Firebase thật.** Trên Auth emulator đã kiểm: đăng ký trước tài khoản mật khẩu P (đăng nhập P được) rồi hoàn tất liên kết email thì đăng nhập bằng P bị từ chối (`scripts/invites-browser-check.mjs`). Cần thử lại trên Firebase thật vì cách Firebase thật gộp tài khoản theo email có thể khác emulator.

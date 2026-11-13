@@ -142,3 +142,11 @@
 
 - `src/accountsClient.ts`: `buildAccountUpdate` (thuần) + `updateAccount` (giao dịch Firestore ghi users, sổ `accessControl/admins`, nhật ký `account-{uid}-{accessVersion}` qua firestore.rules hiện có; giá trị cụ thể, không increment/arrayUnion). `src/Users.tsx`: nút Sửa, panel đổi tên/quyền Quản trị-Chỉ xem, vô hiệu hóa có xác nhận/bật lại, khóa khi sổ thiếu. Chưa có lời mời (PR-D). Không sửa `firestore.rules`.
 - Kiểm thử: tests/accountsClient.test.ts, tests/accountsClientRules.test.ts, `npm run test:browser:users` (thêm vào CI).
+
+# PR-D: lời mời thành viên bằng email + đăng nhập bằng liên kết email — 2026-11-13
+
+- `src/invitesClient.ts` (tạo/thu hồi/nhận lời mời, nhật ký 1:1 bằng sha256 khóa email), `src/emailLink.ts` + `src/EmailLinkLogin.tsx` (đăng nhập không mật khẩu bằng liên kết email, hoàn tất cả khi mở trên thiết bị khác), `src/InviteAccept.tsx` (nút "Nhận lời mời" ở màn chờ cấp quyền), `src/UsersInvites.tsx` (khu "Mời thành viên" trong `#/users`). Lời mời chỉ cấp Chỉ xem, hạn 7 ngày (client ghi 6 ngày 22 giờ). Không sửa `firestore.rules`; không có đăng ký mật khẩu.
+- Hệ lời mời cũ emulator-only (`#/accounts`, `AcceptInvitation`) bị ẩn khỏi giao diện (giữ mã); `scripts/invitation-browser-check.mjs` đánh dấu ngừng dùng; bỏ trang `/accounts` khỏi `ui-check.mjs` và `ui-standards-audit.mjs`.
+- Kiểm thử: `tests/invitesClient.test.ts`, `tests/invitesClientRules.test.ts`, `npm run test:browser:invites` (Auth emulator thật: liên kết email, nhận lời mời, thu hồi/hết hạn/email lạ bị chặn; thêm vào CI).
+- Chưa kiểm chứng: Firebase Auth thật, hạn mức/độ tin cậy gửi thư, Firestore thật.
+- Review PR-D: liên kết email xử lý ở cấp App (chụp + làm sạch URL ngay, màn "đang đăng nhập tài khoản khác"); `updatePassword` ngẫu nhiên sau đăng nhập liên kết để chặn pre-hijacking (chưa kiểm chứng trên Firebase thật); giữ href khi email sai/mất mạng; email tạm hết hạn 1 giờ; thời gian chờ 60 giây giữa các lần gửi; khu mời chỉ báo khóa sau khi tải xong; không nuốt lỗi mạng thành "chưa có lời mời"; ẩn "Mời lại" cho email đã có tài khoản; thêm ca rules âm (anonymous, khai gian hết hạn/thu hồi/đã dùng, đồng hồ lệch).
