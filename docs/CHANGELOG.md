@@ -156,3 +156,10 @@
 - `accounts.ts`/`accounts-core.ts`: lệnh `delete --email E [--apply --confirm-delete E]` (hàm thuần `planDelete`): chỉ xóa tài khoản đã vô hiệu hóa, không phải quản trị viên, sổ khớp users, còn quản trị viên sau khi xóa; giao dịch xóa `users/{uid}` + nhật ký `ACCOUNT_DELETED` (không email/tên) rồi mới xóa Auth; lời mời PENDING chỉ cảnh báo. Chạy thử có đọc dữ liệu (chỉ đọc) để in kế hoạch thật.
 - Cập nhật hướng dẫn trong `#/users` và `docs/ACCOUNTS.md`; `scripts/accounts-e2e-check.mjs` thêm kịch bản delete trên emulator. Chưa chạy trên Firebase thật.
 - Review `delete`: lời mời PENDING còn hạn nay CHẶN xóa (xóa xong người đó đăng nhập lại cùng email sẽ nhận lại quyền qua chính lời mời đang chờ, không cần ai mời lại); hàm thuần `recheckDelete` cho bước kiểm lại trong giao dịch; câu `--ack` riêng `XOA TAI KHOAN <project>` cho lệnh xóa; nhật ký `authOnly: true`; `auth/user-not-found` coi là đã xong.
+
+# Lời mời một bước — 2026-11-13
+
+- `#/users`: nút **Gửi thư mời** tạo lời mời và gửi thư ngay (đổi nhãn: Gửi lại thư mời / Mời lại và gửi thư; bảng có "Gửi lại thư" và "Thu hồi"); tạo xong gửi lỗi vẫn giữ lời mời và báo rõ.
+- Liên kết trong thư mang `?invitee=<email>`: mở là tự đăng nhập (không hỏi email), tự kích hoạt lời mời (`InviteAccept`) và hiện lời chào một lần (`WelcomeBanner`, cờ sessionStorage). Email trong URL chỉ là đầu vào cho Firebase; quyền do rules quyết định. Giữ `updatePassword` ngẫu nhiên và màn xung đột tài khoản.
+- Test: `tests/invitesClient.test.ts` (continue URL, `?invitee=`, lời chào), `scripts/invites-browser-check.mjs` (một bước, thiết bị sạch, `?invitee=` sai, thu hồi/hết hạn không kích hoạt, gửi lại, cooldown, tên có HTML, 360/768/1280). Chưa kiểm chứng trên Firebase thật.
+- Review mời một bước: `?invitee=` chỉ gắn cho thư của quản trị viên; header "Đang đăng nhập: {email}" và lời chào nêu email + nút "Không phải bạn? Đăng xuất"; cờ chào mừng gắn uid và bị xóa khi đăng xuất/đổi tài khoản, đọc rồi xóa khi hiện; `InviteAccept` giữ lỗi cuối/đang kích hoạt theo khóa ở cấp module; khóa ô tên khi gửi lại; chặn mời email đã có tài khoản.

@@ -8,11 +8,11 @@ import {
   completeLoginLink,
   consumePendingLink,
   emailLinkErrorMessage,
+  getPendingEmail,
   getPendingLink,
   isDeadLinkError,
   restorePendingLink,
   sendLoginLink,
-  storedEmail,
 } from "./emailLink";
 
 // StrictMode chạy effect hai lần; oobCode chỉ dùng được một lần nên hoàn tất tự động đúng một lần cho mỗi liên kết.
@@ -22,7 +22,7 @@ export function EmailLinkLogin() {
   const hasLink = !!getPendingLink();
   const [phase, setPhase] = useState<
     "idle" | "sent" | "completing" | "needEmail"
-  >(hasLink ? "needEmail" : "idle");
+  >(hasLink ? (getPendingEmail() ? "completing" : "needEmail") : "idle");
   const [email, setEmail] = useState("");
   const [sentTo, setSentTo] = useState("");
   const [error, setError] = useState("");
@@ -55,8 +55,11 @@ export function EmailLinkLogin() {
     const href = getPendingLink();
     if (!href || autoAttemptedHref === href) return;
     autoAttemptedHref = href;
-    const saved = storedEmail();
-    if (saved) void complete(saved);
+    // Email điền sẵn (?invitee= hoặc email tạm cùng thiết bị) chỉ là đầu vào cho Firebase, nơi tự kiểm khớp với oobCode;
+    // chỉ hỏi người dùng khi cả hai nguồn đều thiếu.
+    const prefilled = getPendingEmail();
+    if (prefilled) void complete(prefilled);
+    else setPhase("needEmail");
   }, []);
   useEffect(() => {
     if (phase === "sent" || error) msgRef.current?.focus();

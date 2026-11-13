@@ -1,7 +1,7 @@
 // Kiểm thử hàm dựng dữ liệu thuần của lời mời và đăng nhập bằng liên kết email. Dữ liệu giả.
 import { createHash, randomUUID } from "node:crypto";
 import { Timestamp } from "firebase/firestore";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   INVITE_TTL_MS,
   InviteError,
@@ -19,11 +19,20 @@ import {
   actionCodeSettings,
   cleanedUrl,
   cooldownRemaining,
+  emailLinkShortReason,
+  readInviteeParam,
   parseStoredEmail,
   randomSecret,
   emailLinkErrorMessage,
   normalizeLinkEmail,
 } from "../src/emailLink";
+import {
+  clearWelcome,
+  pruneWelcome,
+  readWelcome,
+  setWelcome,
+  welcomeText,
+} from "../src/welcome";
 
 const code = (fn: () => unknown) => {
   try {
@@ -393,5 +402,90 @@ describe("đồng hồ thiết bị lệch", () => {
     }
     expect(err?.code).toBe("INVITE_UNUSABLE");
     expect(err?.message).toMatch(/đồng hồ/);
+  });
+});
+
+describe("liên kết một bước: ?invitee= và lời chào", () => {
+  it("continue URL mã hóa email viết thường và không có hash", () => {
+    const loc = { origin: "https://ex.github.io", pathname: "/gia-pha/" };
+    expect(actionCodeSettings(loc, " Ten+Tag@Example.TEST ")).toEqual({
+      url: "https://ex.github.io/gia-pha/?invitee=ten%2Btag%40example.test",
+      handleCodeInApp: true,
+    });
+    expect(actionCodeSettings(loc).url).toBe("https://ex.github.io/gia-pha/");
+  });
+  it("đọc tham số invitee: giải mã, chuẩn hóa; thiếu/sai thì rỗng", () => {
+    expect(
+      readInviteeParam("?invitee=ten%2Btag%40example.test&oobCode=x"),
+    ).toBe("ten+tag@example.test");
+    expect(readInviteeParam("?apiKey=k&invitee=A%40B.CO")).toBe("a@b.co");
+    expect(readInviteeParam("")).toBe("");
+    expect(readInviteeParam("?oobCode=x")).toBe("");
+    expect(readInviteeParam("?invitee=khong-hop-le")).toBe("");
+    expect(readInviteeParam("?invitee=%3Cb%3Ex%40y.z")).toBe("");
+  });
+  it("làm sạch URL bỏ toàn bộ tham số (oobCode, apiKey, mode, lang, invitee) nhưng giữ hash", () => {
+    // cleanedUrl chỉ nhận origin/pathname/hash nên không thể giữ search
+    expect(
+      cleanedUrl({ origin: "http://x", pathname: "/", hash: "#/users" }),
+    ).toBe("http://x/#/users");
+  });
+  it("lý do ngắn khi gửi thư lỗi", () => {
+    expect(emailLinkShortReason({ code: "auth/quota-exceeded" })).toMatch(
+      /hạn mức/,
+    );
+    expect(
+      emailLinkShortReason({ code: "auth/operation-not-allowed" }),
+    ).toMatch(/chưa được bật/);
+    expect(
+      emailLinkShortReason({ code: "auth/network-request-failed" }),
+    ).toMatch(/mạng/);
+    expect(
+      emailLinkShortReason({ code: "auth/unauthorized-continue-uri" }),
+    ).toMatch(/tên miền/);
+    expect(emailLinkShortReason(new Error("?"))).toMatch(/không xác định/);
+  });
+  it("lời chào có/không có tên", () => {
+    expect(welcomeText("  Nguyễn Văn An ")).toBe(
+      "Chào mừng Nguyễn Văn An! Bạn đã được mời xem gia phả dòng họ với quyền Chỉ xem.",
+    );
+    expect(welcomeText("")).toBe(
+      "Chào mừng! Bạn đã được mời xem gia phả dòng họ với quyền Chỉ xem.",
+    );
+  });
+});
+
+describe("lời chào theo tài khoản (sessionStorage)", () => {
+  beforeEach(() => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("sessionStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  it("lời chào nêu email đang đăng nhập", () => {
+    expect(welcomeText("An", "an@example.test")).toBe(
+      "Chào mừng An! Bạn đang đăng nhập bằng an@example.test; bạn được mời xem gia phả dòng họ với quyền Chỉ xem.",
+    );
+  });
+  it("cờ chỉ hiện cho đúng uid; người khác không đọc được", () => {
+    setWelcome("u1", "An");
+    expect(readWelcome("u1")).toEqual({ name: "An" });
+    expect(readWelcome("u2")).toBeNull();
+  });
+  it("pruneWelcome xóa cờ khi đăng xuất hoặc đổi tài khoản, giữ khi cùng uid", () => {
+    setWelcome("u1", "An");
+    pruneWelcome("u1");
+    expect(readWelcome("u1")).toEqual({ name: "An" });
+    pruneWelcome("u2");
+    expect(readWelcome("u1")).toBeNull();
+    setWelcome("u1", "An");
+    pruneWelcome(null);
+    expect(readWelcome("u1")).toBeNull();
+    setWelcome("u1", "An");
+    clearWelcome();
+    expect(readWelcome("u1")).toBeNull();
   });
 });

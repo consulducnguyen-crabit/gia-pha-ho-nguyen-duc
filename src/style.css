@@ -243,6 +243,29 @@ header b {
   font-weight: 400;
   color: var(--color-text-muted);
 }
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+/* Email đang đăng nhập: thu gọn bằng dấu … trên màn nhỏ, đầy đủ trong thuộc tính title. */
+.header-user-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 30ch;
+  color: var(--color-text-muted);
+}
+@media (max-width: 480px) {
+  /* Màn hẹp: bỏ nhãn "Đang đăng nhập:" để còn chỗ cho email (vẫn đọc được qua title). */
+  .header-user-label {
+    display: none;
+  }
+  .header-user-email {
+    max-width: 17ch;
+  }
+}
 main {
   max-width: 1200px;
   margin: auto;

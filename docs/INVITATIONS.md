@@ -115,3 +115,5 @@ khôi phục tài khoản đặc quyền và kiểm chứng hạ tầng. Không 
 Chưa có migration dữ liệu production. Dừng emulator và quay về commit trước để
 bỏ backend/UI thử nghiệm. Muốn giữ fixture thì export trước khi dừng theo
 OPERATIONS.md; không commit export. Không mở rules để khắc phục lỗi truy cập.
+
+> **Cập nhật (mời một bước):** luồng lời mời hiện tại (không phải hệ Cloud Functions ở trên) gồm "Gửi thư mời" một bước, liên kết mang `?invitee=` và tự kích hoạt khi mở; xem mục "Mời một bước" trong ACCOUNTS.md.

@@ -42,6 +42,8 @@ import {
   getPendingLink,
 } from "./emailLink";
 import { InviteAccept } from "./InviteAccept";
+import { WelcomeBanner } from "./WelcomeBanner";
+import { pruneWelcome } from "./welcome";
 import { Proposals } from "./Proposals";
 import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
@@ -74,6 +76,7 @@ function App() {
     let stop = () => {};
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       stop();
+      pruneWelcome(u?.uid ?? null); // cờ chào mừng không được sang tài khoản khác
       setCanManageMembership(false);
       setCanReviewChanges(false);
       setUser(u);
@@ -184,7 +187,13 @@ function App() {
           <span>
             Gia phả dòng họ <b>/ Không gian riêng tư</b>
           </span>
-          <button onClick={() => void signOut(auth!)}>Đăng xuất</button>
+          <span className="header-user">
+            <span className="header-user-email" title={user?.email ?? ""}>
+              <span className="header-user-label">Đang đăng nhập: </span>
+              {user?.email}
+            </span>
+            <button onClick={() => void signOut(auth!)}>Đăng xuất</button>
+          </span>
         </header>
         <main id="main" tabIndex={-1} ref={mainRef}>
           <Routes>
@@ -192,7 +201,11 @@ function App() {
               path="/"
               element={
                 <Titled title="Tổng quan">
-                  <Overview isAdmin={canManageMembership} />
+                  <Overview
+                    isAdmin={canManageMembership}
+                    uid={user!.uid}
+                    email={user!.email}
+                  />
                 </Titled>
               }
             />
@@ -490,9 +503,18 @@ function Gate({ state, user }: { state: string; user: User | null }) {
     </div>
   );
 }
-function Overview({ isAdmin }: { isAdmin: boolean }) {
+function Overview({
+  isAdmin,
+  uid,
+  email,
+}: {
+  isAdmin: boolean;
+  uid: string;
+  email: string | null;
+}) {
   return (
     <>
+      <WelcomeBanner uid={uid} email={email} />
       <div className="eyebrow">KÝ ỨC ĐƯỢC TIẾP NỐI</div>
       <h1>
         Người có tổ,
