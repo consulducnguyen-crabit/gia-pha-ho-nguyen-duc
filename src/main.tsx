@@ -43,6 +43,7 @@ import {
 } from "./emailLink";
 import { InviteAccept } from "./InviteAccept";
 import { WelcomeBanner } from "./WelcomeBanner";
+import { OverviewStats } from "./OverviewStatsView";
 import { pruneWelcome } from "./welcome";
 import { Proposals } from "./Proposals";
 import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
@@ -570,6 +571,8 @@ function Overview({
           </div>
         </div>
       </div>
+      {/* key=uid: đổi tài khoản thì tải lại số liệu, không giữ số của người trước. */}
+      <OverviewStats key={uid} uid={uid} />
       <div className="cards">
         <article>
           <span>01 / TƯ LIỆU</span>
