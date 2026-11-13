@@ -788,6 +788,42 @@ textarea {
 .users-panel fieldset:disabled {
   opacity: 0.75;
 }
+.users-invites {
+  margin-top: var(--space-6);
+}
+.users-invite-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-3) var(--space-5);
+  align-items: end;
+  margin: var(--space-4) 0;
+}
+.users-invite-form .edit-actions {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.users-table-invites {
+  min-width: 38rem;
+}
+.users-invite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+/* Khối đăng nhập bằng liên kết email và hộp "Nhận lời mời" trong màn cổng. */
+.login-link {
+  margin-top: var(--space-2);
+}
+.invite-accept {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.invite-accept h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 18px;
+}
 .users-howto {
   margin-top: var(--space-5);
   overflow-wrap: anywhere;

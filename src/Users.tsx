@@ -8,6 +8,7 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { InvitesSection } from "./UsersInvites";
 import { formatVnTime } from "./auditView";
 import {
   accountErrorMessage,
@@ -117,8 +118,8 @@ export function UsersPage({ uid }: { uid: string }) {
       <p className="tree-summary">
         Danh sách tài khoản đã được cấp hoặc vô hiệu hóa quyền. Quản trị viên có
         thể sửa tên hiển thị, đổi quyền Quản trị/Chỉ xem, vô hiệu hóa hoặc bật
-        lại tài khoản đã có. Mời người mới và tạo tài khoản dùng công cụ trên
-        máy quản trị (xem cuối trang).
+        lại tài khoản đã có, và mời thành viên mới bằng email ở khu “Mời thành
+        viên” bên dưới.
       </p>
       {done && (
         <p role="status" className="notice" tabIndex={-1} ref={doneRef}>
@@ -231,13 +232,22 @@ export function UsersPage({ uid }: { uid: string }) {
           }}
         />
       )}
+      <InvitesSection
+        enabled={ledgerReady}
+        loaded={!!rows}
+        existingEmails={
+          new Set(
+            (rows ?? []).map((r) => r.email.toLowerCase()).filter(Boolean),
+          )
+        }
+        uid={uid}
+      />
       <section className="users-howto">
         <h2>Công cụ trên máy quản trị</h2>
         <p>
-          Việc mời người mới, tạo tài khoản có mật khẩu và xóa hẳn tài khoản
-          đăng nhập làm bằng lệnh (thêm <b>--apply</b> để thực hiện; không có
-          thì chỉ chạy thử). Nút <b>Sửa</b> ở trên chỉ áp dụng cho tài khoản đã
-          có.
+          Việc tạo tài khoản có mật khẩu và xóa hẳn tài khoản đăng nhập làm bằng
+          lệnh (thêm <b>--apply</b> để thực hiện; không có thì chỉ chạy thử).
+          Nút <b>Sửa</b> ở trên chỉ áp dụng cho tài khoản đã có.
         </p>
         <p>
           Thành viên có Gmail (đăng nhập bằng Google, nhập đúng email Google):

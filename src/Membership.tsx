@@ -1,3 +1,5 @@
+// ĐÃ THAY THẾ bởi lời mời trong #/users (src/invitesClient.ts, PR-D). Hệ này chỉ chạy trên emulator
+// (Cloud Functions) và đã bị ẩn khỏi giao diện; giữ mã để tham khảo, không dùng cho production.
 import { useEffect, useRef, useState } from "react";
 import { httpsCallable } from "firebase/functions";
 import { emulator, membershipFunctions } from "./firebase";

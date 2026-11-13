@@ -435,7 +435,6 @@ try {
       ["de-xuat", "/changes"],
       ["hop-duyet", "/review"],
       ["tai-khoan", "/users"],
-      ["loi-moi", "/accounts"],
       ["nhat-ky", "/audit"],
       ["tien-do", "/roadmap"],
       ["khong-co", "/khong-ton-tai"],
