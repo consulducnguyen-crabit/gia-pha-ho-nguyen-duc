@@ -38,6 +38,13 @@ Người dùng phê duyệt trực tiếp. Mục nào mâu thuẫn với danh s�
 - Giới tính chỉ là dữ liệu hiển thị; vẫn KHÔNG suy truyền dòng từ giới tính hoặc họ.
 - Triển khai: phần tử thứ 8 của bộ dữ liệu người; backfill ảnh chụp sẵn có bằng `gia-pha:snapshot-sex` (dry-run mặc định; prod cần cổng `DONG BO GIOI TINH`, không cần sao lưu vì chỉ ghi trường phái sinh, hoàn tác bằng `--strip`).
 
+## Cập nhật chính sách — 2026-11-14 (ghi chú hiển thị cho mọi thành viên; "Đã mất")
+
+- **Người dùng duyệt cho mọi thành viên xem ghi chú của từng người** (tooltip ở Cây gia phả). Thay thế phần "ghi chú nằm ở `personPrivate`, chỉ quản trị viên xem" của quyết định 2026-11-11 (mục 7) CHỈ ở phần ghi chú; nơi ở, nơi làm việc, nghề nghiệp vẫn riêng tư.
+- Triển khai: ảnh chụp cây chỉ chứa bản cắt 300 ký tự (phần tử thứ 10); bản đầy đủ vẫn ở `personPrivate` (quản trị đọc). Nhãn form đổi thành "Ghi chú (mọi thành viên đã đăng nhập đều xem được)" kèm cảnh báo.
+- **Ghi chú đã có KHÔNG tự công bố hàng loạt.** Một ghi chú cũ chỉ lên ảnh chụp khi quản trị viên lưu lại chính người đó trong app (đã thấy nhãn cảnh báo), hoặc khi chạy `gia-pha:snapshot-note` sau dry-run `--show` để rà soát (prod cần cổng `CONG BO GHI CHU`, không cần sao lưu, hoàn tác bằng `--strip`). Chưa chạy trên production.
+- **Checkbox "Đã mất"** (`persons.deceased`, phần tử thứ 9) để làm sạch dữ liệu khi biết đã mất mà không rõ năm; có năm mất thì luôn tính là đã mất.
+
 ## Cập nhật chính sách — 2026-11-13 (cấp quyền trong app)
 
 Thiết kế do người dùng duyệt; chưa deploy.

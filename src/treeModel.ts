@@ -39,6 +39,12 @@ export interface SnapPerson {
    * (bộ < 9 phần tử), coi như false. Người có năm mất luôn được coi là đã mất, bất kể trường này.
    */
   deceased?: boolean;
+  /**
+   * Ghi chú hiển thị cho mọi thành viên (quyết định 2026-11-14), đã cắt tối đa NOTE_CLIP ký tự; bản đầy đủ
+   * vẫn chỉ ở personPrivate (quản trị viên). null = không có ghi chú; undefined = ảnh chụp chưa có dữ liệu
+   * (bộ < 10 phần tử).
+   */
+  note?: string | null;
   normalized: string;
 }
 export interface SnapRelation {
@@ -90,6 +96,25 @@ export function setTupleSex(tuple: unknown[], sex: "M" | "F" | null): void {
   if (tuple.length < 7) tuple[6] = [];
   tuple[7] = sex;
 }
+/** Số ký tự tối đa của ghi chú đưa vào ảnh chụp cây (giữ ảnh chụp dưới giới hạn 900 KB). */
+export const NOTE_CLIP = 300;
+/**
+ * Bản ghi chú đưa vào ảnh chụp cây: bỏ khoảng trắng đầu/cuối, cắt ở NOTE_CLIP ký tự (theo ký tự Unicode,
+ * không cắt giữa cặp thay thế) và thêm "…" khi bị cắt. Rỗng → null.
+ */
+export function clipNote(note: string): string | null {
+  const text = note.trim();
+  if (!text) return null;
+  const chars = Array.from(text);
+  return chars.length <= NOTE_CLIP
+    ? text
+    : `${chars.slice(0, NOTE_CLIP).join("").trimEnd()}…`;
+}
+/** Ghi ghi chú đã cắt vào phần tử thứ 10 (thay tại chỗ); bộ ngắn hơn được đệm như setTupleDeceased (đã mất = false). */
+export function setTupleNote(tuple: unknown[], note: string | null): void {
+  if (tuple.length < 9) setTupleDeceased(tuple, false);
+  tuple[9] = note;
+}
 /**
  * Ghi cờ "đã mất" vào phần tử thứ 9 của bộ dữ liệu (thay tại chỗ). Bộ ngắn hơn được đệm: cờ rỗng ở vị trí 7,
  * giới tính chưa rõ (null) ở vị trí 8, để không tạo mảng thưa. Người gọi nên ghi giới tính thật bằng
@@ -120,8 +145,8 @@ export function parseSnapshot(doc: unknown): Snapshot {
   for (const [id, value] of Object.entries(
     data.persons as Record<string, unknown>,
   )) {
-    // Bản cũ có 6 phần tử (chưa có cờ), 7 (có cờ), 8 (có thêm giới tính), 9 (có thêm "đã mất").
-    if (!Array.isArray(value) || value.length < 6 || value.length > 9)
+    // Bản cũ có 6 phần tử (chưa có cờ), 7 (có cờ), 8 (có thêm giới tính), 9 (có thêm "đã mất"), 10 (có thêm ghi chú).
+    if (!Array.isArray(value) || value.length < 6 || value.length > 10)
       return fail();
     const [
       name,
@@ -133,6 +158,7 @@ export function parseSnapshot(doc: unknown): Snapshot {
       rawFlags,
       rawSex,
       rawDeceased,
+      rawNote,
     ] = value;
     if (
       value.length >= 8 &&
@@ -141,7 +167,9 @@ export function parseSnapshot(doc: unknown): Snapshot {
       rawSex !== null
     )
       return fail();
-    if (value.length === 9 && typeof rawDeceased !== "boolean") return fail();
+    if (value.length >= 9 && typeof rawDeceased !== "boolean") return fail();
+    if (value.length === 10 && rawNote !== null && typeof rawNote !== "string")
+      return fail();
     const flags: FlagCode[] = [];
     if (rawFlags !== undefined) {
       if (!Array.isArray(rawFlags)) return fail();
@@ -162,7 +190,10 @@ export function parseSnapshot(doc: unknown): Snapshot {
       branch: branch === null ? null : str(branch),
       flags,
       ...(value.length >= 8 ? { sex: rawSex as "M" | "F" | null } : {}),
-      ...(value.length === 9 ? { deceased: rawDeceased as boolean } : {}),
+      ...(value.length >= 9 ? { deceased: rawDeceased as boolean } : {}),
+      ...(value.length === 10
+        ? { note: (rawNote as string | null) || null }
+        : {}),
       normalized: normalizeName(str(name)),
     });
   }

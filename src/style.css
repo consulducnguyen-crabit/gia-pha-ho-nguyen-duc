@@ -2272,3 +2272,31 @@ body {
     flex: 1;
   }
 }
+
+/* ===== Tooltip ghi chú của thành viên: rê chuột/focus, hoặc giữ trên cảm ứng (chỉ trình bày) ===== */
+.note-wrap {
+  display: inline;
+}
+.tree-name.has-note {
+  text-decoration-style: dotted;
+  -webkit-touch-callout: none; /* không hiện bản xem trước liên kết của iOS khi giữ */
+}
+.note-tip {
+  position: fixed;
+  z-index: 40;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: var(--text-small);
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: 0 2px 8px rgb(58 43 29 / 18%);
+}
+.note-tip[hidden] {
+  display: none;
+}

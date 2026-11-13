@@ -18,6 +18,7 @@ import {
   type SpouseForm,
 } from "./addForm";
 import {
+  NOTE_CLIP,
   sameNamePeople,
   yearsLabel,
   type SnapPerson,
@@ -119,7 +120,7 @@ function PersonFieldsInputs({
         </span>
       </label>
       <label>
-        Ghi chú riêng (chỉ quản trị viên xem)
+        Ghi chú (mọi thành viên đã đăng nhập đều xem được)
         <textarea
           className="form-note-field"
           value={values.note}
@@ -129,6 +130,11 @@ function PersonFieldsInputs({
         />
         <span className="tree-meta">
           {values.note.length}/{NOTE_MAX} ký tự
+        </span>
+        <span className="tree-meta">
+          Chỉ ghi nội dung phù hợp để mọi thành viên đọc. Cây gia phả hiện{" "}
+          {NOTE_CLIP} ký tự đầu khi rê chuột (hoặc giữ trên điện thoại) vào họ
+          tên.
         </span>
         {err("note")}
       </label>

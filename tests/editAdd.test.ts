@@ -8,6 +8,7 @@ import {
   type AddState,
   type NewPerson,
 } from "../src/editAdd";
+import { NOTE_CLIP } from "../src/treeModel";
 
 const tree = {
   v: 1,
@@ -117,6 +118,7 @@ describe("addChild", () => {
       [],
       "M",
       false,
+      null,
     ]);
     expect(d.relations).toContainEqual(["a", "p-new", "F", "B", 1]);
     expect(d.relations).toContainEqual(["b", "p-new", "M", "B", 0]);
@@ -395,5 +397,32 @@ describe("Đã mất khi thêm người", () => {
       }) as unknown as Parameters<typeof run>[0];
     expect(snapData(run(op(true))).persons["p-new"][8]).toBe(true);
     expect(() => run(op("x"))).toThrow();
+  });
+});
+
+describe("ghi chú khi thêm người", () => {
+  it("con mới và vợ/chồng mới có phần tử 10 là ghi chú đã cắt", () => {
+    const c = snapData(
+      run(child({ child: { ...kid, note: "  Ghi chú con  " } })),
+    );
+    expect(c.persons["p-new"][9]).toBe("Ghi chú con");
+    const long = snapData(
+      run(child({ child: { ...kid, note: "y".repeat(500) } })),
+    );
+    expect(long.persons["p-new"][9]).toBe(`${"y".repeat(NOTE_CLIP)}…`);
+    const s = snapData(
+      run({
+        type: "addSpouse",
+        personId: "c",
+        order: "1",
+        spouse: {
+          kind: "new",
+          newId: "p-new",
+          category: "SPOUSE",
+          person: { ...kid, name: "Vợ Mới", sex: "F", note: "ghi chú vợ" },
+        },
+      }),
+    );
+    expect(s.persons["p-new"][9]).toBe("ghi chú vợ");
   });
 });

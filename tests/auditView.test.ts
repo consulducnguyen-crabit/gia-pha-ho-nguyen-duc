@@ -418,7 +418,7 @@ describe("describeAudit: dữ liệu độc/rác", () => {
       lookup,
     );
     expect(all(v)).not.toContain("BÍ MẬT");
-    expect(v.summary[0]).toBe("Ghi chú riêng: đã thay đổi");
+    expect(v.summary[0]).toBe("Ghi chú: đã thay đổi");
     const v2 = describeAudit(
       4,
       base("PERSON_EDITED", {
@@ -428,7 +428,7 @@ describe("describeAudit: dữ liệu độc/rác", () => {
       }),
       lookup,
     );
-    expect(v2.summary[0]).toBe("Ghi chú riêng: đã thay đổi (3 → 9 ký tự)");
+    expect(v2.summary[0]).toBe("Ghi chú: đã thay đổi (3 → 9 ký tự)");
   });
 });
 

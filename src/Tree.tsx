@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { doc, getDocFromServer } from "firebase/firestore";
 import { db } from "./firebase";
 import { PersonEdit } from "./PersonEdit";
+import { PersonNameLink } from "./PersonNameLink";
 import { PersonDelete } from "./PersonDelete";
 import { PersonAdd } from "./PersonAdd";
 import { PersonRelations } from "./PersonRelations";
@@ -110,11 +111,7 @@ function years(p: SnapPerson) {
 }
 
 function PersonLink({ p }: { p: SnapPerson }) {
-  return (
-    <Link to={`/person/${p.id}`} className="tree-name">
-      {p.name}
-    </Link>
-  );
+  return <PersonNameLink p={p} />;
 }
 
 function Badges({ index, p }: { index: TreeIndex; p: SnapPerson }) {

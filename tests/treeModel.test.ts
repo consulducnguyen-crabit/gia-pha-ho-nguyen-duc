@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import { parseDsl } from "../scripts/gia-pha/dsl";
 import { buildImportPlan } from "../scripts/gia-pha/import-plan";
 import {
+  NOTE_CLIP,
   buildIndex,
+  clipNote,
   parseSnapshot,
   sameNamePeople,
   setTupleDeceased,
+  setTupleNote,
   setTupleSex,
   yearsLabel,
   type SnapPerson,
@@ -250,5 +253,56 @@ describe("đã mất trong ảnh chụp", () => {
     expect(y({ deathYear: 1990, deceased: true })).toBe("m. 1990");
     expect(y({ birthYear: 1930 })).toBe("s. 1930");
     expect(y({})).toBe("");
+  });
+});
+
+describe("ghi chú trong ảnh chụp", () => {
+  const parse = (tuple: unknown[]) =>
+    parseSnapshot({
+      schemaVersion: 1,
+      dataVersion: "x",
+      data: JSON.stringify({
+        v: 1,
+        persons: { a: tuple },
+        relations: [],
+        unions: [],
+        branches: {},
+      }),
+    }).persons.get("a")!;
+  const base = ["Giả A", null, null, 1, "C", null, [], "M", false];
+  it("bộ < 10 phần tử: note undefined; 10 phần tử: chuỗi hoặc null", () => {
+    expect(parse(base).note).toBeUndefined();
+    expect(parse([...base, "Ghi chú"]).note).toBe("Ghi chú");
+    expect(parse([...base, null]).note).toBeNull();
+    expect(parse([...base, ""]).note).toBeNull();
+  });
+  it("phần tử 10 sai kiểu hoặc quá 10 phần tử bị từ chối", () => {
+    expect(() => parse([...base, 5])).toThrow();
+    expect(() => parse([...base, {}])).toThrow();
+    expect(() => parse([...base, "x", 1])).toThrow();
+  });
+  it("clipNote: rỗng → null, ngắn giữ nguyên, dài bị cắt có dấu …", () => {
+    expect(clipNote("")).toBeNull();
+    expect(clipNote("  \n ")).toBeNull();
+    expect(clipNote("  ngắn  ")).toBe("ngắn");
+    const exact = "a".repeat(NOTE_CLIP);
+    expect(clipNote(exact)).toBe(exact);
+    const long = clipNote("b".repeat(NOTE_CLIP + 50))!;
+    expect(long).toBe(`${"b".repeat(NOTE_CLIP)}…`);
+  });
+  it("clipNote không cắt giữa cặp thay thế (emoji) và giữ xuống dòng", () => {
+    const s = "😀".repeat(NOTE_CLIP + 1);
+    const out = clipNote(s)!;
+    expect(Array.from(out)).toHaveLength(NOTE_CLIP + 1);
+    expect(out.endsWith("…")).toBe(true);
+    expect(() => JSON.parse(JSON.stringify(out))).not.toThrow();
+    expect(clipNote("dòng 1\ndòng 2")).toBe("dòng 1\ndòng 2");
+  });
+  it("setTupleNote đệm cờ/giới tính/đã mất, không tạo mảng thưa", () => {
+    const t: unknown[] = ["Giả A", null, null, 1, "C", null];
+    setTupleNote(t, "ghi chú");
+    expect(t).toHaveLength(10);
+    expect(t.slice(6)).toEqual([[], null, false, "ghi chú"]);
+    expect(parse(t).note).toBe("ghi chú");
   });
 });

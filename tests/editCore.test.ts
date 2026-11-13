@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyEdit, EditError, type EditState } from "../src/editCore";
+import { NOTE_CLIP } from "../src/treeModel";
 
 function state(over: Partial<EditState> = {}): EditState {
   const data = {
@@ -272,16 +273,17 @@ describe("giới tính trong ảnh chụp", () => {
     // fixture persons.a.sex = "M"
     expect(tupleOf(run({ name: "Tên Mới" }))[7]).toBe("M");
   });
-  it("bộ 6 phần tử được nâng lên 9, không tạo mảng thưa", () => {
+  it("bộ 6 phần tử được nâng lên 10, không tạo mảng thưa", () => {
     const s = state();
     const d = JSON.parse(s.snapshot.data as string);
     d.persons.b = d.persons.b.slice(0, 6);
     s.snapshot.data = JSON.stringify(d);
     const t = tupleOf(run({ sex: "F" }, s, 0, "b"), "b");
-    expect(t).toHaveLength(9);
+    expect(t).toHaveLength(10);
     expect(t[6]).toEqual([]);
     expect(t[7]).toBe("F");
     expect(t[8]).toBe(false);
+    expect(t[9]).toBe("ghi chú cũ"); // ghi chú hiện có được công bố khi lưu người này
   });
   it("người khác giữ nguyên bộ dữ liệu của họ", () => {
     const s = state();
@@ -321,7 +323,7 @@ describe("Đã mất", () => {
     expect(t[7]).toBe("M");
     expect(t[8]).toBe(true);
   });
-  it("tắt: false được ghi, bộ 6 phần tử được nâng lên 9", () => {
+  it("tắt: false được ghi, bộ 6 phần tử được nâng lên 10", () => {
     const s = state({
       person: {
         displayName: "B",
@@ -335,8 +337,48 @@ describe("Đã mất", () => {
     s.snapshot.data = JSON.stringify(d);
     const r = run({ deceased: false }, s, 0, "b");
     const t = tupleOf(r, "b");
-    expect(t).toHaveLength(9);
+    expect(t).toHaveLength(10);
     expect(t[8]).toBe(false);
     expect(byPath(r)["persons/b"].data.deceased).toBe(false);
+  });
+});
+
+describe("ghi chú trong ảnh chụp", () => {
+  const tupleOf = (r: ReturnType<typeof run>, id = "a") =>
+    JSON.parse(byPath(r)["treeSnapshots/main"].data.data as string).persons[id];
+  it("đổi ghi chú: phần tử 10 là bản đã cắt; nhật ký không chứa nguyên văn", () => {
+    const r = run({ note: "  Nội dung mới  " });
+    expect(tupleOf(r)[9]).toBe("Nội dung mới");
+    expect(JSON.stringify(byPath(r)["auditLogs/edit-1"].data)).not.toContain(
+      "Nội dung mới",
+    );
+    expect(byPath(r)["personPrivate/a"].data.note).toBe("Nội dung mới");
+  });
+  it("ghi chú dài: ảnh chụp chỉ giữ NOTE_CLIP ký tự, personPrivate giữ đủ", () => {
+    const long = "x".repeat(900);
+    const r = run({ note: long });
+    expect(tupleOf(r)[9]).toBe(`${"x".repeat(NOTE_CLIP)}…`);
+    expect(byPath(r)["personPrivate/a"].data.note).toBe(long);
+  });
+  it("xóa ghi chú: phần tử 10 là null", () => {
+    expect(tupleOf(run({ note: "" }))[9]).toBeNull();
+  });
+  it("sửa trường khác cũng đồng bộ ghi chú theo personPrivate (công bố ghi chú hiện có)", () => {
+    expect(tupleOf(run({ name: "Tên Mới" }))[9]).toBe("ghi chú cũ");
+    const s = state({ priv: null });
+    expect(tupleOf(run({ name: "Tên Mới" }, s))[9]).toBeNull();
+  });
+  it("người khác giữ nguyên bộ dữ liệu của họ, kể cả ghi chú", () => {
+    const s = state();
+    const d = JSON.parse(s.snapshot.data as string);
+    d.persons.b = [
+      ...d.persons.b.slice(0, 6),
+      [],
+      null,
+      false,
+      "ghi chú của B",
+    ];
+    s.snapshot.data = JSON.stringify(d);
+    expect(tupleOf(run({ name: "Tên Mới" }, s), "b")).toEqual(d.persons.b);
   });
 });

@@ -18,7 +18,7 @@ chỉ 12 sự kiện sửa; không liệt kê). PR này KHÔNG đổi `firestore
 ## Hiển thị và quyền riêng tư (mặc định thận trọng)
 
 - Bảng chỉ hiện NĂM sinh/mất. Ngày đầy đủ (ngày/tháng, âm lịch, văn bản gốc) chỉ ở phần "Chi tiết" (`<details>`).
-- Ghi chú riêng chỉ hiện "đã thay đổi (x → y ký tự)"; không đọc `personPrivate`.
+- Ghi chú chỉ hiện "đã thay đổi (x → y ký tự)"; không đọc `personPrivate`.
 - Không `console.log` bản ghi, không xuất CSV, không analytics.
 - before/after/fields là dữ liệu không tin cậy: kiểm kiểu từng trường, cắt chuỗi quá 200 ký tự, bỏ ký tự điều khiển,
   chỉ render bằng text React, `JSON.parse(before.rows)` bọc try/catch và giới hạn 100.000 ký tự.

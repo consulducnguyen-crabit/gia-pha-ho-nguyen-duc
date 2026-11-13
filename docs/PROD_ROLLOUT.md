@@ -74,6 +74,9 @@ Trạng thái 2026-11-13: rules prod ĐÃ deploy (commit a8c740a); bước sửa
 ### Đồng bộ giới tính vào ảnh chụp (chưa chạy trên prod)
 Hành động cổng `DONG BO GIOI TINH` (`npm run gia-pha:snapshot-sex`, xem OPERATIONS.md): dry-run trước, `--apply --expect-version N --confirm gia-pha-nguyen-duc-prod --ack "DONG BO GIOI TINH gia-pha-nguyen-duc-prod"`, không cần `--backup-dir`; hoàn tác bằng `--strip`. Cần người dùng đồng ý chạy.
 
+### Công bố ghi chú vào ảnh chụp (chưa chạy trên prod)
+Hành động cổng `CONG BO GHI CHU` (`npm run gia-pha:snapshot-note`, xem OPERATIONS.md): dry-run `--show` để rà soát, rồi `--apply --expect-version N --confirm gia-pha-nguyen-duc-prod --ack "CONG BO GHI CHU gia-pha-nguyen-duc-prod"`, không cần `--backup-dir`; hoàn tác bằng `--strip`. Thứ tự: phát hành frontend (đọc được bộ 9–10 phần tử) → `snapshot-sex` (nếu chưa) → `snapshot-note`.
+
 ### Rủi ro chưa kiểm chứng: giới hạn truy cập tài liệu của rules
 Firestore Rules giới hạn 10 lần truy cập tài liệu cho mỗi yêu cầu ghi đơn lẻ và 20 cho cả lô. Rules và test emulator đã được thiết kế theo giới hạn này (ví dụ ẩn người dùng tối đa 6 liên kết vợ/chồng để giữ ở mức 9), nhưng **đã thử `PERSON_EDITED` trên Firestore thật, đạt**; các sự kiện nhiều tài liệu (ẩn/khôi phục người có nhiều vợ/chồng) **chưa thử**; emulator có thể không phản ánh đúng cách tính.
 - **Cách phát hiện:** lưu/ẩn báo "Không có quyền" (`permission-denied`) dù tài khoản là quản trị và đối soát sạch, nhất là khi ẩn/khôi phục người có nhiều vợ/chồng hoặc lô lớn (nhiều quan hệ).
