@@ -1851,3 +1851,284 @@ body {
 .story .tree-mark {
   margin-top: var(--space-4);
 }
+
+/* ===== Sổ gia phả — thống kê trang Tổng quan (chỉ trình bày) =====
+   Một màu nhấn xanh (nam), nâu đồng (nữ), nền kẻ sọc cho "chưa rõ": phân biệt bằng nhãn chữ và hoa văn,
+   không chỉ bằng màu. Các mục ngăn nhau bằng đường kẻ như trang sổ, không phải thẻ KPI. */
+.stats {
+  margin-top: var(--space-6);
+}
+.stats h3 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--text-sub);
+}
+.stats-note {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: var(--text-small);
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+.stats-note button {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: var(--space-2) var(--space-6);
+  align-items: start;
+}
+.stats-grid > section + section,
+.stats-grid > * {
+  min-width: 0;
+}
+.stats-total {
+  margin: 0;
+  font-size: var(--text-sub);
+}
+.stats-total b {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: clamp(40px, 6vw, 56px);
+  line-height: 1.1;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+  margin-right: var(--space-1);
+}
+.stats-facts {
+  margin: var(--space-2) 0;
+  border-top: 2px solid var(--color-primary);
+}
+.stats-fact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+.stats-fact dt {
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+}
+.stats-fact dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.stats-age {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: var(--text-sub);
+}
+.stats-names a {
+  color: var(--color-primary);
+  text-decoration-color: var(--color-mark);
+  text-underline-offset: 3px;
+}
+/* Hình + bảng: bảng là bản thay thế đầy đủ, hình chỉ minh họa. */
+.stats-figure {
+  margin: var(--space-3) 0;
+}
+.stats-figure figcaption {
+  font-family: var(--font-heading);
+  font-size: var(--text-sub);
+  margin-bottom: var(--space-2);
+}
+.stats-figure table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+  border-top: 2px solid var(--color-primary);
+}
+.stats-figure th,
+.stats-figure td {
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  border-bottom: 1px solid var(--color-rule);
+  text-align: left;
+  font-weight: 400;
+  vertical-align: middle;
+}
+.stats-figure thead th {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  border-bottom-color: var(--color-control-border);
+}
+.stats-figure .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding-right: 0;
+  white-space: nowrap;
+}
+.stats-sex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+}
+.stats-sex table {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.stats-donut {
+  width: 132px;
+  height: 132px;
+  flex: none;
+}
+.stats-donut-total {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  fill: var(--color-text);
+}
+circle.stats-seg {
+  stroke: var(--color-rule);
+}
+circle.stats-seg-m {
+  stroke: var(--color-primary);
+}
+circle.stats-seg-f {
+  stroke: var(--color-mark);
+}
+circle.stats-seg-u {
+  stroke: url(#stats-hatch);
+}
+circle.stats-seg-s {
+  stroke: url(#stats-dots);
+}
+rect.stats-seg-m {
+  fill: var(--color-primary);
+}
+rect.stats-seg-f {
+  fill: var(--color-mark);
+}
+.stats-hatch-bg {
+  fill: var(--color-surface);
+}
+.stats-dots-dot {
+  fill: var(--color-control-border);
+}
+.stats-hatch-line {
+  fill: var(--color-control-border);
+}
+.stats-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: var(--space-2);
+  vertical-align: -2px;
+  border: 1px solid var(--color-control-border);
+}
+.stats-swatch-m {
+  background: var(--color-primary);
+}
+.stats-swatch-f {
+  background: var(--color-mark);
+}
+.stats-swatch-s {
+  background: radial-gradient(
+      var(--color-control-border) 1.5px,
+      transparent 1.6px
+    )
+    0 0 / 5px 5px var(--color-surface);
+}
+.stats-swatch-u {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--color-surface) 0 3px,
+    var(--color-control-border) 3px 5px
+  );
+}
+.stats-pyramid {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+}
+.stats-axis,
+.stats-count {
+  font-size: 13px;
+  fill: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.stats-count {
+  fill: var(--color-text);
+}
+/* Thanh trong ô bảng: chiều dài theo tỷ lệ, số người luôn ghi bên cạnh. */
+.stats-bar-cell {
+  width: 40%;
+}
+.stats-bar {
+  display: block;
+  height: 10px;
+  min-width: 2px;
+  background: var(--color-primary);
+}
+.stats-bars th[scope="row"] {
+  overflow-wrap: anywhere;
+}
+/* Danh sách hồ sơ thiếu: nhóm theo trường, thu gọn mặc định. */
+.stats-missing {
+  margin-top: var(--space-6);
+}
+.stats-details {
+  border-bottom: 1px solid var(--color-rule);
+}
+.stats-details:first-of-type {
+  border-top: 2px solid var(--color-primary);
+}
+.stats-details summary {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  align-items: center;
+  min-height: var(--control-height);
+  padding: var(--space-2) 0;
+  cursor: pointer;
+}
+/* display:flex làm mất dấu tam giác mặc định của <summary>: tự vẽ ▸/▾ bằng ::before. */
+.stats-details summary {
+  list-style: none;
+}
+.stats-details summary::-webkit-details-marker {
+  display: none;
+}
+.stats-details summary::before {
+  content: "▸";
+  flex: none;
+  width: 1em;
+  color: var(--color-primary);
+}
+.stats-details[open] summary::before {
+  content: "▾";
+}
+.stats-details summary > span {
+  flex: 1;
+  min-width: 0;
+}
+.stats-details[open] summary {
+  border-bottom: 1px dotted var(--color-rule);
+}
+.stats-people {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2) 0;
+  columns: 2 260px;
+  column-gap: var(--space-6);
+}
+.stats-people li {
+  break-inside: avoid;
+  padding: var(--space-1) 0;
+  overflow-wrap: anywhere;
+}
+.stats-people a {
+  color: var(--color-primary);
+  text-decoration-color: var(--color-mark);
+  text-underline-offset: 3px;
+}
+.stats-details > button {
+  margin: var(--space-2) 0 var(--space-3);
+}
+@media (max-width: 480px) {
+  .stats-fact {
+    grid-template-columns: 1fr;
+  }
+}
