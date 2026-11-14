@@ -110,6 +110,36 @@ try {
     await ctx.close();
   }
 
+  stage = "tiêu đề tên gia phả lớn, nổi bật; đã bỏ khẩu hiệu cũ";
+  for (const width of [360, 768, 1280]) {
+    const { ctx, page } = await fresh(width);
+    const title = page.getByRole("heading", { level: 1 });
+    await expect(title).toHaveCount(1);
+    await expect(title).toHaveText(
+      "GIA PHẢ DÒNG HỌ NGUYỄN ĐỨC - THÔN HẠ - PHÙNG XÁ",
+    );
+    const size = await title.evaluate((e) =>
+      Number.parseFloat(globalThis.getComputedStyle(e).fontSize),
+    );
+    if (size < 28) throw Error(`Tiêu đề quá nhỏ: ${size}px ở ${width}px`);
+    const weight = await title.evaluate((e) =>
+      Number.parseInt(globalThis.getComputedStyle(e).fontWeight, 10),
+    );
+    if (weight < 600) throw Error(`Tiêu đề chưa đậm: ${weight}`);
+    for (const gone of [
+      "Từ cội nguồn",
+      "nối những thế hệ",
+      "Một nơi lưu giữ ký ức",
+    ])
+      await expect(page.getByText(gone)).toHaveCount(0);
+    if (process.env.SHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.SHOT_DIR}/login-title-${width}.png`,
+        fullPage: true,
+      });
+    await ctx.close();
+  }
+
   stage = "đăng nhập bằng số điện thoại (dạng viết có khoảng trắng)";
   {
     const { ctx, page } = await fresh();

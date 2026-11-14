@@ -115,11 +115,20 @@ p {
   padding: 8vw 7vw;
   position: relative;
 }
-.story h1 {
-  font-size: clamp(40px, 4.5vw, 68px);
+.story {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
-.story p {
-  max-width: 420px;
+/* Tên gia phả: tiêu đề chính của màn đăng nhập (lớn, đậm, màu son) */
+.story .gate-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: clamp(30px, 3.6vw, 54px);
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  color: var(--color-seal);
 }
 .story small {
   display: block;
