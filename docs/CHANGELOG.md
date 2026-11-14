@@ -1,3 +1,9 @@
+# Tài khoản điện thoại/email do quản trị viên tạo — 2026-11-14
+
+- PR1: trang đăng nhập hai tab Điện thoại | Email; số điện thoại ngầm thành `0914222987@gp.nguyenduc`; thông báo lỗi thống nhất kèm Zalo đăng ký.
+- PR2: khu Tạo tài khoản trong `#/users` (Firebase app phụ, mật khẩu tạm ngẫu nhiên hiện một lần), rules `adminCreateOk`/`passwordChangedOk`, nhật ký `ACCOUNT_CREATED`, màn đổi mật khẩu lần đầu (`mustChangePassword`).
+- PR3: **gỡ** lời mời email và đăng nhập bằng liên kết (`invitesClient`, `emailLink`, `EmailLinkLogin`, `InviteAccept`, `UsersInvites`, rules `accountInvites`/`acceptOk`, test và job `test:browser:invites`). Còn lại, chưa dọn: backend lời mời emulator-only (`functions/`, `Membership.tsx`) và xử lý `accountInvites` trong script quản trị `gia-pha:accounts`.
+
 # 0.1.0 — 2026-11-10
 
 - Nền React/TypeScript/Vite, giao diện tiếng Việt responsive, hash router.

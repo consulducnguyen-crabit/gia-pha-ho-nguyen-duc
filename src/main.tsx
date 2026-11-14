@@ -27,17 +27,9 @@ import { AddMemberPage } from "./AddMember";
 import { AuditLogPage } from "./AuditLog";
 import { BrandMark } from "./BrandMark";
 import { ScrollButtons } from "./ScrollButtons";
-// Hệ lời mời cũ (Membership.tsx, emulator-only) đã được thay bằng lời mời trong #/users; giữ mã, ẩn khỏi giao diện.
-import { LinkConflict } from "./EmailLinkLogin";
 import { LoginForm } from "./LoginForm";
-import { loginLabel } from "./phoneLogin";
+import { loginLabel, REGISTER_CONTACT } from "./phoneLogin";
 import { ChangePasswordGate } from "./ChangePassword";
-import {
-  capturePendingLink,
-  consumePendingLink,
-  getPendingLink,
-} from "./emailLink";
-import { InviteAccept } from "./InviteAccept";
 import { WelcomeBanner } from "./WelcomeBanner";
 import { OverviewStats } from "./OverviewStatsView";
 import { pruneWelcome } from "./welcome";
@@ -46,8 +38,6 @@ import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
 import "@fontsource-variable/source-serif-4/wght.css";
 import "./style.css";
-// Chụp liên kết đăng nhập email (nếu có) và làm sạch oobCode khỏi URL ngay khi trang tải, trước mọi trạng thái đăng nhập.
-if (auth) capturePendingLink(auth);
 // Tiêu đề tab (WCAG 2.4.2) đặt ngay trong phần tử của từng <Route> để luôn khớp trang thật đang render
 // (kể cả route bị chặn quyền, không tồn tại, hoặc chỉ có trên emulator).
 function Titled({ title, children }: { title: string; children: ReactNode }) {
@@ -66,7 +56,7 @@ function App() {
   const [canManageMembership, setCanManageMembership] = useState(false);
   const [canReviewChanges, setCanReviewChanges] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(false);
-  const [, refreshLink] = useState(0);
+  const [profileName, setProfileName] = useState("");
   useEffect(() => {
     if (!auth || !db) {
       setAccess("setup");
@@ -79,6 +69,7 @@ function App() {
       setCanManageMembership(false);
       setCanReviewChanges(false);
       setMustChangePassword(false);
+      setProfileName("");
       setUser(u);
       setAccess(u ? "loading" : "login");
       if (u)
@@ -93,6 +84,11 @@ function App() {
             );
             setMustChangePassword(
               confirmed && s.data()?.mustChangePassword === true,
+            );
+            setProfileName(
+              typeof s.data()?.displayName === "string"
+                ? (s.data()?.displayName as string)
+                : "",
             );
             setCanManageMembership(
               !s.metadata.fromCache &&
@@ -138,18 +134,8 @@ function App() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [menuOpen]);
-  if (user && getPendingLink())
-    return (
-      <LinkConflict
-        user={user}
-        onDiscard={() => {
-          consumePendingLink();
-          refreshLink((n) => n + 1);
-        }}
-      />
-    );
   if (access === "member" && mustChangePassword && user)
-    return <ChangePasswordGate key={user.uid} user={user} />;
+    return <ChangePasswordGate key={user.uid} user={user} name={profileName} />;
   if (access !== "member")
     return <Gate key={user?.uid ?? "signed-out"} state={access} user={user} />;
   return (
@@ -362,30 +348,21 @@ function App() {
   );
 }
 function Gate({ state, user }: { state: string; user: User | null }) {
-  const [linking, setLinking] = useState(false); // đang hoàn tất đăng nhập bằng liên kết email (gỡ cùng lời mời ở PR sau)
-  const [inviteBusy, setInviteBusy] = useState(true); // đang kiểm tra/kích hoạt lời mời
-  const signingIn =
-    (state === "login" && linking) ||
-    state === "loading" ||
-    (state === "pending" && inviteBusy);
+  const signingIn = state === "loading";
   // Tiêu đề tab theo trạng thái thật của màn hình cổng (khớp tiêu đề hiển thị).
   useEffect(() => {
     const t =
       state === "setup"
         ? "Sẵn sàng kết nối"
         : state === "pending"
-          ? inviteBusy
-            ? "Đang đăng nhập"
-            : "Chờ cấp quyền"
+          ? "Chờ cấp quyền"
           : state === "loading"
             ? "Đang đăng nhập"
             : state === "error"
               ? "Không thể kiểm tra quyền truy cập"
-              : linking
-                ? "Đang đăng nhập"
-                : "Đăng nhập";
+              : "Đăng nhập";
     document.title = `${t} · Gia phả`;
-  }, [state, inviteBusy, linking]);
+  }, [state]);
   return (
     <div className="gate">
       <section className="story">
@@ -419,11 +396,6 @@ function Gate({ state, user }: { state: string; user: User | null }) {
                 ? "Chờ cấp quyền"
                 : "Chào mừng trở về"}
         </h2>
-        {state === "login" && linking && (
-          <p role="status" className="login-link-status">
-            Đang đăng nhập bằng liên kết trong thư, vui lòng chờ trong giây lát…
-          </p>
-        )}
         {state === "setup" ? (
           <>
             <p>
@@ -446,26 +418,17 @@ function Gate({ state, user }: { state: string; user: User | null }) {
           </>
         ) : state === "pending" || state === "error" ? (
           <>
-            {!(state === "pending" && inviteBusy) && (
-              <>
-                <p>
-                  {state === "pending"
-                    ? "Tài khoản chưa được cấp quyền hoặc đã bị vô hiệu hóa. Vui lòng liên hệ người quản lý gia phả."
-                    : "Không thể kiểm tra quyền truy cập. Vui lòng thử đăng nhập lại."}
-                </p>
-                <button onClick={() => void signOut(auth!)}>
-                  Đăng xuất {loginLabel(user?.email)}
-                </button>
-              </>
-            )}
-            {state === "pending" && user && (
-              <InviteAccept key={user.uid} user={user} onBusy={setInviteBusy} />
-            )}
+            <p>
+              {state === "pending"
+                ? `Tài khoản chưa được cấp quyền hoặc đã bị vô hiệu hóa. Vui lòng liên hệ zalo ${REGISTER_CONTACT.zalo} (${REGISTER_CONTACT.label}).`
+                : "Không thể kiểm tra quyền truy cập. Vui lòng thử đăng nhập lại."}
+            </p>
+            <button onClick={() => void signOut(auth!)}>
+              Đăng xuất {loginLabel(user?.email)}
+            </button>
           </>
         ) : (
-          <div hidden={linking}>
-            <LoginForm onLinking={setLinking} />
-          </div>
+          <LoginForm />
         )}
         <div className="privacy">
           ◈ Dữ liệu gia phả chỉ mở sau khi kiểm tra quyền truy cập.

@@ -7,8 +7,6 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { auth } from "./firebase";
-import { EmailLinkLogin } from "./EmailLinkLogin";
-import { getPendingLink } from "./emailLink";
 import { phoneToEmail, REGISTER_CONTACT } from "./phoneLogin";
 
 type Tab = "phone" | "email";
@@ -36,15 +34,8 @@ export function LoginFailedNotice({ id }: { id?: string }) {
   );
 }
 
-export function LoginForm({
-  onLinking,
-}: {
-  /** Đăng nhập bằng liên kết email (tạm giữ ở tab Email; gỡ cùng lời mời ở PR sau). */
-  onLinking: (v: boolean) => void;
-}) {
-  const [tab, setTab] = useState<Tab>(() =>
-    getPendingLink() ? "email" : "phone",
-  );
+export function LoginForm() {
+  const [tab, setTab] = useState<Tab>("phone");
   const [failed, setFailed] = useState(false);
   const [googleError, setGoogleError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -185,9 +176,6 @@ export function LoginForm({
         Đăng nhập bằng Google
       </button>
       {googleError && <p role="alert">{googleError}</p>}
-      <div hidden={tab !== "email"}>
-        <EmailLinkLogin onCompleting={onLinking} />
-      </div>
     </div>
   );
 }

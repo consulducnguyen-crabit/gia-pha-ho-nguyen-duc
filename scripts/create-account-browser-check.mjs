@@ -118,7 +118,9 @@ try {
   await expect(
     ap.getByRole("cell", { name: PHONE, exact: true }),
   ).toBeVisible();
-  if ((await ap.content()).includes("@gp.nguyenduc"))
+  // Bảng tài khoản và thanh đầu trang không được lộ email ngầm (đoạn hướng dẫn script có ví dụ chủ ý nên không tính).
+  const visible = (await ap.locator("table, header").allInnerTexts()).join(" ");
+  if (visible.includes("@gp.nguyenduc"))
     throw Error("Giao diện lộ email ngầm @gp.nguyenduc");
   if (process.env.SHOT_DIR)
     await ap.screenshot({

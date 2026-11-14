@@ -8,7 +8,6 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { InvitesSection } from "./UsersInvites";
 import { CreateAccountSection } from "./CreateAccount";
 import { emailToPhone } from "./phoneLogin";
 import { formatVnTime } from "./auditView";
@@ -120,8 +119,8 @@ export function UsersPage({ uid }: { uid: string }) {
       <p className="tree-summary">
         Danh sách tài khoản đã được cấp hoặc vô hiệu hóa quyền. Quản trị viên có
         thể sửa tên hiển thị, đổi quyền Quản trị/Chỉ xem, vô hiệu hóa hoặc bật
-        lại tài khoản đã có, và mời thành viên mới bằng email ở khu “Mời thành
-        viên” bên dưới.
+        lại tài khoản đã có, và tạo tài khoản mới (đăng nhập bằng số điện thoại
+        hoặc email) ở khu “Tạo tài khoản” bên dưới.
       </p>
       {done && (
         <p role="status" className="notice" tabIndex={-1} ref={doneRef}>
@@ -244,23 +243,15 @@ export function UsersPage({ uid }: { uid: string }) {
         }
         onCreated={() => void load()}
       />
-      <InvitesSection
-        enabled={ledgerReady}
-        loaded={!!rows}
-        existingEmails={
-          new Set(
-            (rows ?? []).map((r) => r.email.toLowerCase()).filter(Boolean),
-          )
-        }
-        uid={uid}
-      />
       <section className="users-howto">
         <h2>Công cụ trên máy quản trị</h2>
         <p>
-          Việc tạo tài khoản có mật khẩu và xóa hẳn tài khoản (users + tài khoản
-          đăng nhập) làm bằng lệnh (thêm <b>--apply</b> để thực hiện; không có
-          thì chỉ chạy thử). Nút <b>Sửa</b> ở trên chỉ áp dụng cho tài khoản đã
-          có.
+          Đặt lại mật khẩu và xóa hẳn tài khoản (users + tài khoản đăng nhập)
+          chưa làm được trên giao diện (gói Spark), nên dùng lệnh (thêm{" "}
+          <b>--apply</b> để thực hiện; không có thì chỉ chạy thử). Tài khoản
+          đăng nhập bằng số điện thoại có email dạng{" "}
+          <b>0914222987@gp.nguyenduc</b>. Nút <b>Sửa</b> ở trên chỉ áp dụng cho
+          tài khoản đã có.
         </p>
         <p>
           Thành viên có Gmail (đăng nhập bằng Google, nhập đúng email Google):
@@ -269,7 +260,9 @@ export function UsersPage({ uid }: { uid: string }) {
           npm run gia-pha:accounts -- grant --email ten@gmail.com --name "Họ
           tên" --apply
         </code>
-        <p>Thành viên không có Gmail (tạo tài khoản có mật khẩu):</p>
+        <p>
+          Tạo tài khoản có mật khẩu bằng lệnh (thay cho khu “Tạo tài khoản”):
+        </p>
         <code>
           npm run gia-pha:accounts -- create --email ten@example.com --name "Họ
           tên" --apply
@@ -282,14 +275,13 @@ export function UsersPage({ uid }: { uid: string }) {
           npm run gia-pha:accounts -- revoke --email ten@gmail.com --apply
         </code>
         <code>
-          npm run gia-pha:accounts -- reset-password --email ten@example.com
-          --apply
+          npm run gia-pha:accounts -- reset-password --email
+          0914222987@gp.nguyenduc --apply
         </code>
         <code>npm run gia-pha:accounts -- list</code>
         <p>
           Xóa hẳn một tài khoản — <b>vô hiệu hóa trước, không hoàn tác</b>. Chạy
-          thử (chỉ đọc, in kế hoạch), rồi thực hiện kèm xác nhận đúng email. Nếu
-          còn lời mời đang chờ cho email đó, thu hồi lời mời trước:
+          thử (chỉ đọc, in kế hoạch), rồi thực hiện kèm xác nhận đúng email.:
         </p>
         <code>
           npm run gia-pha:accounts -- delete --email ten@example.com --project
