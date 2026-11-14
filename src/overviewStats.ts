@@ -1,4 +1,6 @@
 // Thống kê trang Tổng quan: hàm thuần trên ảnh chụp cây (treeSnapshots/main), không phụ thuộc React/Firebase.
+// Mọi số liệu (số lượng, giới tính, chi, đời, tuổi, hồ sơ thiếu) CHỈ tính thành viên không tích "Đã mất"
+// (người có năm mất cũng được app coi là đã mất): số người bị loại nằm ở `ages.deceased` để giao diện nêu rõ.
 // Mọi con số tuổi tính theo NĂM DƯƠNG: tuổi = (năm mất ?? năm hiện tại) − năm sinh; không biết ngày sinh nên
 // chỉ là xấp xỉ (có thể lệch 1 tuổi), giao diện phải ghi rõ điều này.
 import type { Category, SnapBranch, SnapPerson, Snapshot } from "./treeModel";
@@ -178,18 +180,14 @@ export interface OverviewStats {
   };
   ages: {
     living: number;
+    /** Số thành viên đã tích "Đã mất" (hoặc có năm mất): KHÔNG nằm trong bất kỳ số liệu nào của trang. */
     deceased: number;
-    /** Chưa đủ dữ liệu để tính tuổi (chưa có năm sinh, hoặc quá ngưỡng mà không có năm mất); bốn nhóm living/deceased/unknown/invalid loại trừ nhau và cộng bằng tổng. */
+    /** Chưa đủ dữ liệu để tính tuổi (chưa có năm sinh, hoặc quá ngưỡng mà không có năm mất); ba nhóm living/unknown/invalid loại trừ nhau và cộng bằng `totals.all`. */
     unknown: number;
-    /** Một phần của `deceased`: đã mất nhưng chưa có năm sinh (không tính được tuổi). */
-    deceasedNoBirth: number;
-    /** Một phần của `deceased`: được đánh dấu "đã mất" nhưng chưa có năm mất (không tính được tuổi). */
-    deceasedNoDeathYear: number;
     /** Dữ liệu năm cần kiểm tra (BIRTH_CONFLICT, năm sinh/mất không hợp lệ). */
     invalid: number;
     /** Người còn trong thống kê tuổi, nghĩa là có tuổi tính được. */
     counted: number;
-    oldest: AgeExtreme | null;
     oldestLiving: AgeExtreme | null;
     youngestLiving: AgeExtreme | null;
     averageLiving: number | null;
@@ -274,7 +272,12 @@ export function computeOverviewStats(
 ): OverviewStats {
   const { currentYear } = opts;
   const livingMaxAge = opts.livingMaxAge ?? LIVING_MAX_AGE;
-  const persons = [...snap.persons.values()];
+  const everyone = [...snap.persons.values()];
+  // Chỉ người không tích "Đã mất" (và không có năm mất) được đưa vào mọi số liệu.
+  const persons = everyone.filter(
+    (p) => lifeStatus(p, currentYear, livingMaxAge).status !== "deceased",
+  );
+  const deceased = everyone.length - persons.length;
   const byCategory = (c: Category) =>
     persons.filter((p) => p.category === c).length;
 
@@ -295,12 +298,8 @@ export function computeOverviewStats(
 
   // Thống kê tuổi.
   let living = 0,
-    deceased = 0,
     unknown = 0,
-    invalid = 0,
-    deceasedNoBirth = 0,
-    deceasedNoDeathYear = 0;
-  const aged: Array<{ ref: PersonRef; age: number }> = [];
+    invalid = 0;
   const livingAged: Array<{ ref: PersonRef; age: number }> = [];
   const bands: AgeBand[] = [];
   // Nhóm 10 tuổi; nhóm cuối gom cả mốc ngưỡng (0–9, …, 80–89, 90–100) để 100 tuổi không thành nhóm riêng.
@@ -322,16 +321,9 @@ export function computeOverviewStats(
     const info = lifeStatus(p, currentYear, livingMaxAge);
     if (info.status === "invalid") invalid++;
     else if (info.status === "unknown") unknown++;
-    else if (info.status === "deceased") deceased++;
     else living++;
-    // Đã mất nhưng thiếu năm sinh hoặc năm mất: vẫn là "đã mất" (không đếm lại ở nhóm khác), chỉ không có tuổi.
-    if (info.status === "deceased") {
-      if (p.birthYear === null) deceasedNoBirth++;
-      if (p.deathYear === null) deceasedNoDeathYear++;
-    }
     if (info.age === null) continue;
     const row = { ref: ref(p), age: info.age };
-    aged.push(row);
     if (info.status === "living") {
       livingAged.push(row);
       const band = bands[Math.min(Math.floor(info.age / 10), bands.length - 1)];
@@ -391,10 +383,7 @@ export function computeOverviewStats(
       deceased,
       unknown,
       invalid,
-      deceasedNoBirth,
-      deceasedNoDeathYear,
-      counted: aged.length,
-      oldest: extreme(aged, "max"),
+      counted: livingAged.length,
       oldestLiving: extreme(livingAged, "max"),
       youngestLiving: extreme(livingAged, "min"),
       averageLiving: livingAged.length ? sum / livingAged.length : null,

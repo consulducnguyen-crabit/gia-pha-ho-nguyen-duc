@@ -1,3 +1,9 @@
+# Trang Tổng quan: số liệu chỉ tính thành viên không tích "Đã mất" — 2026-11-15
+
+- **Đổi logic thống kê:** tổng số, giới tính, theo chi, theo đời, tuổi và hồ sơ thiếu thông tin chỉ tính thành viên không tích "Đã mất" (người có năm mất cũng bị loại). Số thành viên không được tính hiển thị ở ghi chú đầu khối "Số liệu gia phả". Cây gia phả và Danh sách thành viên vẫn hiển thị đầy đủ.
+- **Đổi chữ:** bỏ cách nói "đang sống/đã mất" ở nhãn (Tuổi cao nhất, Ít tuổi nhất, Tuổi trung bình, "Số thành viên theo nhóm 10 tuổi", "N thành viên"). Bỏ chỉ số "Tuổi thọ cao nhất (cả đang sống và đã mất)" và dòng "Đã mất: n (… chưa có năm sinh/năm mất)".
+- Kiểm thử: `tests/overviewStats.test.ts` (thêm ca mọi số lượng loại người đã mất), `scripts/overview-browser-check.mjs`.
+
 # Trang đăng nhập: câu đối thư pháp thay cuốn thư — 2026-11-15
 
 - Thay hình cuốn thư bằng câu đối đôi **木有本 · 水有源** (Mộc hữu bản, thủy hữu nguyên: cây có gốc, nước có nguồn) nét cọ trong vòng mực, kèm lời dịch và phiên âm Hán-Việt, ấn son 阮 đặt ngoài vòng; khoảng cách rộng rãi. SVG aria-hidden; ẩn khi màn hẹp (≤800px) hoặc thấp (≤700px).
