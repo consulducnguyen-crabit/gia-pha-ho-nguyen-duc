@@ -1,3 +1,8 @@
+# Trang đăng nhập: cuốn thư ở panel trái — 2026-11-15
+
+- Thêm hình cuốn thư cuộn mở (SVG, aria-hidden) ở cuối panel trái: câu "Uống nước nhớ nguồn", các dòng "Đời 1…5" (minh họa chung, không phải dữ liệu) và ấn son 阮. Ẩn trên màn hẹp (≤800px).
+- Kiểm thử: `scripts/login-browser-check.mjs` kiểm hình có mặt, aria-hidden, không đè chữ, ẩn ở màn hẹp.
+
 # Menu gọn và Cần kiểm tra chỉ cho quản trị viên — 2026-11-15
 
 - Bỏ tab và trang **Tiến độ triển khai** và **Tra cứu thành viên** (`#/roadmap`, `#/persons` nay báo "Không tìm thấy trang"). Ô tìm theo tên vẫn có ở Cây gia phả và Danh sách thành viên; nút ở Tổng quan đổi thành "Xem danh sách thành viên →".
