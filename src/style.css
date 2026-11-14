@@ -1957,6 +1957,9 @@ body {
   text-align: right;
   font-variant-numeric: tabular-nums;
   padding-right: 0;
+  padding-left: var(
+    --space-3
+  ); /* số người và tỷ lệ không dính liền nhau ("446" + "99,3%") */
   white-space: nowrap;
 }
 .stats-sex {
