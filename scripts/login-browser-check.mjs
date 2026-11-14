@@ -115,17 +115,34 @@ try {
     const { ctx, page } = await fresh(width);
     const title = page.getByRole("heading", { level: 1 });
     await expect(title).toHaveCount(1);
-    await expect(title).toHaveText(
-      "GIA PHẢ DÒNG HỌ NGUYỄN ĐỨC - THÔN HẠ - PHÙNG XÁ",
-    );
+    await expect(title).toHaveText("Gia phả Dòng họ Nguyễn Đức Phùng Xá");
+    // Đúng ba dòng: Gia phả / Dòng họ Nguyễn Đức / Phùng Xá (không bị tràn xuống dòng thứ tư).
+    const lines = await title.evaluate((e) => {
+      const r = globalThis.document.createRange();
+      r.selectNodeContents(e);
+      return new Set([...r.getClientRects()].map((x) => Math.round(x.top)))
+        .size;
+    });
+    if (lines !== 3) throw Error(`Tiêu đề có ${lines} dòng ở ${width}px`);
     const size = await title.evaluate((e) =>
       Number.parseFloat(globalThis.getComputedStyle(e).fontSize),
     );
-    if (size < 28) throw Error(`Tiêu đề quá nhỏ: ${size}px ở ${width}px`);
+    if (size < 26) throw Error(`Tiêu đề quá nhỏ: ${size}px ở ${width}px`);
     const weight = await title.evaluate((e) =>
       Number.parseInt(globalThis.getComputedStyle(e).fontWeight, 10),
     );
     if (weight < 600) throw Error(`Tiêu đề chưa đậm: ${weight}`);
+    // Nội dung sát mép trên: không còn khoảng trống lớn phía trên (tiêu đề, và cột đăng nhập khi hai cột).
+    const titleTop = await title.evaluate((e) => e.getBoundingClientRect().top);
+    if (titleTop > 40)
+      throw Error(`Tiêu đề cách mép trên ${titleTop}px ở ${width}px`);
+    if (width > 800) {
+      const formTop = await page
+        .getByText("GÌN GIỮ CỘI NGUỒN", { exact: true })
+        .evaluate((e) => e.getBoundingClientRect().top);
+      if (formTop > 40)
+        throw Error(`Khối đăng nhập cách mép trên ${formTop}px ở ${width}px`);
+    }
     for (const gone of [
       "Từ cội nguồn",
       "nối những thế hệ",

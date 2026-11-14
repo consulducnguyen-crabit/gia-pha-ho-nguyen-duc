@@ -112,22 +112,23 @@ p {
 }
 .story {
   background: var(--color-story);
-  padding: 8vw 7vw;
+  /* Nội dung bắt đầu sát mép trên (đệm theo thang spacing), không căn giữa dọc để tránh khoảng trống lớn. */
+  padding: var(--space-5) 7vw var(--space-6);
   position: relative;
-}
-.story {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
 /* Tên gia phả: tiêu đề chính của màn đăng nhập (lớn, đậm, màu son) */
 .story .gate-title {
   margin: 0;
   font-family: var(--font-heading);
   font-weight: 700;
-  font-size: clamp(30px, 3.6vw, 54px);
-  line-height: 1.2;
-  letter-spacing: 0.03em;
+  /* Cột trái rộng ~38vw: "Dòng họ Nguyễn Đức" (18 ký tự) phải nằm gọn một dòng nên cỡ chữ tính theo vw. */
+  font-size: clamp(28px, 3.4vw, 52px);
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
   color: var(--color-seal);
 }
 .story small {
@@ -142,9 +143,9 @@ p {
   line-height: 1.2;
 }
 .login {
-  padding: 10vw 7vw;
+  padding: var(--space-5) 7vw var(--space-6);
   max-width: 650px;
-  align-self: center;
+  align-self: start;
   margin: 0; /* .login là <main>: bỏ margin:auto của quy tắc main toàn cục */
 }
 .login h2 {
@@ -370,7 +371,7 @@ main {
     grid-template-columns: 1fr;
   }
   .story {
-    padding: var(--space-6);
+    padding: var(--space-5);
   }
   .story small {
     margin-top: var(--space-5);
@@ -378,8 +379,11 @@ main {
   .story .tree-mark {
     display: none;
   }
+  .story .gate-title {
+    font-size: clamp(28px, 7.8vw, 44px);
+  }
   .login {
-    padding: var(--space-7) var(--space-5);
+    padding: var(--space-5);
   }
   .shell {
     display: block;
@@ -605,7 +609,7 @@ textarea {
   }
   .login {
     max-width: 100%;
-    padding: var(--space-6) var(--space-5);
+    padding: var(--space-5);
   }
 }
 @media (prefers-reduced-motion: reduce) {

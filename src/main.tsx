@@ -154,7 +154,6 @@ function App() {
             <span>
               <span className="brand-name">
                 Gia phả dòng họ Nguyễn Đức{" "}
-                <span className="brand-place">- Thôn Hạ</span>{" "}
                 <span className="brand-place">- Phùng Xá</span>
               </span>
               <small>GÌN GIỮ CỘI NGUỒN</small>
@@ -353,9 +352,9 @@ function Gate({ state, user }: { state: string; user: User | null }) {
     <div className="gate">
       <section className="story">
         <h1 className="gate-title">
-          GIA PHẢ DÒNG HỌ NGUYỄN ĐỨC{" "}
-          <span className="brand-place">- THÔN HẠ</span>{" "}
-          <span className="brand-place">- PHÙNG XÁ</span>
+          Gia phả <br />
+          Dòng họ Nguyễn Đức <br />
+          Phùng Xá
         </h1>
         <div className="tree-mark" aria-hidden="true">
           <BrandMark />
