@@ -1740,16 +1740,17 @@ body {
   }
 }
 
-/* ===== Logo chữ Đức (thư pháp), nút cuộn nổi, lối vào Thêm thành viên (chỉ trình bày) ===== */
+/* ===== Logo chữ Hán Nôm 阮德族 (thư pháp), nút cuộn nổi, lối vào Thêm thành viên (chỉ trình bày) ===== */
 .brand-mark {
   flex: none;
-  width: 1.15em;
-  height: 1.15em;
+  /* Ba chữ Hán Nôm viết ngang (tỷ lệ khung 2840:930): chiều cao 0,8em thì rộng ~2,44em. */
+  height: 0.8em;
+  width: calc(0.8em * 2840 / 930);
   color: var(--color-seal);
 }
 .tree-mark svg {
-  width: 1em;
-  height: 1em;
+  height: 0.6em;
+  width: calc(0.6em * 2840 / 930);
   display: block;
 }
 .scroll-fab {
