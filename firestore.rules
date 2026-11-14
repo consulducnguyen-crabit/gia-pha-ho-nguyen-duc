@@ -81,11 +81,42 @@ service cloud.firestore {
     && ia.status == 'ACCEPTED' && ia.acceptedBy == uid
     && audit.event == 'INVITATION_ACCEPTED' && audit.actorUid == uid;
   }
+  // Admin-created account (docs/ACCOUNTS.md): a ledger admin creates users/{uid} for a NEW uid in one batch with
+  // auditLogs/account-{uid}-1 (ACCOUNT_CREATED). VIEWER only; the first password is chosen by the app and must be changed
+  // at first sign-in (mustChangePassword). Rules cannot verify the uid exists in Auth; a stray doc for a random uid grants
+  // nobody access because no Auth user can ever sign in with that uid.
+  function adminCreateOk(uid) {
+   let d = request.resource.data;
+   let audit = getAfter(accountAuditDoc('account-' + uid + '-1')).data;
+   return ledgerAdmin() && uid != request.auth.uid && !exists(userDoc(uid))
+    && d.keys().hasOnly(['enabled', 'roleIds', 'canManageMembership', 'canReviewChanges', 'accessVersion',
+        'schemaVersion', 'email', 'displayName', 'approvedBy', 'approvedAt', 'createdVia', 'mustChangePassword'])
+    && d.enabled == true && d.roleIds == ['member'] && d.canManageMembership == false
+    && d.get('canReviewChanges', false) == false
+    && d.accessVersion == 1 && d.schemaVersion == 1
+    && d.email is string && d.email == d.email.lower() && d.email.size() <= 254 && d.email.matches('[!-~]+@[!-~]+')
+    && (!('displayName' in d) || nameOk(d.displayName))
+    && d.approvedBy == request.auth.uid && d.approvedAt == request.time
+    && d.createdVia in ['phone', 'email'] && d.mustChangePassword == true
+    && existsAfter(accountAuditDoc('account-' + uid + '-1'))
+    && audit.event == 'ACCOUNT_CREATED' && audit.actorUid == request.auth.uid && audit.targetUid == uid;
+  }
+  // The signed-in user clears their own mustChangePassword after changing the password (client-enforced, not a
+  // security boundary: it only controls the forced-change screen).
+  function passwordChangedOk(uid) {
+   let b = resource.data;
+   let a = request.resource.data;
+   return request.auth != null && request.auth.uid == uid && b.get('mustChangePassword', false) == true
+    && a.diff(b).affectedKeys().hasOnly(['mustChangePassword', 'passwordChangedAt'])
+    && a.mustChangePassword == false && a.passwordChangedAt == request.time;
+  }
   match /users/{uid} {
    allow get: if request.auth != null && (request.auth.uid == uid || manager());
    allow list: if manager();
    allow update: if accountUpdateOk(uid);
+   allow update: if passwordChangedOk(uid);
    allow create: if acceptOk(uid);
+   allow create: if adminCreateOk(uid);
   }
   // Admin ledger: only updates, one uid per change, version + 1, never below one admin. It can change ONLY in the
   // batch that flips users/{target}'s admin state (get != getAfter) with the matching ACCOUNT_UPDATED audit, so it
@@ -170,6 +201,11 @@ service cloud.firestore {
          && d.targetUid == request.auth.uid && d.accessVersion == 1 && id == 'account-' + d.targetUid + '-1'
          && !exists(userDoc(request.auth.uid)) && existsAfter(userDoc(request.auth.uid))
          && d.invitationNonce == getAfter(userDoc(request.auth.uid)).data.invitationNonce)
+     || (d.event == 'ACCOUNT_CREATED' && ledgerAdmin()
+         && d.keys().hasOnly(['event', 'actorUid', 'targetUid', 'accessVersion', 'timestamp', 'schemaVersion'])
+         && d.targetUid is string && d.targetUid != request.auth.uid && d.accessVersion == 1
+         && id == 'account-' + d.targetUid + '-1'
+         && !exists(userDoc(d.targetUid)) && existsAfter(userDoc(d.targetUid)))
      || (d.event in ['INVITE_CREATED', 'INVITE_REVOKED'] && ledgerAdmin()
          && d.keys().hasOnly(['event', 'actorUid', 'nonce', 'inviteKey', 'timestamp', 'schemaVersion'])
          && d.inviteKey is string && d.inviteKey.matches('[0-9a-f]{64}')

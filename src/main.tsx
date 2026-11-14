@@ -30,6 +30,8 @@ import { ScrollButtons } from "./ScrollButtons";
 // Hệ lời mời cũ (Membership.tsx, emulator-only) đã được thay bằng lời mời trong #/users; giữ mã, ẩn khỏi giao diện.
 import { LinkConflict } from "./EmailLinkLogin";
 import { LoginForm } from "./LoginForm";
+import { loginLabel } from "./phoneLogin";
+import { ChangePasswordGate } from "./ChangePassword";
 import {
   capturePendingLink,
   consumePendingLink,
@@ -63,6 +65,7 @@ function App() {
   const [access, setAccess] = useState("loading");
   const [canManageMembership, setCanManageMembership] = useState(false);
   const [canReviewChanges, setCanReviewChanges] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [, refreshLink] = useState(0);
   useEffect(() => {
     if (!auth || !db) {
@@ -75,6 +78,7 @@ function App() {
       pruneWelcome(u?.uid ?? null); // cờ chào mừng không được sang tài khoản khác
       setCanManageMembership(false);
       setCanReviewChanges(false);
+      setMustChangePassword(false);
       setUser(u);
       setAccess(u ? "loading" : "login");
       if (u)
@@ -86,6 +90,9 @@ function App() {
               !s.metadata.fromCache && s.data()?.enabled === true;
             setCanReviewChanges(
               confirmed && s.data()?.canReviewChanges === true,
+            );
+            setMustChangePassword(
+              confirmed && s.data()?.mustChangePassword === true,
             );
             setCanManageMembership(
               !s.metadata.fromCache &&
@@ -103,6 +110,7 @@ function App() {
           () => {
             setCanManageMembership(false);
             setCanReviewChanges(false);
+            setMustChangePassword(false);
             setAccess("error");
           },
         );
@@ -140,6 +148,8 @@ function App() {
         }}
       />
     );
+  if (access === "member" && mustChangePassword && user)
+    return <ChangePasswordGate key={user.uid} user={user} />;
   if (access !== "member")
     return <Gate key={user?.uid ?? "signed-out"} state={access} user={user} />;
   return (
@@ -202,9 +212,9 @@ function App() {
             <NavLink to="/roadmap">Tiến độ triển khai</NavLink>
           </nav>
           <span className="header-user">
-            <span className="header-user-email" title={user?.email ?? ""}>
+            <span className="header-user-email" title={loginLabel(user?.email)}>
               <span className="header-user-label">Đang đăng nhập: </span>
-              {user?.email}
+              {loginLabel(user?.email)}
             </span>
             <button onClick={() => void signOut(auth!)}>Đăng xuất</button>
           </span>
@@ -220,7 +230,7 @@ function App() {
                   <Overview
                     isAdmin={canManageMembership}
                     uid={user!.uid}
-                    email={user!.email}
+                    email={loginLabel(user!.email)}
                   />
                 </Titled>
               }
@@ -444,7 +454,7 @@ function Gate({ state, user }: { state: string; user: User | null }) {
                     : "Không thể kiểm tra quyền truy cập. Vui lòng thử đăng nhập lại."}
                 </p>
                 <button onClick={() => void signOut(auth!)}>
-                  Đăng xuất {user?.email}
+                  Đăng xuất {loginLabel(user?.email)}
                 </button>
               </>
             )}

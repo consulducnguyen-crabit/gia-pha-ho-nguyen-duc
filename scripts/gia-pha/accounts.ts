@@ -494,6 +494,10 @@ try {
         ),
       "ACCOUNT_CREATED",
     );
+    // Mật khẩu do công cụ sinh: bắt đổi ở lần đăng nhập đầu (màn "Đổi mật khẩu" của app).
+    await db
+      .doc(`users/${created.uid}`)
+      .set({ mustChangePassword: true }, { merge: true });
     console.log(
       `Đã tạo tài khoản và cấp quyền. Mật khẩu (chỉ hiển thị một lần, hãy gửi riêng cho người dùng): ${password}`,
     );
@@ -582,6 +586,11 @@ try {
     const password = generatePassword();
     await auth.updateUser(user.uid, { password });
     await auth.revokeRefreshTokens(user.uid);
+    // Mật khẩu mới do công cụ sinh: bắt đổi ở lần đăng nhập kế tiếp (chỉ khi đã có hồ sơ users).
+    await db
+      .doc(`users/${user.uid}`)
+      .update({ mustChangePassword: true })
+      .catch(() => undefined);
     await db.collection("auditLogs").add({
       event: "ACCOUNT_PASSWORD_RESET",
       actorUid: ACTOR,

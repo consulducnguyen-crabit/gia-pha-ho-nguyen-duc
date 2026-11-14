@@ -54,3 +54,4 @@ jobs:
       - run: npm run test:browser:overview
       - run: npm run test:browser:invites
       - run: npm run test:browser:login
+      - run: npm run test:browser:create-account
