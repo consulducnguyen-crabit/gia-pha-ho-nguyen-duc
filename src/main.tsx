@@ -166,7 +166,12 @@ function App() {
           <a className="brand" href="#/">
             <BrandMark className="brand-mark" />{" "}
             <span>
-              Gia phả<small>GÌN GIỮ CỘI NGUỒN</small>
+              <span className="brand-name">
+                Gia phả dòng họ Nguyễn Đức{" "}
+                <span className="brand-place">- Thôn Hạ</span>{" "}
+                <span className="brand-place">- Phùng Xá</span>
+              </span>
+              <small>GÌN GIỮ CỘI NGUỒN</small>
             </span>
           </a>
           <button
@@ -382,7 +387,11 @@ function Gate({ state, user }: { state: string; user: User | null }) {
   return (
     <div className="gate">
       <section className="story">
-        <div className="eyebrow">GIA PHẢ DÒNG HỌ</div>
+        <div className="eyebrow">
+          GIA PHẢ DÒNG HỌ NGUYỄN ĐỨC{" "}
+          <span className="brand-place">- THÔN HẠ</span>{" "}
+          <span className="brand-place">- PHÙNG XÁ</span>
+        </div>
         <div className="tree-mark" aria-hidden="true">
           <BrandMark />
         </div>
