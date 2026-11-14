@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   emailToPhone,
+  loginInputToEmail,
   normalizeVnPhone,
   phoneToEmail,
 } from "../src/phoneLogin";
@@ -48,5 +49,15 @@ describe("phoneToEmail / emailToPhone", () => {
     expect(emailToPhone("0914222987@gp.nguyenduc")).toBe("0914222987");
     expect(emailToPhone("0914222987@gmail.com")).toBeNull();
     expect(emailToPhone("abc@gp.nguyenduc")).toBeNull();
+  });
+});
+
+describe("loginInputToEmail", () => {
+  it("số điện thoại → email ngầm; có @ → email viết thường; sai → null", () => {
+    expect(loginInputToEmail("0914 222 987")).toBe("0914222987@gp.nguyenduc");
+    expect(loginInputToEmail(" A.B@Example.TEST ")).toBe("a.b@example.test");
+    expect(loginInputToEmail("khong hop le")).toBeNull();
+    expect(loginInputToEmail("a b@c.d")).toBeNull();
+    expect(loginInputToEmail("")).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-// Kiểm tra trình duyệt cho trang đăng nhập hai tab Điện thoại | Email, chỉ dùng DỮ LIỆU GIẢ trên emulator cục bộ.
+// Kiểm tra trình duyệt cho trang đăng nhập (ô Số điện thoại + nút Gmail), chỉ dùng DỮ LIỆU GIẢ trên emulator cục bộ.
 // Chạy: CHROMIUM_PATH=... npx firebase emulators:exec --project demo-gia-pha --only auth,firestore \
 //         "node scripts/login-browser-check.mjs"
 // Script tự khởi động Vite (VITE_USE_EMULATORS=true) và dừng khi xong.
@@ -94,30 +94,19 @@ async function noOverflow(page) {
   if (over > 0) throw Error(`Tràn ngang ${over}px`);
 }
 try {
-  stage = "mặc định là tab Điện thoại, hai tab đúng ARIA";
+  stage = "một ô Số điện thoại, không còn tab; nút Gmail có biểu tượng";
   {
     const { ctx, page } = await fresh();
-    const tabs = page.getByRole("tab");
-    await expect(tabs).toHaveCount(2);
-    await expect(page.getByRole("tab", { name: "Điện thoại" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    await expect(
-      page.getByLabel("Số điện thoại", { exact: true }),
-    ).toBeVisible();
-    // Phím mũi tên chuyển sang tab Email rồi quay lại.
-    await page.getByRole("tab", { name: "Điện thoại" }).focus();
-    await page.keyboard.press("ArrowRight");
-    await expect(page.getByRole("tab", { name: "Email" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
-    await page.keyboard.press("ArrowLeft");
-    await expect(
-      page.getByLabel("Số điện thoại", { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("tab")).toHaveCount(0);
+    const phone = page.getByLabel("Số điện thoại", { exact: true });
+    await expect(phone).toBeVisible();
+    await expect(phone).toHaveAttribute("placeholder", "Ví dụ: 0912345678");
+    const gmail = page.getByRole("button", {
+      name: "Đăng nhập bằng Gmail đã đăng ký",
+    });
+    await expect(gmail).toBeVisible();
+    await expect(gmail.locator("svg.gmail-icon")).toBeVisible();
+    await expect(page.getByText("Đăng nhập bằng Google")).toHaveCount(0);
     await ctx.close();
   }
 
@@ -137,11 +126,10 @@ try {
     await ctx.close();
   }
 
-  stage = "đăng nhập bằng tab Email";
+  stage = "tài khoản email sẵn có vẫn vào được bằng cách gõ email vào ô nhập";
   {
     const { ctx, page } = await fresh();
-    await page.getByRole("tab", { name: "Email" }).click();
-    await signIn(page, "Email", "thanhvien@example.test");
+    await signIn(page, "Số điện thoại", "ThanhVien@Example.test");
     await expect(page.getByRole("link", { name: "Cây gia phả" })).toBeVisible();
     await ctx.close();
   }
@@ -170,14 +158,11 @@ try {
     await ctx.close();
   }
 
-  stage = "Email sai: cùng thông báo; đổi tab thì thông báo biến mất";
+  stage = "email sai: cùng thông báo";
   {
     const { ctx, page } = await fresh();
-    await page.getByRole("tab", { name: "Email" }).click();
-    await signIn(page, "Email", "khong-co@example.test");
+    await signIn(page, "Số điện thoại", "khong-co@example.test");
     await expectFailureNotice(page);
-    await page.getByRole("tab", { name: "Điện thoại" }).click();
-    await expect(page.getByRole("alert")).toHaveCount(0);
     await ctx.close();
   }
 
@@ -195,7 +180,9 @@ try {
       });
     await ctx.close();
   }
-  console.log("Kiểm tra trình duyệt đăng nhập điện thoại/email: ĐẠT");
+  console.log(
+    "Kiểm tra trình duyệt đăng nhập (điện thoại, email sẵn có, Gmail): ĐẠT",
+  );
 } catch (error) {
   failed = true;
   console.error(`THẤT BẠI ở bước "${stage}":`, error);

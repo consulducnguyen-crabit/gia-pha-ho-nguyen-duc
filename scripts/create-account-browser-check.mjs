@@ -99,8 +99,7 @@ async function createAccount(page, kind, value, name = "") {
 let tempPassword = "";
 try {
   const { ctx: adminCtx, page: ap } = await newPage();
-  await ap.getByRole("tab", { name: "Email" }).click();
-  await login(ap, "Email", "quantri-tao@example.test", ADMIN_PASSWORD);
+  await login(ap, "Số điện thoại", "quantri-tao@example.test", ADMIN_PASSWORD);
   await ap.goto(`${URL}/#/users`);
 
   stage = "quản trị viên tạo tài khoản theo số điện thoại";
