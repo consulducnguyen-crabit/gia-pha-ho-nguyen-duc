@@ -11,15 +11,14 @@ service cloud.firestore {
   //    by a trusted Admin script (clients can never create/delete it);
   //  - an admin edits another user's enabled/admin/displayName in ONE batch with the ledger (when the
   //    admin state flips) and an append-only auditLogs/account-{uid}-{accessVersion};
-  //  - an invited, verified e-mail creates its OWN users/{uid} (VIEWER only) in one batch that also marks
-  //    the invitation ACCEPTED and writes auditLogs/account-{uid}-1.
+  //  - an admin creates a NEW users/{uid} (VIEWER only, mustChangePassword) in one batch with
+  //    auditLogs/account-{uid}-1 (ACCOUNT_CREATED); the e-mail invitation flow was removed.
   // Access budget: every operation stays <= 6 distinct documents (limit 10/op, 20/batch).
   function manager() {
    return member() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.canManageMembership == true;
   }
   function userDoc(id) { return /databases/$(database)/documents/users/$(id); }
   function ledgerPath() { return /databases/$(database)/documents/accessControl/admins; }
-  function inviteDoc(key) { return /databases/$(database)/documents/accountInvites/$(key); }
   function accountAuditDoc(id) { return /databases/$(database)/documents/auditLogs/$(id); }
   function isAdminUser(u) {
    return u.get('enabled', false) == true && u.get('canManageMembership', false) == true;
@@ -58,29 +57,6 @@ service cloud.firestore {
     && (isAdminUser(b) != isAdminUser(a) ? ledgerChanged(uid, isAdminUser(a)) : ledgerUntouched())
     && existsAfter(audit) && getAfter(audit).data.actorUid == request.auth.uid;
   }
-  // Invitation acceptance = create the caller's own users doc (see the header comment above).
-  function acceptOk(uid) {
-   let t = request.auth.token;
-   let key = t.email.lower();
-   let inv = get(inviteDoc(key)).data;
-   let d = request.resource.data;
-   let ia = getAfter(inviteDoc(key)).data;
-   let audit = getAfter(accountAuditDoc('account-' + uid + '-1')).data;
-   return request.auth.uid == uid && !exists(userDoc(uid))
-    && t.email_verified == true && t.email.matches('[!-~]+') && t.firebase.sign_in_provider in ['google.com', 'password']
-    && inv.status == 'PENDING' && inv.expiresAt > request.time && inv.role == 'VIEWER'
-    && isAdminUser(get(userDoc(inv.createdBy)).data)
-    && inv.createdBy in get(ledgerPath()).data.adminUids
-    && d.keys().hasOnly(['enabled', 'roleIds', 'canManageMembership', 'canReviewChanges', 'accessVersion',
-        'schemaVersion', 'email', 'displayName', 'approvedBy', 'approvedAt', 'invitationNonce'])
-    && d.enabled == true && d.roleIds == ['member'] && d.canManageMembership == false
-    && d.get('canReviewChanges', false) == false
-    && d.accessVersion == 1 && d.schemaVersion == 1 && d.email == key
-    && d.get('displayName', null) == inv.get('displayName', null)
-    && d.approvedBy == inv.createdBy && d.approvedAt == request.time && d.invitationNonce == inv.nonce
-    && ia.status == 'ACCEPTED' && ia.acceptedBy == uid
-    && audit.event == 'INVITATION_ACCEPTED' && audit.actorUid == uid;
-  }
   // Admin-created account (docs/ACCOUNTS.md): a ledger admin creates users/{uid} for a NEW uid in one batch with
   // auditLogs/account-{uid}-1 (ACCOUNT_CREATED). VIEWER only; the first password is chosen by the app and must be changed
   // at first sign-in (mustChangePassword). Rules cannot verify the uid exists in Auth; a stray doc for a random uid grants
@@ -115,7 +91,6 @@ service cloud.firestore {
    allow list: if manager();
    allow update: if accountUpdateOk(uid);
    allow update: if passwordChangedOk(uid);
-   allow create: if acceptOk(uid);
    allow create: if adminCreateOk(uid);
   }
   // Admin ledger: only updates, one uid per change, version + 1, never below one admin. It can change ONLY in the
@@ -139,78 +114,16 @@ service cloud.firestore {
    allow get: if id == 'admins' && manager();
    allow update: if id == 'admins' && ledgerAdmin() && ledgerUpdateOk();
   }
-  // Invitations (VIEWER only). The audit id (invite-{nonce}, or invite-{nonce}-revoked-{uid}) is create-only, must be
-  // written in THIS request (timestamp == request.time) and is bound 1:1 to the invitation by inviteKey = sha256 of
-  // the e-mail key (no e-mail stored). Known limit: rules cannot map an audit back to its invitation, so a standalone
-  // forged audit of an admin's own (unused) id cannot be rejected by the audit rule itself.
-  function inviteKeyHash(key) { return hashing.sha256(key.toUtf8()).toHexString().lower(); }
-  function inviteAuditOk(id, nonce, ev, key) {
-   let a = getAfter(accountAuditDoc(id)).data;
-   return existsAfter(accountAuditDoc(id))
-    && a.event == ev && a.actorUid == request.auth.uid && a.nonce == nonce
-    && a.timestamp == request.time && a.inviteKey == inviteKeyHash(key);
-  }
-  function inviteCreateOk(key) {
-   let d = request.resource.data;
-   return ledgerAdmin()
-    && d.keys().hasOnly(['email', 'role', 'displayName', 'status', 'nonce', 'createdBy', 'createdAt', 'expiresAt', 'schemaVersion'])
-    && d.email is string && d.email == key && key == key.lower() && key.size() <= 254
-    && key.matches('[a-z0-9._%+-]+@[a-z0-9.-]+')
-    && d.role == 'VIEWER' && d.status == 'PENDING'
-    && (!('displayName' in d) || nameOk(d.displayName))
-    && d.nonce is string && d.nonce.matches('[A-Za-z0-9-]{36}')
-    && d.createdBy == request.auth.uid && d.createdAt == request.time
-    && d.expiresAt is timestamp && d.expiresAt > request.time && d.expiresAt <= request.time + duration.value(7, 'd')
-    && d.schemaVersion == 1
-    && inviteAuditOk('invite-' + d.nonce, d.nonce, 'INVITE_CREATED', key);
-  }
-  match /accountInvites/{emailKey} {
-   allow list: if ledgerAdmin();
-   allow get: if ledgerAdmin()
-    || (request.auth != null && request.auth.token.email_verified == true
-        && request.auth.token.email.matches('[!-~]+')
-        && request.auth.token.email.lower() == emailKey);
-   allow create: if inviteCreateOk(emailKey);
-   // Overwrite only a spent (not PENDING) or expired invitation.
-   allow update: if (resource.data.status != 'PENDING' || resource.data.expiresAt <= request.time)
-     && inviteCreateOk(emailKey);
-   // Revoke: PENDING -> REVOKED, nothing else changes.
-   allow update: if ledgerAdmin() && resource.data.status == 'PENDING'
-    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'revokedBy', 'revokedAt'])
-    && request.resource.data.status == 'REVOKED' && request.resource.data.revokedBy == request.auth.uid
-    && request.resource.data.revokedAt == request.time
-    && inviteAuditOk('invite-' + resource.data.nonce + '-revoked-' + request.auth.uid, resource.data.nonce, 'INVITE_REVOKED', emailKey);
-   // Accept: PENDING -> ACCEPTED in the batch that creates the caller's own users doc.
-   allow update: if request.auth != null && request.auth.token.email_verified == true
-    && request.auth.token.email.matches('[!-~]+')
-    && request.auth.token.email.lower() == emailKey
-    && resource.data.status == 'PENDING' && resource.data.expiresAt > request.time
-    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedBy', 'acceptedAt'])
-    && request.resource.data.status == 'ACCEPTED' && request.resource.data.acceptedBy == request.auth.uid
-    && request.resource.data.acceptedAt == request.time
-    && existsAfter(userDoc(request.auth.uid)) && !exists(userDoc(request.auth.uid))
-    && getAfter(userDoc(request.auth.uid)).data.invitationNonce == resource.data.nonce;
-  }
   // Account audit events (kept out of auditCreateOk so the edit-N branch stays untouched).
   function accountAuditOk(id) {
    let d = request.resource.data;
    return d.schemaVersion == 1 && d.timestamp == request.time && d.actorUid == request.auth.uid
     && ((d.event == 'ACCOUNT_UPDATED' && accountUpdatedAuditOk(id, d))
-     || (d.event == 'INVITATION_ACCEPTED'
-         && d.keys().hasOnly(['event', 'actorUid', 'targetUid', 'accessVersion', 'invitationNonce', 'timestamp', 'schemaVersion'])
-         && d.targetUid == request.auth.uid && d.accessVersion == 1 && id == 'account-' + d.targetUid + '-1'
-         && !exists(userDoc(request.auth.uid)) && existsAfter(userDoc(request.auth.uid))
-         && d.invitationNonce == getAfter(userDoc(request.auth.uid)).data.invitationNonce)
      || (d.event == 'ACCOUNT_CREATED' && ledgerAdmin()
          && d.keys().hasOnly(['event', 'actorUid', 'targetUid', 'accessVersion', 'timestamp', 'schemaVersion'])
          && d.targetUid is string && d.targetUid != request.auth.uid && d.accessVersion == 1
          && id == 'account-' + d.targetUid + '-1'
-         && !exists(userDoc(d.targetUid)) && existsAfter(userDoc(d.targetUid)))
-     || (d.event in ['INVITE_CREATED', 'INVITE_REVOKED'] && ledgerAdmin()
-         && d.keys().hasOnly(['event', 'actorUid', 'nonce', 'inviteKey', 'timestamp', 'schemaVersion'])
-         && d.inviteKey is string && d.inviteKey.matches('[0-9a-f]{64}')
-         && d.nonce is string && d.nonce.matches('[A-Za-z0-9-]{36}')
-         && id == 'invite-' + d.nonce + (d.event == 'INVITE_REVOKED' ? '-revoked-' + request.auth.uid : '')));
+         && !exists(userDoc(d.targetUid)) && existsAfter(userDoc(d.targetUid))));
   }
   // ACCOUNT_UPDATED carries only enabled/admin flags (never a name or e-mail) and must match the real change.
   function accountUpdatedAuditOk(id, d) {
@@ -417,7 +330,7 @@ service cloud.firestore {
     && snapshotUpdateOk(request.resource.data.editVersion);
   }
   match /auditLogs/{id} {
-   // Account/invitation audits stay closed to every client; managers read only edit audits, by id.
+   // Account audits stay closed to every client; managers read only edit audits, by id.
    allow get: if manager()
     && resource.data.event in ['PERSON_EDITED', 'PERSON_ADDED', 'SPOUSE_ADDED', 'PARENT_CHANGED', 'PARENT_REVERTED', 'PARENT_REMOVED', 'PARENT_REMOVAL_UNDONE', 'RELATION_TYPE_CHANGED', 'PERSON_DELETED', 'PERSON_RESTORED', 'UNION_REMOVED', 'UNION_REMOVAL_UNDONE'];
    allow create: if manager() && auditCreateOk(id);

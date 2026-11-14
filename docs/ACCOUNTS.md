@@ -45,7 +45,7 @@ Chưa có Cloud Functions nên tài khoản được quản lý bằng **công c
 
 ## Cấp quyền trong app qua rules (PR-A: chỉ rules/test, chưa có UI, chưa deploy)
 
-- **Lời mời qua email**: quản trị viên tạo `accountInvites/{email}` (chỉ vai trò **Chỉ xem**, hạn <= 7 ngày). Người được mời đăng nhập (Google, hoặc **đăng nhập không mật khẩu bằng liên kết email**) bằng đúng email đã xác minh rồi tự tạo `users/{uid}`; lô nhận lời mời đồng thời đánh dấu lời mời ACCEPTED và ghi nhật ký `account-{uid}-1`.
+- ~~Lời mời qua email~~ (`accountInvites`, nhận lời mời, đăng nhập bằng liên kết email) **đã gỡ ở PR3 (2026-11-14)**: thành viên đăng ký trực tiếp với quản trị viên, quản trị viên tạo tài khoản trong app (xem mục "Quản trị viên tạo tài khoản trong app").
 - **Sổ quản trị viên** `accessControl/admins` phải được khởi tạo một lần bằng script Admin (PR sau) với danh sách quản trị viên hiện có trước khi bật bất kỳ thao tác nâng/hạ nào; thiếu sổ thì không ai là quản trị viên trong rules (đóng khi lỗi). Việc sửa dữ liệu phả hệ (`manager()`) không phụ thuộc sổ; chỉ các thao tác tài khoản cần sổ.
 - Quản trị viên có thể bật/tắt, nâng/hạ quyền quản trị và đổi tên hiển thị của người khác (không tự thao tác trên chính mình, không hạ quản trị viên cuối). Mỗi thay đổi tăng `accessVersion` và ghi `auditLogs/account-{uid}-{accessVersion}`. Sổ chỉ đổi cùng lô với `users` của mục tiêu; sổ lệch (ví dụ thu hồi bằng script) do script Admin sửa ở PR sau, không sửa được từ trình duyệt.
 - Chi tiết bất biến, điều kiện lô và rủi ro: SECURITY_RULES.md; schema: DATABASE_SCHEMA.md.
@@ -67,26 +67,9 @@ Chưa có Cloud Functions nên tài khoản được quản lý bằng **công c
 
 - Quản trị viên (có trong sổ) dùng nút **Sửa** để đổi tên hiển thị, đổi quyền Quản trị/Chỉ xem, vô hiệu hóa hoặc bật lại tài khoản ĐÃ CÓ; ghi qua firestore.rules cùng sổ và nhật ký trong một giao dịch. Không tự sửa chính mình. Sổ thiếu/không chứa bạn thì các nút bị khóa và trang hướng dẫn `registry --rebuild`. Vô hiệu hóa quản trị viên cũng hạ quyền Quản trị; bật lại chỉ trả quyền Chỉ xem. Mời người mới: PR sau.
 
-## Mời thành viên bằng email (PR-D)
+## Mời thành viên bằng email (PR-D) — ĐÃ GỠ ở PR3
 
-- Trang `#/users` có khu **Mời thành viên**: quản trị viên (có trong sổ) nhập email (+ tên hiển thị tùy chọn) và bấm "Tạo lời mời". Lời mời **chỉ cấp "Chỉ xem"**, hạn khoảng 7 ngày (ghi 6 ngày 22 giờ để tránh lệch đồng hồ so với giới hạn 7 ngày của rules). Bảng lời mời (tối đa 100, mới nhất trước) có trạng thái Đang chờ / Đã nhận / Đã thu hồi / Hết hạn, nút **Thu hồi**, **Mời lại** (khi hết hạn/thu hồi/đã nhận) và **Gửi liên kết đăng nhập**.
-- **Gửi liên kết đăng nhập** gọi `sendSignInLinkToEmail` của Firebase: Firebase gửi thư tới email đó; người nhận mở liên kết (nên trên thiết bị của họ). Hạn mức thư theo ngày của Firebase, SMTP/thư rác **chưa được kiểm chứng trên Firebase thật**.
-- Người được mời đăng nhập bằng một trong hai cách ở màn đăng nhập: **"Gửi liên kết"** (đăng nhập không mật khẩu bằng liên kết email; mở liên kết trên thiết bị khác thì nhập lại email) hoặc **Google** với đúng email được mời. Hệ thống KHÔNG có đăng ký mật khẩu. Sau đăng nhập, màn "Chờ cấp quyền" hiện nút **Nhận lời mời** nếu email đã xác minh và có lời mời đang chờ còn hạn; nhận xong tự vào hệ thống với quyền Chỉ xem.
-- Rules ràng buộc: người phát hành phải còn là quản trị viên trong sổ; người đã có `users` (kể cả đã tắt) không nhận được lời mời; mỗi nhật ký lời mời (`invite-{nonce}`, `invite-{nonce}-revoked-{uid}`, `account-{uid}-1`) tạo cùng lô, không chứa email. Hệ lời mời cũ emulator-only (`#/accounts`, Cloud Functions) đã bị ẩn; mã giữ lại trong `src/Membership.tsx` và `functions/`.
-
-### Việc thủ công cần người dùng (một lần, trước khi dùng thật)
-
-1. **Firebase Console** (project prod `gia-pha-nguyen-duc-prod`, và dev nếu dùng): Authentication → Sign-in method → **Email/Password** → bật mục **Email link (passwordless sign-in)** (giữ nguyên "Email/Password" ở trạng thái bật; ứng dụng không có màn đăng ký mật khẩu). Kết quả cần xác nhận: mục "Email link" ở trạng thái Enabled.
-2. Authentication → Settings → **Authorized domains**: thêm tên miền GitHub Pages của trang (dạng `<tên-tài-khoản>.github.io`) nếu chưa có. Kết quả cần xác nhận: tên miền xuất hiện trong danh sách.
-3. Thử một vòng thật: dùng một email của người dùng, tạo lời mời trong `#/users`, bấm "Gửi liên kết đăng nhập", mở thư (kiểm tra cả thư rác), bấm liên kết, nhấn "Nhận lời mời". Kết quả cần xác nhận: vào được hệ thống với quyền Chỉ xem, không thấy "Quản lý tài khoản"; ghi lại thư có tới hộp thư chính hay thư rác.
-4. Không cần gửi cho tôi khóa hay mật khẩu nào; chỉ báo kết quả các bước trên.
-
-### Chống "đăng ký trước" (pre-hijacking) khi đăng nhập bằng liên kết email
-
-- Rủi ro: kẻ khác có thể đăng ký trước một tài khoản mật khẩu cho email của người được mời (email chưa xác minh). Khi người đó chứng minh sở hữu hộp thư bằng liên kết email, tài khoản cùng email được dùng chung và kẻ kia vẫn giữ mật khẩu đã đặt.
-- Biện pháp trong mã: ngay sau `signInWithEmailLink` thành công, ứng dụng gọi `updatePassword` với chuỗi ngẫu nhiên 40 ký tự (`crypto.getRandomValues`, không lưu, không hiển thị) để vô hiệu mật khẩu cũ (đổi mật khẩu cũng thu hồi token cũ). Lỗi bước này không bị nuốt: ứng dụng đăng xuất và báo gửi liên kết mới. Hệ quả: người dùng không có mật khẩu; họ đăng nhập bằng liên kết email hoặc Google.
-- Liên kết đăng nhập được chụp và xóa `oobCode`/`apiKey` khỏi URL ngay khi trang tải; email tạm trong localStorage hết hạn sau 1 giờ và bị xóa khi lỗi hết hạn/đã dùng; giữa hai lần "Gửi liên kết" tới cùng email có thời gian chờ 60 giây phía client.
-- Trạng thái: **đã giảm thiểu, chưa kiểm chứng trên Firebase thật.** Trên Auth emulator đã kiểm: đăng ký trước tài khoản mật khẩu P (đăng nhập P được) rồi hoàn tất liên kết email thì đăng nhập bằng P bị từ chối (`scripts/invites-browser-check.mjs`). Cần thử lại trên Firebase thật vì cách Firebase thật gộp tài khoản theo email có thể khác emulator.
+Khu "Mời thành viên", đăng nhập bằng liên kết email, `?invitee=` và luồng nhận lời mời đã bị gỡ khỏi giao diện, mã và `firestore.rules` (không còn đường nào để người dùng tự kích hoạt quyền). Lịch sử xem `docs/CHANGELOG.md`. Các hạng mục "Việc thủ công" (bật Email link, Authorized domains) không còn cần thiết.
 
 ## Xóa hẳn tài khoản (`delete`) — vô hiệu hóa trước, không hoàn tác
 
@@ -95,24 +78,8 @@ Chưa có Cloud Functions nên tài khoản được quản lý bằng **công c
 - Thực hiện: `npm run gia-pha:accounts -- delete --email ten@example.com --project <id> --apply --confirm-delete ten@example.com` (`--confirm-delete` phải đúng email đích, so khớp viết thường). Trên production cần thêm `--confirm <project>` và câu xác nhận RIÊNG của lệnh xóa: `--ack "XOA TAI KHOAN <project>"` (khác câu `QUAN LY TAI KHOAN` của các lệnh khác); `--force` bị từ chối.
 - Điều kiện chặn: (1) tài khoản phải **đã vô hiệu hóa** (users.enabled khác true); (2) không phải quản trị viên (users, `canManageMembership` hay có trong sổ `accessControl/admins`; hạ quyền trước); (3) sổ phải khớp users (nếu lệch: `registry --rebuild`); (4) phải tìm thấy tài khoản Auth theo email (đã xóa rồi thì báo không tìm thấy); (5) sau khi xóa vẫn còn quản trị viên hiệu lực trong sổ.
 - Thực hiện: một giao dịch Firestore xóa `users/{uid}` và ghi `auditLogs` `ACCOUNT_DELETED` (uid, không email/tên; thêm `authOnly: true` khi chỉ còn tài khoản Auth); `auth/user-not-found` ở bước xóa Auth được coi là đã xong; sau đó thu hồi phiên và xóa tài khoản Auth. Nếu xóa Auth lỗi sau khi users đã xóa: lệnh thoát mã 1 và cảnh báo (tài khoản không còn quyền); xóa tay trong Firebase Console hoặc chạy lại lệnh (xử lý được trạng thái "có Auth, không có users").
-- **Lời mời PENDING còn hạn của email đó CHẶN xóa**: nếu xóa users + Auth khi lời mời còn chờ, người đó đăng nhập lại bằng cùng email (uid mới) sẽ NHẬN LẠI quyền qua chính lời mời đang chờ, không cần ai mời lại. Hãy thu hồi lời mời trong `#/users` trước. Lời mời REVOKED/hết hạn/ACCEPTED hoặc không có thì vẫn xóa được (lệnh không tự xóa lời mời).
+- Lệnh `delete` vẫn kiểm tra `accountInvites` còn PENDING (dữ liệu cũ nếu có); luồng tạo lời mời trên giao diện đã gỡ nên thường không có.
 - Đã kiểm trên emulator (`npm run test:accounts:e2e`); chưa chạy trên Firebase thật.
-
-## Mời một bước (thay luồng 3 bước trước đây)
-
-- Quản trị viên nhập email (+ họ tên tùy chọn) trong khu **Mời thành viên** và bấm **Gửi thư mời**: ứng dụng tạo lời mời rồi NGAY SAU ĐÓ nhờ Firebase gửi thư đăng nhập (`sendSignInLinkToEmail`). Nhãn nút đổi theo trạng thái email đó: lời mời đang chờ còn hạn → **Gửi lại thư mời** (chỉ gửi lại, không tạo mới); hết hạn/đã thu hồi/đã nhận → **Mời lại và gửi thư**. Bảng lời mời có **Thu hồi** và **Gửi lại thư**. Giữa hai lần gửi tới cùng email có thời gian chờ 60 giây phía client.
-- Tạo lời mời xong mà gửi thư lỗi (hạn mức, chưa bật Email link, mạng): lời mời vẫn còn; thông báo "Đã tạo lời mời nhưng chưa gửi được thư (<lý do>)", bấm **Gửi lại thư** trong bảng.
-- Liên kết trong thư có dạng `<trang>/?invitee=<email mã hóa>&oobCode=…`. Người được mời mở liên kết: ứng dụng làm sạch URL ngay, tự gọi `signInWithEmailLink` (không hỏi lại email khi có `?invitee=` hoặc email tạm trên cùng thiết bị), tự **kích hoạt lời mời** (không cần bấm) rồi vào Tổng quan với lời chào một lần (nút "Đã hiểu"). Đăng nhập bằng Google cũng tự kích hoạt nếu email Google trùng email được mời; khác email thì hiện rõ email đang dùng và không có lời mời cho email đó.
-- **Lưu ý bảo mật:** email trong URL (`?invitee=`) CHỈ để điền sẵn làm đầu vào cho Firebase; Firebase tự kiểm email khớp với `oobCode` (sai thì từ chối, đã kiểm trên emulator). Quyền vẫn do `firestore.rules` quyết định (email trong token khớp khóa lời mời, email đã xác minh), không bao giờ dựa vào URL. Biện pháp `updatePassword` ngẫu nhiên sau đăng nhập liên kết (chống chiếm trước tài khoản) và màn "đang đăng nhập bằng tài khoản khác" được giữ nguyên.
-- Mở liên kết trên thiết bị khác vẫn dùng được: liên kết mang đủ `oobCode` và `invitee`; chỉ khi liên kết không có `?invitee=` (ví dụ gửi bằng công cụ khác) và thiết bị không có email tạm thì mới hỏi nhập email. Mã trong thư chỉ dùng được một lần.
-- Hạn mức thư theo ngày của Firebase, độ tin cậy thư và thư rác **chưa kiểm chứng trên Firebase thật**.
-
-### Rủi ro và đánh đổi còn lại của luồng một bước
-
-- **`?invitee=` chỉ có ở thư do quản trị viên gửi** (nút trong `#/users`). Liên kết người dùng tự gửi từ form đăng nhập công khai KHÔNG mang `invitee`: hoàn tất bằng email tạm trong localStorage (cùng thiết bị), thiết bị khác thì hỏi nhập lại email.
-- **Chuyển tiếp liên kết:** thư của quản trị viên mang đủ `oobCode` và `invitee` nên ai mở được liên kết (kể cả bị chuyển tiếp) sẽ đăng nhập thẳng vào tài khoản của email đó và kích hoạt lời mời. Giảm thiểu: mã chỉ dùng một lần, lời mời chỉ cấp Chỉ xem và hết hạn ~7 ngày, ứng dụng luôn hiển thị **email đang đăng nhập** (header "Đang đăng nhập: …" và lời chào có nút "Không phải bạn? Đăng xuất") để người dùng nhận ra nếu đang dùng nhầm tài khoản.
-- **Email nằm trong URL** (đánh đổi để không phải hỏi lại): có thể xuất hiện trong lịch sử trình duyệt hoặc nhật ký máy chủ web; đó chính là email của người nhận thư, ứng dụng làm sạch URL ngay khi tải, và giá trị này chỉ là đầu vào cho Firebase (Firebase kiểm khớp với `oobCode`), không bao giờ quyết định quyền.
-- Lời chào chỉ hiện cho đúng tài khoản vừa kích hoạt (cờ lưu `{uid, tên}` trong sessionStorage, đọc rồi xóa khi hiện, xóa khi đăng xuất/đổi tài khoản). Email đã có hồ sơ users (kể cả lời mời ACCEPTED) không tạo được lời mời mới: dùng Sửa → Bật lại trong bảng tài khoản. Gửi lại thư mời không đổi họ tên.
 
 ## Đăng nhập bằng số điện thoại (đã duyệt 2026-11-14)
 

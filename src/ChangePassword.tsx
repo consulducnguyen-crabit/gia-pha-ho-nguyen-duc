@@ -4,9 +4,17 @@ import { useState } from "react";
 import { signOut, updatePassword, type User } from "firebase/auth";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
+import { setWelcome } from "./welcome";
 import { checkNewPassword, NEW_PASSWORD_MIN } from "./passwordRules";
 
-export function ChangePasswordGate({ user }: { user: User }) {
+export function ChangePasswordGate({
+  user,
+  name,
+}: {
+  user: User;
+  /** Tên hiển thị trong hồ sơ (để chào mừng sau khi đổi mật khẩu). */
+  name: string;
+}) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -27,6 +35,7 @@ export function ChangePasswordGate({ user }: { user: User }) {
         mustChangePassword: false,
         passwordChangedAt: serverTimestamp(),
       });
+      setWelcome(user.uid, name); // banner chào mừng hiện một lần ở Tổng quan
     } catch (cause) {
       const code = (cause as { code?: string } | null)?.code ?? "";
       setError(
