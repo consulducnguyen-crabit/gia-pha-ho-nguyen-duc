@@ -300,6 +300,16 @@ function SexFigure({ sex }: { sex: OverviewStats["sex"] }) {
           </tbody>
         </table>
       </div>
+      {sex.unsynced > 0 && (
+        <p className="stats-note" role="note">
+          <b>
+            {nf.format(sex.unsynced)}/{nf.format(total)} người
+          </b>{" "}
+          chưa có dữ liệu giới tính trong ảnh chụp cây, nên số Nam và Nữ ở trên
+          chưa phản ánh toàn bộ. Quản trị viên cần đồng bộ giới tính để số liệu
+          đầy đủ.
+        </p>
+      )}
     </figure>
   );
 }
