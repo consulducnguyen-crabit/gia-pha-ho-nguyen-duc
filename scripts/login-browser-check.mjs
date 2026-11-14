@@ -143,7 +143,8 @@ try {
       if (formTop > 40)
         throw Error(`Khối đăng nhập cách mép trên ${formTop}px ở ${width}px`);
     }
-    // Cuốn thư ở cuối panel trái: chỉ trang trí (aria-hidden), hiện khi hai cột, ẩn khi màn hẹp, không đè lên chữ.
+    // Câu đối thư pháp ở cuối panel trái: chỉ trang trí (aria-hidden), hiện khi hai cột, ẩn khi màn hẹp,
+    // cách dòng chữ nhỏ phía trên, không đè và không vượt khung nhìn.
     const art = page.locator(".gate-art");
     await expect(art).toHaveCount(1);
     await expect(page.locator(".gate-art-slot")).toHaveAttribute(
@@ -152,12 +153,16 @@ try {
     );
     if (width > 800) {
       await expect(art).toBeVisible();
+      await expect(art).toContainText("Cây có gốc, nước có nguồn");
+      await expect(art).toContainText("MỘC HỮU BẢN · THỦY HỮU NGUYÊN");
       const box = await art.boundingBox();
       const tag = await page.locator(".story small").boundingBox();
-      if (!box || !tag || box.y < tag.y + tag.height)
-        throw Error(`Cuốn thư đè lên chữ ở ${width}px`);
+      if (!box || !tag) throw Error("Không đo được hình");
+      const gap = box.y - (tag.y + tag.height);
+      if (gap < 24)
+        throw Error(`Hình cách chữ phía trên chỉ ${gap}px ở ${width}px`);
       if (box.y + box.height > 900 + 1)
-        throw Error(`Cuốn thư vượt khung nhìn ở ${width}px`);
+        throw Error(`Hình vượt khung nhìn ở ${width}px`);
     } else {
       await expect(art).toBeHidden();
     }
