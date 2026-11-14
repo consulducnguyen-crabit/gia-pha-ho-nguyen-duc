@@ -2352,3 +2352,124 @@ body {
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
 }
+
+/* ===== Cây gia phả: khối theo chi (chỉ trình bày) =====
+   Mỗi chi một khối nền riêng, đường kẻ dọc liền cùng tông nhưng đậm hơn nền; số chi lấy theo thứ tự khai báo
+   (chi N dùng màu N mod 8). Tên chi vẫn luôn có chữ trong tiêu đề khối nên không chỉ dựa vào màu. */
+.chi-tone-0 {
+  --chi-rail: #38573b;
+  --chi-bg: #dbdccc;
+  --chi-line: #8a9a84;
+}
+.chi-tone-1 {
+  --chi-rail: #7a5810;
+  --chi-bg: #e6dcc5;
+  --chi-line: #b09a6a;
+}
+.chi-tone-2 {
+  --chi-rail: #2f5d7c;
+  --chi-bg: #d9ddd7;
+  --chi-line: #849daa;
+}
+.chi-tone-3 {
+  --chi-rail: #9b4a35;
+  --chi-bg: #ecdacb;
+  --chi-line: #c49280;
+}
+.chi-tone-4 {
+  --chi-rail: #6d4a78;
+  --chi-bg: #e4dad7;
+  --chi-line: #a892a8;
+}
+.chi-tone-5 {
+  --chi-rail: #2a6b66;
+  --chi-bg: #d8dfd4;
+  --chi-line: #81a59d;
+}
+.chi-tone-6 {
+  --chi-rail: #8a3f5d;
+  --chi-bg: #e9d8d2;
+  --chi-line: #ba8c98;
+}
+.chi-tone-7 {
+  --chi-rail: #5b5348;
+  --chi-bg: #e1dbce;
+  --chi-line: #9e978b;
+}
+.tree-node.chi-block {
+  position: relative;
+  margin: var(--space-4) 0;
+  padding: 0 var(--space-2) var(--space-2) var(--space-3);
+  background: var(--chi-bg);
+  border-left: 4px solid var(--chi-rail);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+.chi-head {
+  position: relative; /* nằm trên chữ chìm */
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 0 var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--chi-line);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.chi-head strong {
+  font: 600 17px/1.25 var(--font-heading);
+  color: var(--chi-rail);
+}
+/* Chữ chìm: tên chi đi theo khi cuộn qua khối, dính dưới thanh menu; không bắt chuột, không đọc bằng màn hình đọc. */
+.chi-watermark {
+  position: sticky;
+  top: var(--chi-sticky-top, 76px);
+  height: 0;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+.chi-watermark span {
+  position: absolute;
+  top: var(--space-2);
+  right: 0;
+  max-width: 85%;
+  font: 600 clamp(26px, 8vw, 48px) / 1.05 var(--font-heading);
+  text-align: right;
+  color: var(--chi-rail);
+  opacity: 0.13;
+  overflow-wrap: anywhere;
+}
+.chi-block .chi-block .chi-watermark span {
+  right: auto;
+  left: 0;
+  text-align: left;
+}
+.chi-block > .tree-row,
+.chi-block > .tree-list {
+  position: relative;
+  z-index: 1;
+}
+.chi-block .tree-list {
+  border-left-color: var(--chi-line);
+}
+/* Đời: chữ thường "Đời 8", không còn nhãn viền; thụt lề mỗi cấp gọn hơn để cây sâu vẫn đọc được trên điện thoại. */
+.tree-gen {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tree-badges .tree-gen {
+  margin-right: var(--space-1);
+}
+.tree-list .tree-list {
+  margin-left: 15px;
+  padding-left: 12px;
+}
+@media (min-width: 900px) {
+  .chi-watermark {
+    top: var(--chi-sticky-top-wide, 120px);
+  }
+}
