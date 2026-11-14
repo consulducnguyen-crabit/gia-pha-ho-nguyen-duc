@@ -1,6 +1,7 @@
 # Vận hành bản nền 0.1
 
 ## Phạm vi
+
 Schema version 1. Dữ liệu thật (prod) đã nạp một lần từ file nguồn riêng; sau đó quản trị viên sửa trong app qua các lô
 có nhật ký (xem IN_APP_EDIT.md). Backend lời mời chỉ ghi membership, invitations và audit trong emulator; trình duyệt chỉ
 ghi được các lô sửa của quản trị viên đã qua rules (không có ghi trực tiếp nào khác).
@@ -8,6 +9,7 @@ Media bị khóa toàn bộ cho đến khi triển khai và kiểm chứng ACL c
 editor/approver chưa có đặc quyền. Không phân phối dữ liệu giả trong frontend bundle.
 
 ## Thiết lập dev
+
 Node 24, Java 21. `npm ci`; `npm ci --prefix functions`; `npm run emulators` (project demo-gia-pha).
 Ở terminal khác: `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 npm run seed`.
 Chạy frontend: `VITE_USE_EMULATORS=true npm run dev`. Đăng nhập thanhvien@example.test / Demo-only-2026! (chỉ emulator).
@@ -22,27 +24,33 @@ Chỉ chạy graph integration/browser trên fixture cô lập; không chạy đ
 rules cố ý tạo graph sai cấu trúc. Không tự mở quyền canonical hoặc media.
 
 ## Kiểm thử
+
 `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:rules`, `npm run build`. Các lệnh test emulator cần Java 21 (Temurin) và chạy được trên Windows lẫn Linux.
 Rules tests dùng dữ liệu giả với bypass chỉ bên trong emulator. Cài emulator có thể cần tải binary từ Firebase.
 
 ## Firebase thật và GitHub Pages
+
 Hai project đã tạo: `gia-pha-nguyen-duc-dev` và `gia-pha-nguyen-duc-prod` (alias `dev`/`prod` trong `.firebaserc`), gói Spark, Firestore asia-southeast1, đã bật Google và Email/Password. Chạy cục bộ với dev: sao chép `.env.example` thành `.env.local` và điền web config dev; với prod dùng `.env.production.local`. Không dùng Admin SDK trong Vite. Authorized domain phải có `consulducnguyen-crabit.github.io`.
 Pages build đọc web config từ GitHub Actions **Variables** (Settings → Secrets and variables → Actions → Variables): `VITE_FIREBASE_API_KEY`, `_AUTH_DOMAIN`, `_PROJECT_ID`, `_STORAGE_BUCKET`, `_APP_ID`. Để trống thì trang chỉ hiển thị "Sẵn sàng kết nối". Tài khoản chỉ do quản trị viên cấp bằng công cụ cục bộ `npm run gia-pha:accounts` (Admin SDK, xem ACCOUNTS.md); không tạo tài khoản từ trình duyệt.
 GitHub Pages chỉ phục vụ `dist/`, router dùng hash và Vite base tương đối cho đường dẫn repository. Pages tự phát hành khi merge vào `main` (workflow `pages.yml`, đọc cấu hình từ GitHub Variables) và hiện nối dữ liệu prod; rules chỉ được deploy tay sau khi người dùng duyệt. Trước mỗi lần mở thêm chức năng trên production phải kiểm chứng phân quyền riêng tư (đã tách memberProfiles khỏi canonical), các quyết định hạ tầng còn mở, hoàn thiện approval backend, chạy bộ kiểm thử và bảo vệ GitHub environment production với reviewer. Không triển khai frontend như sản phẩm hoàn chỉnh.
 
 ## Sao lưu và khôi phục
+
 Công cụ sao lưu/khôi phục cục bộ và kết quả diễn tập: xem [BACKUP.md](BACKUP.md).
 Prod đã có dữ liệu thật. Từ 2026-11-13 sao lưu là tùy chọn do quản trị viên tự quyết, không bắt buộc cho quy trình sửa trong app; riêng nạp/khôi phục-ghi-đè trên prod vẫn bị cổng của công cụ đòi bản sao lưu (xem BACKUP.md, PROD_ROLLOUT.md). Emulator có thể export bằng `npx firebase emulators:export /tmp/gia-pha-backup --project demo-gia-pha`; import bằng `npm run emulators -- --import /tmp/gia-pha-backup`. Không commit export.
 Trước migration thật: người phụ trách được chỉ định tạo Firestore export và bản sao Storage vào kho riêng có ACL, ghi checksum/phiên bản schema và thời điểm; dry-run trên project cô lập; đối chiếu số lượng, quan hệ, quyền và tài liệu mẫu sau restore. Chưa tuyên bố khả năng restore production khi chưa diễn tập. Thay đổi production cần phê duyệt rõ ràng.
 
 ## Đồng bộ giới tính vào ảnh chụp cây (sau quyết định 2026-11-13)
+
 Ảnh chụp đã nạp trước đó chưa có phần tử `sex`; `gia-pha:reconcile` cảnh báo `SEX_NOT_IN_SNAPSHOT` (chỉ in mã người). Quy trình:
+
 1. `npm run gia-pha:snapshot-sex -- --project <id>` (dry-run, chỉ đọc): in số đếm (nam/nữ/chưa rõ/cần đổi) và `editVersion`, không in tên. Dừng nếu người trong ảnh chụp không có hồ sơ `persons`/đã ẩn, `sex` lạ hoặc vượt trần kích thước.
 2. `... --apply --expect-version <editVersion đã thấy> --confirm <project>`; prod thêm `--ack "DONG BO GIOI TINH <project>"` và `GOOGLE_APPLICATION_CREDENTIALS`. Ghi `data` trong một giao dịch, KHÔNG tăng `editVersion`, và ghi `auditLogs/maint-snapshot-sex-<ISO>` (`SNAPSHOT_SEX_SYNCED`, chỉ số đếm). Cổng prod không đòi sao lưu (chỉ ghi trường phái sinh; sao lưu đã bỏ khỏi phạm vi).
 3. Chạy lại `gia-pha:reconcile`: không còn `SEX_MISMATCH` và cảnh báo `SEX_NOT_IN_SNAPSHOT`. Lệnh idempotent; chạy lại sau khi sửa tay nếu cần.
 4. Hoàn tác: `--strip` (cắt về 7 phần tử). Chưa chạy trên production; chỉ chạy sau khi frontend/rules mới đã phát hành và người dùng đồng ý. Sau khi phát hành, mọi tab đang mở bản cũ phải tải lại (Ctrl+F5): bản cũ không đọc được bộ 8 phần tử. Ràng buộc này áp dụng cả cho `gia-pha:import`, vì lệnh này cũng sinh bộ 8 phần tử.
 
 ## Rollback
+
 Bản nền không migrate dữ liệu. Rollback frontend bằng build commit trước; rollback rules chỉ về bản đã review và vẫn default-deny, sau khi chạy emulator tests. Không dùng rules mở để chữa lỗi truy cập. Mọi migration tương lai phải có manifest, dry-run, backup được xác minh và hướng phục hồi trước khi áp dụng.
 
 ## Kết quả xác minh
@@ -85,7 +93,9 @@ kiểm tra sáu hồ sơ giả, UID/đăng nhập Auth và SHA-256 media. Đây 
 emulator, không chứng minh restore production hoặc kiểm kê toàn bộ schema.
 
 ## Công bố ghi chú vào ảnh chụp cây (quyết định 2026-11-14)
+
 Ghi chú từng người hiển thị cho mọi thành viên ở Cây gia phả (bản cắt 300 ký tự, phần tử thứ 10 của bộ). Ghi chú ĐÃ CÓ không tự công bố; chỉ công bố khi quản trị viên lưu lại người đó trong app hoặc khi chạy lệnh dưới đây. Điều kiện: ảnh chụp đã có giới tính (`gia-pha:snapshot-sex` trước).
+
 1. `npm run gia-pha:snapshot-note -- --project <id> --show` (dry-run, chỉ đọc): in số đếm và `editVersion`; `--show` in thêm từng dòng `mã | số ký tự | nội dung sẽ hiện cho mọi thành viên` ra màn hình (không ghi file) để RÀ SOÁT. Nếu có ghi chú không muốn công bố: sửa/xóa ghi chú đó trong app (hoặc để nguyên và KHÔNG chạy bước 2), rồi chạy lại dry-run. Dừng nếu bộ chưa có giới tính, người không có hồ sơ/đã ẩn, hoặc vượt trần kích thước.
 2. `... --apply --expect-version <editVersion đã thấy> --confirm <project>`; prod thêm `--ack "CONG BO GHI CHU <project>"` và `GOOGLE_APPLICATION_CREDENTIALS`. Một giao dịch, KHÔNG tăng `editVersion`, ghi `auditLogs/maint-snapshot-note-<ISO>` (`SNAPSHOT_NOTE_PUBLISHED`, chỉ số đếm).
 3. Hoàn tác: `--strip` (cắt về 9 phần tử, giữ "đã mất"). Lệnh idempotent. Chưa chạy trên production. Sau khi phát hành, tab đang mở bản cũ phải tải lại (Ctrl+F5): bản cũ không đọc được bộ 9–10 phần tử.

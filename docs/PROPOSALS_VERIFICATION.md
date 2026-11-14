@@ -7,17 +7,17 @@ Mã vẫn ở /workspace/source-current/gia-pha-codex; repository gia-pha-ho-ngu
 
 ## Kết quả thực chạy sau tiếp tục
 
-| Kiểm tra | Kết quả |
-| --- | --- |
-| Backend đề xuất HTTP callable | 30/30 đạt cùng lượt, gồm ca queue regression mới |
-| Backend lời mời/membership hồi quy | 34/34 đạt, gồm bảo vệ capability reviewer |
-| Firestore/Storage rules hồi quy | 30/30 đạt |
-| Unit bản nền | 6/6 đạt |
-| Guard môi trường | 11/11 đạt |
-| Đầu vào và đồ thị | 16/16 đạt |
-| ESLint, TypeScript và backend build | Đạt |
-| Frontend build sau sửa UI cuối | Đạt; bundle JavaScript 846,24 kB trước gzip, còn cảnh báo kích thước |
-| Chromium ba phiên riêng | Đạt toàn luồng, không pageerror, mobile 390 px không tràn |
+| Kiểm tra                            | Kết quả                                                              |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| Backend đề xuất HTTP callable       | 30/30 đạt cùng lượt, gồm ca queue regression mới                     |
+| Backend lời mời/membership hồi quy  | 34/34 đạt, gồm bảo vệ capability reviewer                            |
+| Firestore/Storage rules hồi quy     | 30/30 đạt                                                            |
+| Unit bản nền                        | 6/6 đạt                                                              |
+| Guard môi trường                    | 11/11 đạt                                                            |
+| Đầu vào và đồ thị                   | 16/16 đạt                                                            |
+| ESLint, TypeScript và backend build | Đạt                                                                  |
+| Frontend build sau sửa UI cuối      | Đạt; bundle JavaScript 846,24 kB trước gzip, còn cảnh báo kích thước |
+| Chromium ba phiên riêng             | Đạt toàn luồng, không pageerror, mobile 390 px không tràn            |
 
 Chromium xác minh tạo/sửa/gửi, một người duyệt hồ sơ, yêu cầu bổ sung rồi tăng
 revision/gửi lại, từ chối terminal, hai người duyệt truyền dòng, phiếu trùng không

@@ -1,3 +1,8 @@
+# Trang đăng nhập: câu đối thư pháp thay cuốn thư — 2026-11-15
+
+- Thay hình cuốn thư bằng câu đối đôi **木有本 · 水有源** (Mộc hữu bản, thủy hữu nguyên: cây có gốc, nước có nguồn) nét cọ trong vòng mực, kèm lời dịch và phiên âm Hán-Việt, ấn son 阮 đặt ngoài vòng; khoảng cách rộng rãi. SVG aria-hidden; ẩn khi màn hẹp (≤800px) hoặc thấp (≤700px).
+- Kiểm thử: `scripts/login-browser-check.mjs` kiểm hình, lời dịch, khoảng cách với chữ phía trên, không vượt khung nhìn, và ẩn ở màn hẹp/thấp.
+
 # Trang đăng nhập: cuốn thư ở panel trái — 2026-11-15
 
 - Thêm hình cuốn thư cuộn mở (SVG, aria-hidden) ở cuối panel trái: câu "Uống nước nhớ nguồn", các dòng "Đời 1…5" (minh họa chung, không phải dữ liệu) và ấn son 阮. Ẩn trên màn hẹp (≤800px).
