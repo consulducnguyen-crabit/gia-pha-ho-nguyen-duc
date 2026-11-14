@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialOf, parseName, sortMembers } from "../src/memberList";
+import { initialOf, parseName, sortMembers } from "../src/memberListModel";
 import type { SnapBranch, SnapPerson } from "../src/treeModel";
 
 // Dữ liệu hoàn toàn giả.
