@@ -46,3 +46,14 @@ Các hướng dẫn này ưu tiên hơn giới hạn tự quyết trong tài li�
 - Trong khi chờ trả lời, tiếp tục các phần độc lập; không tự áp dụng chính sách chưa được chốt vào dữ liệu thật.
 - Khi cần thao tác thủ công trên website ngoài khả năng công cụ: nêu rõ website, thao tác, giá trị cần nhập không nhạy cảm và kết quả cần người dùng xác nhận. Không yêu cầu gửi secret trong chat.
 - Báo trung thực phần đã hoàn thành, kiểm thử đạt, blocker và phần còn chờ quyết định. Không tuyên bố hoàn thiện nếu còn thiếu bằng chứng nghiệm thu.
+
+## Quy tắc bắt buộc: chạy Playwright trên môi trường dev trước khi merge — 2026-11-15
+
+Người dùng yêu cầu (bắt buộc, áp dụng mọi phiên sửa code, giữ nguyên luồng nhánh riêng → PR → CI → hỏi merge):
+- Sau khi sửa code và **trước khi merge PR vào `main`**, tự chạy Playwright trên môi trường dev (Vite dev server + Firebase emulator, chỉ dữ liệu giả) và xem kết quả. Không dùng production hay dữ liệu thật cho bước này.
+- Phải chạy các kịch bản trình duyệt phủ khu vực đã sửa (`npm run test:browser:<tên>`), cộng toàn bộ các job trong job `browser` của `.github/workflows/ci.yml`. Thay đổi giao diện: kiểm thêm 360/768/1280 px và xem ảnh chụp.
+- Thay đổi chưa có kịch bản phủ thì thêm hoặc cập nhật script Playwright ngay trong PR đó.
+- Báo rõ trong PR và khi hỏi merge: job nào đã chạy, kết quả, job nào không chạy được và lý do. Không đề nghị merge khi còn job liên quan đang lỗi mà chưa giải thích. CI xanh không thay thế bước này.
+- Thay đổi chỉ gồm tài liệu (không đụng mã chạy) được miễn chạy Playwright, nhưng phải nói rõ là miễn.
+- Hiện chưa có môi trường dev triển khai riêng cho frontend (chỉ emulator cục bộ). Khi có project dev được triển khai, kiểm thêm trên đó.
+
