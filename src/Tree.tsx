@@ -115,15 +115,28 @@ function PersonLink({ p }: { p: SnapPerson }) {
   return <PersonNameLink p={p} />;
 }
 
-function Badges({ index, p }: { index: TreeIndex; p: SnapPerson }) {
-  const branch = p.branch
-    ? index.snapshot.branches.find((b) => b.code === p.branch)
-    : null;
+function Badges({
+  index,
+  p,
+  inChiBlock = false,
+}: {
+  index: TreeIndex;
+  p: SnapPerson;
+  /** Trong cây: chi đã có khối riêng nên bỏ nhãn chi, và đời viết chữ thường thay vì nhãn viền. */
+  inChiBlock?: boolean;
+}) {
+  const branch =
+    !inChiBlock && p.branch
+      ? index.snapshot.branches.find((b) => b.code === p.branch)
+      : null;
   return (
     <span className="tree-badges">
-      {p.generation !== null && (
-        <span className="tree-badge">Đời {p.generation}</span>
-      )}
+      {p.generation !== null &&
+        (inChiBlock ? (
+          <span className="tree-gen">Đời {p.generation}</span>
+        ) : (
+          <span className="tree-badge">Đời {p.generation}</span>
+        ))}
       {branch && <span className="tree-badge">{branch.name}</span>}
       {index.isAdoptedChild(p.id) && (
         <span className="tree-badge tree-badge-adopt">Con nuôi</span>
@@ -141,20 +154,35 @@ function Badges({ index, p }: { index: TreeIndex; p: SnapPerson }) {
   );
 }
 
+// Số màu khối chi (xem .chi-tone-N trong style.css); chi thứ N dùng màu N mod số này.
+const CHI_TONES = 8;
+
 function Node({
   index,
   id,
   expanded,
   toggle,
   showExternal,
+  parentBranch = null,
 }: {
   index: TreeIndex;
   id: string;
   expanded: Set<string>;
   toggle: (id: string) => void;
   showExternal: boolean;
+  /** Chi đang áp dụng ở người cha (người chưa ghi chi thừa hưởng chi của cha). */
+  parentBranch?: string | null;
 }) {
   const p = index.snapshot.persons.get(id)!;
+  const branch = p.branch ?? parentBranch;
+  // Khối chi bắt đầu ở người đầu tiên của một chi mới trên đường đi từ thủy tổ xuống.
+  const chiIndex =
+    p.branch !== null && p.branch !== parentBranch
+      ? index.snapshot.branches.findIndex((b) => b.code === p.branch)
+      : -2;
+  const chi =
+    chiIndex !== -2 ? (index.snapshot.branches[chiIndex] ?? null) : null;
+  const startsChi = chiIndex !== -2;
   const kids = index.lineageChildren(id);
   const spouses = index.spouses(id);
   const external = showExternal
@@ -163,7 +191,24 @@ function Node({
   const open = expanded.has(id);
   const hasMore = kids.length > 0 || external.length > 0;
   return (
-    <li className="tree-node">
+    <li
+      className={
+        startsChi
+          ? `tree-node chi-block chi-tone-${Math.max(chiIndex, 0) % CHI_TONES}`
+          : "tree-node"
+      }
+    >
+      {startsChi && (
+        <>
+          <div className="chi-watermark" aria-hidden="true">
+            <span>{chi?.name ?? p.branch}</span>
+          </div>
+          <div className="chi-head">
+            <strong>{chi?.name ?? p.branch}</strong>
+            <span>{1 + index.descendantCount(id)} người</span>
+          </div>
+        </>
+      )}
       <div className="tree-row">
         {hasMore ? (
           <button
@@ -179,7 +224,8 @@ function Node({
         )}
         <div className="tree-body">
           <div>
-            <PersonLink p={p} /> {years(p)} <Badges index={index} p={p} />
+            <PersonLink p={p} /> {years(p)}{" "}
+            <Badges index={index} p={p} inChiBlock />
           </div>
           {spouses.length > 0 && (
             <div className="tree-meta">
@@ -212,6 +258,7 @@ function Node({
               expanded={expanded}
               toggle={toggle}
               showExternal={showExternal}
+              parentBranch={branch}
             />
           ))}
           {external.map((cid) => {
