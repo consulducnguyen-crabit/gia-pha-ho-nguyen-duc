@@ -2203,6 +2203,29 @@ body {
 .topbar .brand-mark {
   margin-top: 0;
 }
+/* Tên dòng họ dài: chữ nhỏ hơn, cho phép xuống dòng; phần địa danh xuống dòng trước khi cắt tên. */
+.topbar .brand {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.topbar .menu-toggle {
+  flex: none;
+  margin-left: var(--space-3);
+}
+.brand-name {
+  display: block;
+  font-size: 0.72em;
+  line-height: 1.2;
+}
+.brand-place {
+  display: inline-block;
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .brand-name {
+    font-size: 0.6em;
+  }
+}
 .topbar-menu {
   display: contents;
 }
