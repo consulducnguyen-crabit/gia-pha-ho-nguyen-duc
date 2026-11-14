@@ -57,6 +57,16 @@ export function lifeStatus(
     : { status: "unknown", age: null };
 }
 
+/**
+ * Thành viên được coi là "Đã mất": có năm mất (app tự tick "Đã mất" khi có năm mất) HOẶC được tick "Đã mất" dù chưa có năm mất.
+ * Xét độc lập với việc dữ liệu năm có hợp lệ hay không (khác lifeStatus, nơi dữ liệu năm bất thường được xếp "invalid" trước).
+ */
+export function isMarkedDeceased(
+  p: Pick<SnapPerson, "deathYear" | "deceased">,
+): boolean {
+  return p.deathYear !== null || p.deceased === true;
+}
+
 export type MissingField =
   "name" | "sex" | "birthYear" | "generation" | "branch";
 export const MISSING_FIELD_LABELS: Record<MissingField, string> = {
@@ -273,10 +283,8 @@ export function computeOverviewStats(
   const { currentYear } = opts;
   const livingMaxAge = opts.livingMaxAge ?? LIVING_MAX_AGE;
   const everyone = [...snap.persons.values()];
-  // Chỉ người không tích "Đã mất" (và không có năm mất) được đưa vào mọi số liệu.
-  const persons = everyone.filter(
-    (p) => lifeStatus(p, currentYear, livingMaxAge).status !== "deceased",
-  );
+  // Chỉ người không tích "Đã mất" (và không có năm mất) được đưa vào mọi số liệu, kể cả khi dữ liệu năm của họ bất thường.
+  const persons = everyone.filter((p) => !isMarkedDeceased(p));
   const deceased = everyone.length - persons.length;
   const byCategory = (c: Category) =>
     persons.filter((p) => p.category === c).length;
