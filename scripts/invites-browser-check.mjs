@@ -174,6 +174,7 @@ const shot = async (page, name) => {
 async function sameDeviceLogin(context, email) {
   const page = await context.newPage();
   await page.goto(`${URL}/#/`);
+  await page.getByRole("tab", { name: "Email" }).click();
   await page.getByLabel("Email nhận liên kết").fill(email);
   await page.getByRole("button", { name: "Gửi liên kết", exact: true }).click();
   await expect(
@@ -183,6 +184,7 @@ async function sameDeviceLogin(context, email) {
   // Liên kết tự gửi từ form đăng nhập công khai KHÔNG mang ?invitee= (dùng email tạm cùng thiết bị).
   if (new globalThis.URL(selfLink).searchParams.get("invitee") !== null)
     throw Error("Liên kết tự gửi không được mang invitee");
+  await page.getByRole("tab", { name: "Email" }).click();
   await page.goto(selfLink);
   return page;
 }
@@ -195,6 +197,7 @@ try {
   const errors = [];
   admin.on("pageerror", (e) => errors.push(e.message));
   await admin.goto(`${URL}/#/`);
+  await admin.getByRole("tab", { name: "Email" }).click();
   await admin.getByLabel("Email", { exact: true }).fill(ADMIN.email);
   await admin.getByLabel("Mật khẩu").fill(PASSWORD);
   await admin.getByRole("button", { name: "Đăng nhập →" }).click();
@@ -505,6 +508,7 @@ try {
   // Cờ chào mừng không sang tài khoản khác: đăng xuất rồi quản trị viên đăng nhập trên cùng trình duyệt không thấy lời chào.
   await expect(g2.getByText("Chào mừng")).toBeVisible();
   await g2.getByRole("button", { name: "Không phải bạn? Đăng xuất" }).click();
+  await g2.getByRole("tab", { name: "Email" }).click();
   await g2.getByLabel("Email", { exact: true }).fill(ADMIN.email);
   await g2.getByLabel("Mật khẩu").fill(PASSWORD);
   await g2.getByRole("button", { name: "Đăng nhập →" }).click();
@@ -564,6 +568,7 @@ try {
   });
   const gc = await ctxC.newPage();
   await gc.goto(`${URL}/#/`);
+  await gc.getByRole("tab", { name: "Email" }).click();
   await gc.getByLabel("Email nhận liên kết").fill("khach.cho@example.test");
   await gc.getByRole("button", { name: "Gửi liên kết", exact: true }).click();
   await expect(
@@ -586,6 +591,7 @@ try {
   });
   const ax = await ctxX.newPage();
   await ax.goto(`${URL}/#/`);
+  await ax.getByRole("tab", { name: "Email" }).click();
   await ax.getByLabel("Email", { exact: true }).fill(ADMIN.email);
   await ax.getByLabel("Mật khẩu").fill(PASSWORD);
   await ax.getByRole("button", { name: "Đăng nhập →" }).click();
@@ -608,6 +614,7 @@ try {
   await ax.getByRole("button", { name: "Đăng xuất" }).click();
   // Liên kết gửi trực tiếp (không có ?invitee= và không có email tạm): chỉ khi đó mới hỏi email.
   await expect(ax.getByText("Nhập lại đúng email đã nhận thư")).toBeVisible();
+  await ax.getByRole("tab", { name: "Email" }).click();
   await ax.getByLabel("Email nhận liên kết").fill(EMAILS.conflict);
   await ax.getByRole("button", { name: "Hoàn tất đăng nhập" }).click();
   await expect(

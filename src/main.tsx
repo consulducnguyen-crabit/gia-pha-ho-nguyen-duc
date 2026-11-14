@@ -8,14 +8,7 @@ import {
   Routes,
   useLocation,
 } from "react-router-dom";
-import {
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-  type User,
-} from "firebase/auth";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
   collection,
   doc,
@@ -35,7 +28,8 @@ import { AuditLogPage } from "./AuditLog";
 import { BrandMark } from "./BrandMark";
 import { ScrollButtons } from "./ScrollButtons";
 // Hệ lời mời cũ (Membership.tsx, emulator-only) đã được thay bằng lời mời trong #/users; giữ mã, ẩn khỏi giao diện.
-import { EmailLinkLogin, LinkConflict } from "./EmailLinkLogin";
+import { LinkConflict } from "./EmailLinkLogin";
+import { LoginForm } from "./LoginForm";
 import {
   capturePendingLink,
   consumePendingLink,
@@ -358,9 +352,7 @@ function App() {
   );
 }
 function Gate({ state, user }: { state: string; user: User | null }) {
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [linking, setLinking] = useState(false); // đang hoàn tất đăng nhập bằng liên kết email
+  const [linking, setLinking] = useState(false); // đang hoàn tất đăng nhập bằng liên kết email (gỡ cùng lời mời ở PR sau)
   const [inviteBusy, setInviteBusy] = useState(true); // đang kiểm tra/kích hoạt lời mời
   const signingIn =
     (state === "login" && linking) ||
@@ -462,88 +454,7 @@ function Gate({ state, user }: { state: string; user: User | null }) {
           </>
         ) : (
           <div hidden={linking}>
-            <p>Đăng nhập bằng tài khoản đã được cấp quyền.</p>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setBusy(true);
-                setError("");
-                const data = new FormData(e.currentTarget);
-                try {
-                  await signInWithEmailAndPassword(
-                    auth!,
-                    String(data.get("email")),
-                    String(data.get("password")),
-                  );
-                } catch {
-                  setError(
-                    "Không thể đăng nhập. Kiểm tra tài khoản và thử lại.",
-                  );
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <label>
-                Email
-                <input
-                  name="email"
-                  type="email"
-                  autoComplete="username"
-                  aria-describedby={error ? "login-error" : undefined}
-                  required
-                />
-              </label>
-              <label>
-                Mật khẩu
-                <input
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  aria-describedby={error ? "login-error" : undefined}
-                  required
-                />
-              </label>
-              {error && (
-                <p role="alert" id="login-error">
-                  {error}
-                </p>
-              )}
-              <button className="primary" disabled={busy}>
-                {busy ? "Đang đăng nhập…" : "Đăng nhập →"}
-              </button>
-            </form>
-            <p className="login-or">
-              hoặc dùng tài khoản Gmail đã được cấp quyền
-            </p>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                setError("");
-                try {
-                  await signInWithPopup(auth!, new GoogleAuthProvider());
-                } catch (cause) {
-                  const code =
-                    cause && typeof cause === "object" && "code" in cause
-                      ? String(cause.code)
-                      : "";
-                  if (
-                    code !== "auth/popup-closed-by-user" &&
-                    code !== "auth/cancelled-popup-request"
-                  )
-                    setError(
-                      "Không thể đăng nhập bằng Google. Cho phép cửa sổ bật lên rồi thử lại.",
-                    );
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              Đăng nhập bằng Google
-            </button>
-            <EmailLinkLogin onCompleting={setLinking} />
+            <LoginForm onLinking={setLinking} />
           </div>
         )}
         <div className="privacy">

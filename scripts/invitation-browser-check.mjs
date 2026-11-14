@@ -70,6 +70,7 @@ async function backend(name, data) {
 async function login(page, email) {
   await page.goto("http://127.0.0.1:5173");
   await page.getByRole("heading", { name: "Chào mừng trở về" }).waitFor();
+  await page.getByRole("tab", { name: "Email" }).click();
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Mật khẩu").fill(password);
   await page.getByRole("button", { name: "Đăng nhập →" }).click();
