@@ -1,9 +1,9 @@
-// Tab "Danh sách thành viên" của trang cây: xếp theo tên → tên đệm → chi → đời (xem memberList.ts).
+// Tab "Danh sách thành viên" của trang cây: xếp theo tên → tên đệm → chi → đời (xem memberListModel.ts).
 // Chỉ đọc ảnh chụp cây đã có trong bộ nhớ; không thêm dữ liệu, không ghi gì.
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { normalizeName } from "./domain";
-import { sortMembers } from "./memberList";
+import { sortMembers } from "./memberListModel";
 import { PersonNameLink } from "./PersonNameLink";
 import type { Category, SnapPerson, Snapshot } from "./treeModel";
 
