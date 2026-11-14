@@ -87,7 +87,7 @@ try {
   ]);
   const styles = await blocks.evaluateAll((els) =>
     els.map((el) => {
-      const s = getComputedStyle(el);
+      const s = globalThis.getComputedStyle(el);
       return {
         bg: s.backgroundColor,
         bw: s.borderLeftWidth,
@@ -122,7 +122,11 @@ try {
       return [...document.querySelectorAll(".chi-watermark span")]
         .filter((el) => {
           const r = el.getBoundingClientRect();
-          return r.height > 0 && r.top >= bar - 1 && r.bottom <= innerHeight;
+          return (
+            r.height > 0 &&
+            r.top >= bar - 1 &&
+            r.bottom <= globalThis.innerHeight
+          );
         })
         .map((el) => el.textContent);
     });
@@ -130,7 +134,7 @@ try {
   for (const [i, name] of ["Chi I", "Thôn Thượng", "Hợp nhất"].entries()) {
     await heads.nth(i).evaluate((el) => {
       const r = el.getBoundingClientRect();
-      window.scrollBy(0, r.top + r.height / 2 - innerHeight / 2);
+      globalThis.scrollBy(0, r.top + r.height / 2 - globalThis.innerHeight / 2);
     });
     await page.waitForTimeout(150);
     expect(await visibleMark()).toEqual([name]);
@@ -139,10 +143,10 @@ try {
   stage = "không tràn ngang, ảnh chụp 360/768/1280";
   for (const width of [360, 768, 1280]) {
     await page.setViewportSize({ width, height: 800 });
-    await page.evaluate(() => scrollTo(0, 0));
+    await page.evaluate(() => globalThis.scrollTo(0, 0));
     await heads.nth(1).evaluate((el) => {
       const r = el.getBoundingClientRect();
-      window.scrollBy(0, r.top + 60 - 140);
+      globalThis.scrollBy(0, r.top + 60 - 140);
     });
     await page.waitForTimeout(150);
     const over = await page.evaluate(
