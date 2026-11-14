@@ -99,38 +99,25 @@ try {
   await page.getByLabel("Tìm theo tên").fill("gia van nuoi");
   await expect(page.getByRole("heading", { name: "1 kết quả" })).toBeVisible();
 
-  stage = "review flags on tree, profile and queue page";
+  stage = "review flags are hidden from a regular member (admin-only)";
   await page.goto("http://127.0.0.1:5173/#/tree");
   await page.getByLabel("Tìm theo tên").fill("giả văn lạc");
   await expect(
-    page.getByRole("link", { name: "Cần kiểm tra", exact: true }).first(),
+    page.getByRole("link", { name: /Giả Văn Lạc/ }).first(),
   ).toBeVisible();
-  await page.getByLabel("Tìm theo tên").fill("");
+  await expect(
+    page.getByRole("link", { name: "Cần kiểm tra", exact: true }),
+  ).toHaveCount(0);
   await page
-    .getByRole("link", { name: "Cần kiểm tra", exact: true })
+    .getByRole("link", { name: /Giả Văn Lạc/ })
     .first()
     .click();
   await expect(
-    page.getByRole("heading", { name: "Cần kiểm tra", level: 1 }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: /Chưa xác định vị trí trong cây/ }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      name: /Năm sinh\/mất trong tài liệu gốc mâu thuẫn/,
-    }),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "Giả Văn Lạc" }).first().click();
-  await expect(
     page.getByRole("heading", { name: "Giả Văn Lạc", level: 1 }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Cần kiểm tra", level: 2 }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Tài liệu gốc chưa rõ, cần xác minh"),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cần kiểm tra" })).toHaveCount(
+    0,
+  );
   await page.goto("http://127.0.0.1:5173/#/tree");
 
   stage = "profile";

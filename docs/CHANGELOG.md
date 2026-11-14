@@ -1,3 +1,9 @@
+# Menu gọn và Cần kiểm tra chỉ cho quản trị viên — 2026-11-15
+
+- Bỏ tab và trang **Tiến độ triển khai** và **Tra cứu thành viên** (`#/roadmap`, `#/persons` nay báo "Không tìm thấy trang"). Ô tìm theo tên vẫn có ở Cây gia phả và Danh sách thành viên; nút ở Tổng quan đổi thành "Xem danh sách thành viên →".
+- **Cần kiểm tra** (tab, trang `#/review-queue`, nhãn trong cây/danh sách, khối ở hồ sơ) chỉ hiện với quản trị viên; thành viên thường mở thẳng `#/review-queue` thì về Tổng quan. Đây là ẩn giao diện, KHÔNG phải kiểm soát quyền đọc dữ liệu (rules không đổi).
+- Kiểm thử: `scripts/nav-browser-check.mjs` (`npm run test:browser:nav`, đã thêm vào CI).
+
 # Tài khoản điện thoại/email do quản trị viên tạo — 2026-11-14
 
 - PR1: trang đăng nhập hai tab Điện thoại | Email; số điện thoại ngầm thành `0914222987@gp.nguyenduc`; thông báo lỗi thống nhất kèm Zalo đăng ký.
