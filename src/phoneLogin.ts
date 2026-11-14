@@ -33,3 +33,9 @@ export function emailToPhone(email: string): string | null {
   const m = /^(0[35789]\d{8})@gp\.nguyenduc$/i.exec(email.trim());
   return m ? m[1] : null;
 }
+
+/** Nhãn hiển thị của tài khoản đăng nhập: số điện thoại cho email ngầm, ngược lại giữ nguyên email. */
+export function loginLabel(email: string | null | undefined): string {
+  if (!email) return "";
+  return emailToPhone(email) ?? email;
+}

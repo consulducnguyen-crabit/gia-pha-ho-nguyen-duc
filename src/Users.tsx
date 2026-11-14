@@ -9,6 +9,8 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { InvitesSection } from "./UsersInvites";
+import { CreateAccountSection } from "./CreateAccount";
+import { emailToPhone } from "./phoneLogin";
 import { formatVnTime } from "./auditView";
 import {
   accountErrorMessage,
@@ -159,7 +161,7 @@ export function UsersPage({ uid }: { uid: string }) {
             <thead>
               <tr>
                 <th scope="col">Họ tên</th>
-                <th scope="col">Email</th>
+                <th scope="col">Số điện thoại / Email</th>
                 <th scope="col">Trạng thái</th>
                 <th scope="col">Vai trò</th>
                 <th scope="col">Cấp quyền lúc</th>
@@ -178,7 +180,7 @@ export function UsersPage({ uid }: { uid: string }) {
                 return (
                   <tr key={r.id}>
                     <td>{r.displayName || "—"}</td>
-                    <td>{r.email || "—"}</td>
+                    <td>{emailToPhone(r.email) ?? (r.email || "—")}</td>
                     <td>{r.enabled ? "Đang cấp quyền" : "Đã vô hiệu hóa"}</td>
                     <td>{roleLabel(r)}</td>
                     <td>{r.approvedAt || "—"}</td>
@@ -232,6 +234,16 @@ export function UsersPage({ uid }: { uid: string }) {
           }}
         />
       )}
+      <CreateAccountSection
+        enabled={ledgerReady}
+        uid={uid}
+        existingEmails={
+          new Set(
+            (rows ?? []).map((r) => r.email.toLowerCase()).filter(Boolean),
+          )
+        }
+        onCreated={() => void load()}
+      />
       <InvitesSection
         enabled={ledgerReady}
         loaded={!!rows}

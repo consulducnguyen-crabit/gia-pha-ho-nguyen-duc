@@ -2530,3 +2530,45 @@ body {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Tạo tài khoản (quản trị viên): nhóm lựa chọn Điện thoại/Email và khung kết quả mật khẩu tạm */
+.users-create fieldset {
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  margin: var(--space-3) 0;
+  min-width: 0;
+}
+.users-create fieldset > label:not(.inline-choice) {
+  display: block;
+  margin: var(--space-3) 0;
+  font-size: 14px;
+}
+.users-create .inline-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-right: var(--space-5);
+  font-size: 15px;
+}
+.users-create .inline-choice input {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+}
+.users-created dl {
+  margin: var(--space-3) 0;
+}
+.users-created dt {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.users-created dd {
+  margin: 0 0 var(--space-3);
+  font-size: 18px;
+}
+.users-created code {
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  user-select: all;
+}
