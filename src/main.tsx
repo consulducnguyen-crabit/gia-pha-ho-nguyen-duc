@@ -7,6 +7,7 @@ import {
   Route,
   Routes,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
@@ -48,6 +49,8 @@ function Titled({ title, children }: { title: string; children: ReactNode }) {
 }
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const signedInUid = useRef<string | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
   const firstRoute = useRef(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -65,6 +68,10 @@ function App() {
     let stop = () => {};
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       stop();
+      // Đăng xuất: bỏ đường dẫn cũ (ví dụ #/users của quản trị viên) để người đăng nhập kế tiếp, có thể ít quyền hơn,
+      // bắt đầu ở Tổng quan thay vì "Không tìm thấy trang". Mở thẳng một liên kết khi chưa đăng nhập thì giữ nguyên.
+      if (!u && signedInUid.current) navigate("/", { replace: true });
+      signedInUid.current = u?.uid ?? null;
       pruneWelcome(u?.uid ?? null); // cờ chào mừng không được sang tài khoản khác
       setCanManageMembership(false);
       setCanReviewChanges(false);
