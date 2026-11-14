@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, NavLink, useParams } from "react-router-dom";
 import { doc, getDocFromServer } from "firebase/firestore";
 import { db } from "./firebase";
+import { useAdminView } from "./adminView";
 import { PersonEdit } from "./PersonEdit";
 import { MemberList } from "./MemberList";
 import { PersonNameLink } from "./PersonNameLink";
@@ -125,6 +126,7 @@ function Badges({
   /** Trong cây: chi đã có khối riêng nên bỏ nhãn chi, và đời viết chữ thường thay vì nhãn viền. */
   inChiBlock?: boolean;
 }) {
+  const isAdmin = useAdminView(); // nhãn "Cần kiểm tra" chỉ hiện cho quản trị viên
   const branch =
     !inChiBlock && p.branch
       ? index.snapshot.branches.find((b) => b.code === p.branch)
@@ -141,7 +143,7 @@ function Badges({
       {index.isAdoptedChild(p.id) && (
         <span className="tree-badge tree-badge-adopt">Con nuôi</span>
       )}
-      {p.flags.length > 0 && (
+      {isAdmin && p.flags.length > 0 && (
         <Link
           to="/review-queue"
           className="tree-badge tree-badge-flag"
@@ -692,7 +694,7 @@ export function PersonPage({
             <span className="tree-meta">{categoryLabel(p.category)}</span>
           </p>
           {profileBranch && <MergedFromLine info={profileBranch} />}
-          {p.flags.length > 0 && (
+          {canEdit && p.flags.length > 0 && (
             <section className="tree-flag-box">
               <h2>Cần kiểm tra</h2>
               <ul>
