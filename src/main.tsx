@@ -352,23 +352,14 @@ function Gate({ state, user }: { state: string; user: User | null }) {
   return (
     <div className="gate">
       <section className="story">
-        <div className="eyebrow">
+        <h1 className="gate-title">
           GIA PHẢ DÒNG HỌ NGUYỄN ĐỨC{" "}
           <span className="brand-place">- THÔN HẠ</span>{" "}
           <span className="brand-place">- PHÙNG XÁ</span>
-        </div>
+        </h1>
         <div className="tree-mark" aria-hidden="true">
           <BrandMark />
         </div>
-        <h1>
-          Từ cội nguồn,
-          <br />
-          nối những thế hệ.
-        </h1>
-        <p>
-          Một nơi lưu giữ ký ức, kết nối người thân và trao lại câu chuyện dòng
-          họ cho mai sau.
-        </p>
         <small>RIÊNG TƯ · CÓ NGUỒN GỐC · ĐƯỢC GÌN GIỮ</small>
       </section>
       <main className="login">
