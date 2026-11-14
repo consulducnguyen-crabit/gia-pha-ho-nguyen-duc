@@ -227,9 +227,15 @@ function App() {
               }
             />
             <Route
-              path="/tree"
+              path="/tree/*"
               element={
-                <Titled title="Cây gia phả">
+                <Titled
+                  title={
+                    location.pathname === "/tree/danh-sach"
+                      ? "Danh sách thành viên"
+                      : "Cây gia phả"
+                  }
+                >
                   <TreePage
                     key={user!.uid}
                     uid={user!.uid}

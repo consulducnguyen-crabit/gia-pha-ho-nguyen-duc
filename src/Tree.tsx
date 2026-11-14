@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, NavLink, useParams } from "react-router-dom";
 import { doc, getDocFromServer } from "firebase/firestore";
 import { db } from "./firebase";
 import { PersonEdit } from "./PersonEdit";
+import { MemberList } from "./MemberList";
 import { PersonNameLink } from "./PersonNameLink";
 import { PersonDelete } from "./PersonDelete";
 import { PersonAdd } from "./PersonAdd";
@@ -253,6 +254,8 @@ export function TreePage({
   isAdmin?: boolean;
 }) {
   const { state, reload } = useTree(uid);
+  const { "*": sub = "" } = useParams();
+  if (sub !== "" && sub !== "danh-sach") return <Navigate to="/tree" replace />;
   if (state.status !== "ready")
     return (
       <>
@@ -265,11 +268,32 @@ export function TreePage({
       key={state.index.snapshot.dataVersion}
       index={state.index}
       isAdmin={isAdmin}
+      view={sub === "danh-sach" ? "list" : "tree"}
     />
   );
 }
 
-function TreeView({ index, isAdmin }: { index: TreeIndex; isAdmin: boolean }) {
+// Hai chế độ xem của trang cây, mỗi chế độ một đường dẫn riêng (liên kết, nút Quay lại).
+function ViewTabs() {
+  return (
+    <div className="tree-tabs" role="group" aria-label="Chế độ xem">
+      <NavLink to="/tree" end>
+        Sơ đồ cây
+      </NavLink>
+      <NavLink to="/tree/danh-sach">Danh sách thành viên</NavLink>
+    </div>
+  );
+}
+
+function TreeView({
+  index,
+  isAdmin,
+  view,
+}: {
+  index: TreeIndex;
+  isAdmin: boolean;
+  view: "tree" | "list";
+}) {
   const [branch, setBranch] = useState("");
   const [query, setQuery] = useState("");
   const [showExternal, setShowExternal] = useState(false);
@@ -320,9 +344,26 @@ function TreeView({ index, isAdmin }: { index: TreeIndex; isAdmin: boolean }) {
     walk(start);
     setExpanded(all);
   };
+  if (view === "list")
+    return (
+      <>
+        <h1>Danh sách thành viên</h1>
+        <ViewTabs />
+        <MemberList
+          snapshot={index.snapshot}
+          renderMeta={(p) => (
+            <>
+              {years(p)} <Badges index={index} p={p} />{" "}
+              <span className="tree-meta">{categoryLabel(p.category)}</span>
+            </>
+          )}
+        />
+      </>
+    );
   return (
     <>
       <h1>Cây gia phả</h1>
+      <ViewTabs />
       {isAdmin && (
         <p className="tree-add-member">
           <Link className="primary link" to="/add-member">

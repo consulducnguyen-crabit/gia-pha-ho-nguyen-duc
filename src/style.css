@@ -2300,3 +2300,51 @@ body {
 .note-tip[hidden] {
   display: none;
 }
+
+/* Chế độ xem của trang cây: liên kết dạng tab, đường dẫn riêng */
+.tree-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin: var(--space-4) 0 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.tree-tabs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  text-decoration: none;
+  color: var(--color-text-muted);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px;
+}
+.tree-tabs a:hover {
+  color: var(--color-primary-hover);
+}
+.tree-tabs a[aria-current="page"] {
+  color: var(--color-primary-hover);
+  font-weight: 600;
+  border-bottom-color: var(--color-primary);
+}
+@media (max-width: 400px) {
+  .tree-tabs a {
+    padding: 0 var(--space-3);
+  }
+}
+/* Danh sách thành viên: nhóm theo chữ cái đầu của tên */
+.member-group h2 {
+  font-size: var(--text-sub);
+  margin: var(--space-5) 0 var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-rule);
+}
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.member-list li {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
