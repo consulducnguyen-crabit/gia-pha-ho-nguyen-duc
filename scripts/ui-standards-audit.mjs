@@ -539,6 +539,7 @@ try {
   }
   async function login(page, email) {
     await page.goto(URL);
+    await page.getByRole("tab", { name: "Email" }).click();
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Mật khẩu").fill(PASSWORD);
     await page.getByRole("button", { name: "Đăng nhập →" }).click();
@@ -548,9 +549,11 @@ try {
   {
     const page = await newPage();
     await page.goto(URL);
+    await page.getByRole("tab", { name: "Email" }).click();
     await page.getByLabel("Email", { exact: true }).waitFor();
     await auditPage(page, "chưa đăng nhập: đăng nhập", "dang-nhap");
     // Đăng nhập sai: thông báo lỗi bằng chữ, giữ email đã nhập.
+    await page.getByRole("tab", { name: "Email" }).click();
     await page.getByLabel("Email", { exact: true }).fill("sai@example.test");
     await page.getByLabel("Mật khẩu").fill("sai-mat-khau");
     await page.getByRole("button", { name: "Đăng nhập →" }).click();

@@ -68,6 +68,7 @@ try {
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("http://127.0.0.1:5173");
   stage = "login";
+  await page.getByRole("tab", { name: "Email" }).click();
   await page
     .getByLabel("Email", { exact: true })
     .fill("thanhvien@example.test");

@@ -12,6 +12,7 @@ async function session(email) {
   pages.push(page);
   page.on("pageerror", (error) => errors.push(error.name));
   await page.goto("http://127.0.0.1:5173");
+  await page.getByRole("tab", { name: "Email" }).click();
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Mật khẩu", { exact: true }).fill("Demo-only-2026!");
   await page.getByRole("button", { name: "Đăng nhập →", exact: true }).click();

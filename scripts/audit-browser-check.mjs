@@ -180,6 +180,7 @@ let failed = false;
 let stage = "start";
 async function login(page, email) {
   await page.goto(URL);
+  await page.getByRole("tab", { name: "Email" }).click();
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Mật khẩu").fill(PASSWORD);
   await page.getByRole("button", { name: "Đăng nhập →" }).click();
