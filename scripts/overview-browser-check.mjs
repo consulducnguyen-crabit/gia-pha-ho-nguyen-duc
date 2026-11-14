@@ -288,6 +288,21 @@ async function checkUnsynced() {
     page.locator("details", { hasText: "Thiếu giới tính" }),
   ).toHaveCount(0);
   await noOverflow(page, "member-unsynced");
+
+  stage = "đồng bộ giới tính một phần: bảng có số liệu kèm cảnh báo";
+  const full = JSON.parse(doc.data);
+  const ids = Object.keys(full.persons);
+  ids.slice(1).forEach((id) => (full.persons[id].length = 7));
+  await ref.set({ ...doc, data: JSON.stringify(full) });
+  await page.getByRole("button", { name: "Tải lại dữ liệu" }).click();
+  await expect(
+    page.getByRole("table", { name: "Giới tính", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("chưa phản ánh toàn bộ", { exact: false }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 360, height: 800 });
+  await noOverflow(page, "member-partial-sync-360");
   if (errors.length) throw Error("Lỗi trang: " + errors.join("; "));
   await ctx.close();
 }
