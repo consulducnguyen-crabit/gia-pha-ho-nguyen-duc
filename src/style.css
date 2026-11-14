@@ -131,6 +131,28 @@ p {
   white-space: nowrap;
   color: var(--color-seal);
 }
+/* Cuốn thư ở cuối panel trái: chiếm phần trống phía dưới; màn hẹp thì ẩn (panel trái xếp trên cùng) */
+.gate-art-slot {
+  margin-top: auto;
+  padding-top: var(--space-6);
+}
+.gate-art {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  height: auto;
+}
+.gate-art-title {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 700;
+  fill: var(--color-text);
+}
+.gate-art-gen {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  fill: var(--color-seal);
+}
 .story small {
   display: block;
   margin-top: var(--space-7);
@@ -376,7 +398,8 @@ main {
   .story small {
     margin-top: var(--space-5);
   }
-  .story .tree-mark {
+  .story .tree-mark,
+  .gate-art-slot {
     display: none;
   }
   .story .gate-title {

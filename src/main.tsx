@@ -15,6 +15,7 @@ import { auth, db, emulator } from "./firebase";
 import { AddMemberPage } from "./AddMember";
 import { AuditLogPage } from "./AuditLog";
 import { BrandMark } from "./BrandMark";
+import { ScrollArt } from "./ScrollArt";
 import { ScrollButtons } from "./ScrollButtons";
 import { AdminViewContext } from "./adminView";
 import { LoginForm } from "./LoginForm";
@@ -360,6 +361,9 @@ function Gate({ state, user }: { state: string; user: User | null }) {
           <BrandMark />
         </div>
         <small>RIÊNG TƯ · CÓ NGUỒN GỐC · ĐƯỢC GÌN GIỮ</small>
+        <div className="gate-art-slot" aria-hidden="true">
+          <ScrollArt />
+        </div>
       </section>
       <main className="login">
         <div className="eyebrow">GÌN GIỮ CỘI NGUỒN</div>
