@@ -91,7 +91,7 @@ export function CreateAccountSection({
 
   const shareText = result
     ? [
-        "Gia phả dòng họ Nguyễn Đức - Thôn Hạ - Phùng Xá",
+        "Gia phả dòng họ Nguyễn Đức - Phùng Xá",
         `Trang đăng nhập: ${globalThis.location.origin}${globalThis.location.pathname}`,
         result.phone
           ? `Số điện thoại đăng nhập: ${result.phone}`
