@@ -119,8 +119,7 @@ let failed = false;
 let stage = "start";
 async function login(page, email) {
   await page.goto(`${URL}/#/`);
-  await page.getByRole("tab", { name: "Email" }).click();
-  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Số điện thoại", { exact: true }).fill(email);
   await page.getByLabel("Mật khẩu").fill(PASSWORD);
   await page.getByRole("button", { name: "Đăng nhập →" }).click();
 }
@@ -153,7 +152,7 @@ try {
   const anon = await browser.newPage();
   await anon.goto(`${URL}/#/`);
   await expect(
-    anon.getByRole("button", { name: "Đăng nhập bằng Google" }),
+    anon.getByRole("button", { name: "Đăng nhập bằng Gmail đã đăng ký" }),
   ).toBeVisible();
   await anon.close();
 

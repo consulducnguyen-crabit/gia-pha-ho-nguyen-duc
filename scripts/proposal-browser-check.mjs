@@ -57,8 +57,7 @@ async function login(page, email) {
   await page
     .getByRole("heading", { name: "Chào mừng trở về", exact: true })
     .waitFor();
-  await page.getByRole("tab", { name: "Email" }).click();
-  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Số điện thoại", { exact: true }).fill(email);
   await page.getByLabel("Mật khẩu", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Đăng nhập →", exact: true }).click();
   await page

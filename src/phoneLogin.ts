@@ -39,3 +39,14 @@ export function loginLabel(email: string | null | undefined): string {
   if (!email) return "";
   return emailToPhone(email) ?? email;
 }
+
+/**
+ * Ô đăng nhập duy nhất: có "@" thì coi là email (tài khoản email/mật khẩu sẵn có), ngược lại là số điện thoại.
+ * Trả null nếu không hợp lệ.
+ */
+export function loginInputToEmail(input: string): string | null {
+  const v = input.trim();
+  if (v.includes("@"))
+    return /^[!-~]+@[!-~]+$/.test(v) ? v.toLowerCase() : null;
+  return phoneToEmail(v);
+}

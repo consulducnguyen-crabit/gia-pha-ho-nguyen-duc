@@ -94,8 +94,9 @@ try {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(URL);
-  await page.getByRole("tab", { name: "Email" }).click();
-  await page.getByLabel("Email", { exact: true }).fill("quantri@example.test");
+  await page
+    .getByLabel("Số điện thoại", { exact: true })
+    .fill("quantri@example.test");
   await page.getByLabel("Mật khẩu").fill(PASSWORD);
   await page.getByRole("button", { name: "Đăng nhập →" }).click();
   await expect(page.getByRole("link", { name: "Cây gia phả" })).toBeVisible();

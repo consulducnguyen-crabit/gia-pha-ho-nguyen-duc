@@ -539,8 +539,7 @@ try {
   }
   async function login(page, email) {
     await page.goto(URL);
-    await page.getByRole("tab", { name: "Email" }).click();
-    await page.getByLabel("Email", { exact: true }).fill(email);
+    await page.getByLabel("Số điện thoại", { exact: true }).fill(email);
     await page.getByLabel("Mật khẩu").fill(PASSWORD);
     await page.getByRole("button", { name: "Đăng nhập →" }).click();
   }
@@ -549,25 +548,27 @@ try {
   {
     const page = await newPage();
     await page.goto(URL);
-    await page.getByRole("tab", { name: "Email" }).click();
-    await page.getByLabel("Email", { exact: true }).waitFor();
+    await page.getByLabel("Số điện thoại", { exact: true }).waitFor();
     await auditPage(page, "chưa đăng nhập: đăng nhập", "dang-nhap");
     // Đăng nhập sai: thông báo lỗi bằng chữ, giữ email đã nhập.
-    await page.getByRole("tab", { name: "Email" }).click();
-    await page.getByLabel("Email", { exact: true }).fill("sai@example.test");
+    await page
+      .getByLabel("Số điện thoại", { exact: true })
+      .fill("sai@example.test");
     await page.getByLabel("Mật khẩu").fill("sai-mat-khau");
     await page.getByRole("button", { name: "Đăng nhập →" }).click();
     await page.getByRole("alert").waitFor();
     for (const m of await page.evaluate(structureCheck))
       add("đăng nhập sai", "lỗi", m);
-    const kept = await page.getByLabel("Email", { exact: true }).inputValue();
+    const kept = await page
+      .getByLabel("Số điện thoại", { exact: true })
+      .inputValue();
     if (kept !== "sai@example.test")
       add("đăng nhập sai", "lỗi", "không giữ email đã nhập");
     const inv = await page.evaluate(() =>
-      document.querySelector("[name=email]").getAttribute("aria-invalid"),
+      document.querySelector("[name=login]").getAttribute("aria-invalid"),
     );
     const desc = await page.evaluate(() =>
-      document.querySelector("[name=email]").getAttribute("aria-describedby"),
+      document.querySelector("[name=login]").getAttribute("aria-describedby"),
     );
     if (!desc && inv !== "true")
       add(

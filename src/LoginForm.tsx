@@ -1,19 +1,47 @@
-// Khu đăng nhập: hai tab "Điện thoại | Email" (cùng Email/Mật khẩu của Firebase Auth) và nút Google cho tài khoản đã có.
+// Khu đăng nhập: một ô "Số điện thoại" + Mật khẩu (Email/Mật khẩu của Firebase Auth) và nút Gmail cho tài khoản đã đăng ký.
+// Ô nhập cũng nhận email (có "@") để tài khoản email/mật khẩu sẵn có vẫn vào được, không cần tab riêng.
 // Đăng nhập không thành công luôn hiện cùng một thông báo, không tiết lộ số/email có tồn tại hay không.
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useState } from "react";
 import {
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   signInWithPopup,
 } from "firebase/auth";
 import { auth } from "./firebase";
-import { phoneToEmail, REGISTER_CONTACT } from "./phoneLogin";
+import { loginInputToEmail, REGISTER_CONTACT } from "./phoneLogin";
 
-type Tab = "phone" | "email";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "phone", label: "Điện thoại" },
-  { id: "email", label: "Email" },
-];
+/** Biểu tượng Gmail (nhiều màu) để dễ nhận biết nút đăng nhập bằng Gmail. */
+function GmailIcon() {
+  return (
+    <svg
+      className="gmail-icon"
+      viewBox="0 0 48 48"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="#4caf50"
+        d="M45,16.2l-5,2.75l-5,4.75L35,40h7c1.657,0,3-1.343,3-3V16.2z"
+      />
+      <path
+        fill="#1e88e5"
+        d="M3,16.2l3.614,1.71L13,23.7V40H6c-1.657,0-3-1.343-3-3V16.2z"
+      />
+      <polygon
+        fill="#e53935"
+        points="35,11.2 24,19.45 13,11.2 12,17 13,23.7 24,31.95 35,23.7 36,17"
+      />
+      <path
+        fill="#c62828"
+        d="M3,12.298V16.2l10,7.5V11.2L9.876,8.859C9.132,8.301,8.228,8,7.298,8h0C4.924,8,3,9.924,3,12.298z"
+      />
+      <path
+        fill="#fbc02d"
+        d="M45,12.298V16.2l-10,7.5V11.2l3.124-2.341C38.868,8.301,39.772,8,40.702,8h0C43.076,8,45,9.924,45,12.298z"
+      />
+    </svg>
+  );
+}
 
 export function LoginFailedNotice({ id }: { id?: string }) {
   return (
@@ -35,33 +63,9 @@ export function LoginFailedNotice({ id }: { id?: string }) {
 }
 
 export function LoginForm() {
-  const [tab, setTab] = useState<Tab>("phone");
   const [failed, setFailed] = useState(false);
   const [googleError, setGoogleError] = useState("");
   const [busy, setBusy] = useState(false);
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
-    phone: null,
-    email: null,
-  });
-
-  function select(next: Tab) {
-    setTab(next);
-    setFailed(false);
-    setGoogleError("");
-  }
-  // Mẫu tab WAI-ARIA: phím mũi tên chuyển tab, Home/End về đầu/cuối.
-  function onTabKey(e: KeyboardEvent<HTMLButtonElement>) {
-    const i = TABS.findIndex((t) => t.id === tab);
-    let next = -1;
-    if (e.key === "ArrowRight") next = (i + 1) % TABS.length;
-    else if (e.key === "ArrowLeft") next = (i - 1 + TABS.length) % TABS.length;
-    else if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = TABS.length - 1;
-    if (next < 0) return;
-    e.preventDefault();
-    select(TABS[next].id);
-    tabRefs.current[TABS[next].id]?.focus();
-  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -69,9 +73,7 @@ export function LoginForm() {
     setFailed(false);
     setGoogleError("");
     const data = new FormData(e.currentTarget);
-    const identity = String(data.get(tab) ?? "");
-    const email =
-      tab === "phone" ? phoneToEmail(identity) : identity.trim().toLowerCase();
+    const email = loginInputToEmail(String(data.get("login") ?? ""));
     try {
       if (!email) throw new Error("INVALID_IDENTITY");
       await signInWithEmailAndPassword(
@@ -102,7 +104,7 @@ export function LoginForm() {
         code !== "auth/cancelled-popup-request"
       )
         setGoogleError(
-          "Không thể đăng nhập bằng Google. Cho phép cửa sổ bật lên rồi thử lại.",
+          "Không thể đăng nhập bằng Gmail. Cho phép cửa sổ bật lên rồi thử lại.",
         );
     } finally {
       setBusy(false);
@@ -112,46 +114,15 @@ export function LoginForm() {
   return (
     <div>
       <p>Đăng nhập bằng tài khoản đã được cấp quyền.</p>
-      <div className="login-tabs" role="tablist" aria-label="Cách đăng nhập">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            ref={(el) => {
-              tabRefs.current[t.id] = el;
-            }}
-            type="button"
-            role="tab"
-            id={`login-tab-${t.id}`}
-            aria-selected={tab === t.id}
-            aria-controls="login-panel"
-            tabIndex={tab === t.id ? 0 : -1}
-            onClick={() => select(t.id)}
-            onKeyDown={onTabKey}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <form
-        id="login-panel"
-        role="tabpanel"
-        aria-label={
-          tab === "phone"
-            ? "Đăng nhập bằng số điện thoại"
-            : "Đăng nhập bằng thư điện tử"
-        }
-        onSubmit={(e) => void onSubmit(e)}
-        key={tab}
-        noValidate={tab === "phone"}
-      >
+      <form noValidate onSubmit={(e) => void onSubmit(e)}>
         <label>
-          {tab === "phone" ? "Số điện thoại" : "Email"}
+          Số điện thoại
           <input
-            name={tab}
-            type={tab === "phone" ? "tel" : "email"}
-            inputMode={tab === "phone" ? "tel" : "email"}
+            name="login"
+            type="tel"
+            inputMode="tel"
             autoComplete="username"
-            placeholder={tab === "phone" ? "Ví dụ 0914 222 987" : undefined}
+            placeholder="Ví dụ: 0912345678"
             aria-describedby={failed ? "login-error" : undefined}
             required
           />
@@ -171,9 +142,15 @@ export function LoginForm() {
           {busy ? "Đang đăng nhập…" : "Đăng nhập →"}
         </button>
       </form>
-      <p className="login-or">hoặc dùng tài khoản Gmail đã được cấp quyền</p>
-      <button type="button" disabled={busy} onClick={() => void onGoogle()}>
-        Đăng nhập bằng Google
+      <p className="login-or">hoặc</p>
+      <button
+        type="button"
+        className="gmail-button"
+        disabled={busy}
+        onClick={() => void onGoogle()}
+      >
+        <GmailIcon />
+        Đăng nhập bằng Gmail đã đăng ký
       </button>
       {googleError && <p role="alert">{googleError}</p>}
     </div>

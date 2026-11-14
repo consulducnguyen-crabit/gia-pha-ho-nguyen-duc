@@ -30,8 +30,9 @@ if (process.argv.includes("--setup")) {
   process.exit(0);
 }
 await page.getByRole("heading", { name: "Chào mừng trở về" }).waitFor();
-await page.getByRole("tab", { name: "Email" }).click();
-await page.getByLabel("Email", { exact: true }).fill("thanhvien@example.test");
+await page
+  .getByLabel("Số điện thoại", { exact: true })
+  .fill("thanhvien@example.test");
 await page.getByLabel("Mật khẩu").fill("Demo-only-2026!");
 await page.getByRole("button", { name: "Đăng nhập →" }).click();
 await page
