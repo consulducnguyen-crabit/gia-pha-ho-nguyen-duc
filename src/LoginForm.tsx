@@ -113,7 +113,6 @@ export function LoginForm() {
 
   return (
     <div>
-      <p>Đăng nhập bằng tài khoản đã được cấp quyền.</p>
       <form noValidate onSubmit={(e) => void onSubmit(e)}>
         <label>
           Số điện thoại

@@ -360,7 +360,6 @@ function Gate({ state, user }: { state: string; user: User | null }) {
         <div className="tree-mark" aria-hidden="true">
           <BrandMark />
         </div>
-        <small>RIÊNG TƯ · CÓ NGUỒN GỐC · ĐƯỢC GÌN GIỮ</small>
         <div className="gate-art-slot" aria-hidden="true">
           <CoupletArt />
         </div>
@@ -410,9 +409,6 @@ function Gate({ state, user }: { state: string; user: User | null }) {
         ) : (
           <LoginForm />
         )}
-        <div className="privacy">
-          ◈ Dữ liệu gia phả chỉ mở sau khi kiểm tra quyền truy cập.
-        </div>
         {emulator && (
           <div className="notice">
             Môi trường emulator · chỉ dùng dữ liệu giả
