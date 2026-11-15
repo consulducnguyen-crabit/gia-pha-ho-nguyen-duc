@@ -9,6 +9,7 @@ import {
 } from "./accountCommands";
 
 const DIR_KEY = "giapha.adminToolsDir";
+const KEY_PATH_KEY = "giapha.adminToolsKeyPath";
 
 function CopyIcon() {
   return (
@@ -117,7 +118,22 @@ export function AccountTools({ emails }: { emails: string[] }) {
       /* trình duyệt chặn lưu: bỏ qua */
     }
   }, [dir]);
-  const groups = buildCommandGroups(emails, prod, dir);
+  // Đường dẫn file khóa Admin trên máy quản trị: chỉ là đường dẫn (không phải nội dung khóa), nhớ ở trình duyệt này.
+  const [keyPath, setKeyPath] = useState(() => {
+    try {
+      return globalThis.localStorage.getItem(KEY_PATH_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  useEffect(() => {
+    try {
+      globalThis.localStorage.setItem(KEY_PATH_KEY, keyPath);
+    } catch {
+      /* trình duyệt chặn lưu: bỏ qua */
+    }
+  }, [keyPath]);
+  const groups = buildCommandGroups(emails, prod, dir, keyPath);
   const selected = emails.length > 0;
   return (
     <section className="users-howto" aria-labelledby="account-tools-h">
@@ -143,6 +159,20 @@ export function AccountTools({ emails }: { emails: string[] }) {
           autoComplete="off"
           spellCheck={false}
           onChange={(e) => setDir(e.target.value)}
+        />
+      </label>
+      <label className="cmd-dir">
+        File khóa Admin (đường dẫn đầy đủ tới file .json nằm ngoài repo; mỗi
+        lệnh sẽ tự đặt <code>GOOGLE_APPLICATION_CREDENTIALS</code>). Dùng khóa
+        đúng project: khóa <b>prod</b> khi bật cờ dữ liệu thật. Chỉ nhập đường
+        dẫn, không dán nội dung khóa.
+        <input
+          type="text"
+          value={keyPath}
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="Ví dụ C:\khóa\gia-pha-prod.json"
+          onChange={(e) => setKeyPath(e.target.value)}
         />
       </label>
       <label className="checkbox-field cmd-prod">

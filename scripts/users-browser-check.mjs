@@ -287,6 +287,22 @@ try {
     );
     await dirBox.fill("C:\\server\\gia-pha-ho-nguyen-duc");
 
+    stage =
+      "ô File khóa Admin: mỗi lệnh tự đặt biến khóa, nhóm chuẩn bị biến mất";
+    const keyBox = admin.getByLabel(/File khóa Admin/);
+    await keyBox.fill("K:\\khoa\\prod.json");
+    await expect(revoke.locator("code")).toHaveText(
+      CD +
+        "$env:GOOGLE_APPLICATION_CREDENTIALS = 'K:\\khoa\\prod.json'; " +
+        'npm run gia-pha:accounts -- revoke --email dahuy.r@example.test --apply --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod"',
+    );
+    await expect(
+      admin.getByRole("region", {
+        name: "Chuẩn bị (mỗi cửa sổ PowerShell mới)",
+      }),
+    ).toHaveCount(0);
+    await keyBox.fill("");
+
     stage = "nút sao chép chép đúng dòng lệnh vào clipboard";
     await revoke.getByRole("button", { name: /^Sao chép lệnh/ }).click();
     await expect(revoke.getByText("Đã sao chép")).toBeVisible();
