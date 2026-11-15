@@ -592,8 +592,6 @@ describe("planDelete (xóa hẳn tài khoản, không hoàn tác)", () => {
       userDoc: off,
       ledger: L,
       allUsers: users(),
-      invite: undefined,
-      nowMs: 1000,
       ...over,
     });
   it("hợp lệ: tài khoản đã vô hiệu hóa, không phải quản trị, sổ khớp", () => {
@@ -659,29 +657,11 @@ describe("planDelete (xóa hẳn tài khoản, không hoàn tác)", () => {
     expect(p.hasUserDoc).toBe(false);
     expect(p.warnings.join(" ")).toMatch(/chỉ xóa tài khoản Firebase Auth/);
   });
-  it("lời mời PENDING còn hạn CHẶN xóa (sẽ nhận lại quyền qua lời mời); trạng thái khác vẫn cho xóa", () => {
-    const fut = { toMillis: () => 5000 };
-    const past = { toMillis: () => 500 };
-    const pending = plan({ invite: { status: "PENDING", expiresAt: fut } });
-    expect(pending.ok).toBe(false);
-    expect(pending.errors.join(" ")).toMatch(
-      /Thu hồi lời mời trong #\/users trước/,
-    );
-    expect(pending.errors.join(" ")).toMatch(/nhận lại quyền/);
-    const expired = plan({ invite: { status: "PENDING", expiresAt: past } });
-    expect(expired.ok).toBe(true);
-    expect(expired.warnings.join(" ")).toMatch(/EXPIRED/);
-    expect(plan({ invite: { status: "REVOKED" } }).ok).toBe(true);
-    expect(plan({ invite: { status: "ACCEPTED" } }).ok).toBe(true);
-    expect(plan({ invite: undefined }).ok).toBe(true);
-  });
   it("kiểm lại trong giao dịch: trạng thái đổi giữa kế hoạch và xóa thì bị chặn", () => {
     const base = {
       userDoc: off as Record<string, unknown> | undefined,
       ledger: L as typeof L | undefined,
       allUsers: users(),
-      invite: undefined as Record<string, unknown> | undefined,
-      nowMs: 1000,
     };
     expect(recheckDelete("m", base)).toBeNull();
     // bật lại trong lúc chờ
@@ -702,13 +682,6 @@ describe("planDelete (xóa hẳn tài khoản, không hoàn tác)", () => {
         allUsers: users({ m: promoted }),
       }),
     ).toMatch(/bật|quản trị/);
-    // có lời mời PENDING mới
-    expect(
-      recheckDelete("m", {
-        ...base,
-        invite: { status: "PENDING", expiresAt: { toMillis: () => 5000 } },
-      }),
-    ).toMatch(/ĐANG CHỜ/);
     // sổ bị xóa/lệch
     expect(recheckDelete("m", { ...base, ledger: undefined })).toMatch(
       /registry --rebuild/,

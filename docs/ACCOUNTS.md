@@ -90,7 +90,7 @@ Khu "Mời thành viên", đăng nhập bằng liên kết email, `?invitee=` v�
 - Thực hiện: `npm run gia-pha:accounts -- delete --email ten@example.com --project <id> --apply --confirm-delete ten@example.com` (`--confirm-delete` phải đúng email đích, so khớp viết thường). Trên production cần thêm `--confirm <project>` và câu xác nhận RIÊNG của lệnh xóa: `--ack "XOA TAI KHOAN <project>"` (khác câu `QUAN LY TAI KHOAN` của các lệnh khác); `--force` bị từ chối.
 - Điều kiện chặn: (1) tài khoản phải **đã vô hiệu hóa** (users.enabled khác true); (2) không phải quản trị viên (users, `canManageMembership` hay có trong sổ `accessControl/admins`; hạ quyền trước); (3) sổ phải khớp users (nếu lệch: `registry --rebuild`); (4) phải tìm thấy tài khoản Auth theo email (đã xóa rồi thì báo không tìm thấy); (5) sau khi xóa vẫn còn quản trị viên hiệu lực trong sổ.
 - Thực hiện: một giao dịch Firestore xóa `users/{uid}` và ghi `auditLogs` `ACCOUNT_DELETED` (uid, không email/tên; thêm `authOnly: true` khi chỉ còn tài khoản Auth); `auth/user-not-found` ở bước xóa Auth được coi là đã xong; sau đó thu hồi phiên và xóa tài khoản Auth. Nếu xóa Auth lỗi sau khi users đã xóa: lệnh thoát mã 1 và cảnh báo (tài khoản không còn quyền); xóa tay trong Firebase Console hoặc chạy lại lệnh (xử lý được trạng thái "có Auth, không có users").
-- Lệnh `delete` vẫn kiểm tra `accountInvites` còn PENDING (dữ liệu cũ nếu có); luồng tạo lời mời trên giao diện đã gỡ nên thường không có.
+- Lệnh `delete` không còn kiểm tra `accountInvites` (luồng lời mời đã gỡ hoàn toàn).
 - Đã kiểm trên emulator (`npm run test:accounts:e2e`); chưa chạy trên Firebase thật.
 
 ## Đăng nhập bằng số điện thoại (đã duyệt 2026-11-14)

@@ -1,7 +1,6 @@
 # Kiểm chứng bản nền — 2026-11-10
 
-Báo cáo này ghi vòng kiểm chứng trước backend lời mời. Xem kết quả mới hơn tại
-[INVITATIONS_VERIFICATION.md](INVITATIONS_VERIFICATION.md).
+Báo cáo này ghi vòng kiểm chứng trước backend lời mời (backend lời mời sau đó đã bị gỡ, xem CHANGELOG 2026-11-15).
 
 Đọc AGENTS.md và APPROVED_DECISIONS.md trước khi triển khai. Giữ nguyên bảy chính
 sách đã duyệt. Chỉ dùng project demo-gia-pha, emulator loopback và dữ liệu giả.

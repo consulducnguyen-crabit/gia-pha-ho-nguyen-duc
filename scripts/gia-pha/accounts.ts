@@ -383,13 +383,11 @@ async function runDelete() {
   const readState = async () => {
     const all = toMap(await db.collection("users").get());
     const ledgerSnap = await ledgerRef.get();
-    const invite = (await db.doc(`accountInvites/${email}`).get()).data();
     return {
       all,
       ledger: ledgerSnap.exists
         ? (ledgerSnap.data() as unknown as Ledger)
         : undefined,
-      invite,
     };
   };
   const st = await readState();
@@ -398,8 +396,6 @@ async function runDelete() {
     userDoc: user ? st.all.get(user.uid) : undefined,
     ledger: st.ledger,
     allUsers: st.all,
-    invite: st.invite,
-    nowMs: Date.now(),
   });
   const d = user ? st.all.get(user.uid) : undefined;
   console.log(
@@ -422,15 +418,12 @@ async function runDelete() {
   const failure = await db.runTransaction(async (t: Tx) => {
     const all = toMap(await t.get(db.collection("users")));
     const ledgerSnap = await t.get(ledgerRef);
-    const inviteSnap = await t.get(db.doc(`accountInvites/${email}`));
     const blocked = recheckDelete(uid, {
       userDoc: all.get(uid),
       ledger: ledgerSnap.exists
         ? (ledgerSnap.data() as unknown as Ledger)
         : undefined,
       allUsers: all,
-      invite: inviteSnap.exists ? inviteSnap.data() : undefined,
-      nowMs: Date.now(),
     });
     if (blocked) return new Error(blocked);
     const before = all.get(uid);
