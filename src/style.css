@@ -2817,3 +2817,75 @@ body {
   letter-spacing: 0.08em;
   user-select: all;
 }
+
+/* Quản lý tài khoản: cột tick, hàng tài khoản bị vô hiệu hóa (màu khác, vẫn có chữ trạng thái) và lệnh có nút sao chép. */
+.users-table th.users-check,
+.users-table td.users-check {
+  width: 2.5rem;
+  min-width: 2.5rem;
+  text-align: center;
+  padding-left: var(--space-3);
+  padding-right: var(--space-2);
+}
+.users-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.users-table tr.users-row-off td {
+  background: #ece4d2;
+  color: var(--color-text-muted);
+  box-shadow: inset 0 0 0 9999px rgba(120, 100, 80, 0.06);
+}
+.users-table tr.users-row-off td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+.users-table tr.users-row-off td:nth-child(4) {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.cmd-selection {
+  font-weight: 600;
+}
+.cmd-prod {
+  margin: var(--space-2) 0 var(--space-3);
+}
+.cmd-group {
+  margin-top: var(--space-4);
+}
+.cmd-group h3 {
+  font-size: 16px;
+  margin: 0 0 var(--space-1);
+}
+.users-howto .cmd-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.users-howto .cmd-line code {
+  flex: 1 1 18rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.cmd-copy {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: var(--space-2) 0;
+  padding: 0;
+}
+.cmd-copy-note {
+  flex-basis: 100%;
+  min-height: 0;
+  font-size: var(--text-small);
+  color: var(--color-success);
+}
+.cmd-copy-note:empty {
+  display: none;
+}
