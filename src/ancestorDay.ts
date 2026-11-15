@@ -36,6 +36,19 @@ export function nextAncestorDay(now: Date): AncestorCountdown {
   throw Error("Không tính được ngày giỗ Tổ tiếp theo");
 }
 
+const WEEKDAYS = [
+  "Chủ nhật",
+  "Thứ Hai",
+  "Thứ Ba",
+  "Thứ Tư",
+  "Thứ Năm",
+  "Thứ Sáu",
+  "Thứ Bảy",
+];
+/** Thứ trong tuần của một ngày dương lịch (JD + 1 chia 7: 0 = Chủ nhật). */
+export const weekdayName = (d: SolarDate) =>
+  WEEKDAYS[(jdFromDate(d.day, d.month, d.year) + 1) % 7];
+
 const two = (n: number) => String(n).padStart(2, "0");
 export const formatSolar = (d: SolarDate) =>
   `${two(d.day)}/${two(d.month)}/${d.year}`;

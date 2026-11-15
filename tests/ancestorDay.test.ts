@@ -3,6 +3,7 @@ import {
   formatSolar,
   nextAncestorDay,
   todayInVietnam,
+  weekdayName,
 } from "../src/ancestorDay";
 import { jdFromDate, jdToDate, lunarToSolar } from "../src/lunarCalendar";
 
@@ -104,5 +105,30 @@ describe("đếm ngược giỗ Tổ", () => {
     const r = nextAncestorDay(new Date("2030-12-31T05:00:00Z"));
     expect(iso(r.date)).toBe("2031-10-16");
     expect(formatSolar(r.date)).toBe("16/10/2031");
+  });
+});
+
+describe("thứ trong tuần", () => {
+  it("khớp lịch: 30/09/2027 Thứ Năm, 10/10/2026 Thứ Bảy, 15/11/2026 Chủ nhật", () => {
+    expect(weekdayName({ day: 30, month: 9, year: 2027 })).toBe("Thứ Năm");
+    expect(weekdayName({ day: 10, month: 10, year: 2026 })).toBe("Thứ Bảy");
+    expect(weekdayName({ day: 15, month: 11, year: 2026 })).toBe("Chủ nhật");
+  });
+  it("đủ bảy thứ liên tiếp từ Thứ Hai 05/10/2026", () => {
+    const names = [5, 6, 7, 8, 9, 10, 11].map((day) =>
+      weekdayName({ day, month: 10, year: 2026 }),
+    );
+    expect(names).toEqual([
+      "Thứ Hai",
+      "Thứ Ba",
+      "Thứ Tư",
+      "Thứ Năm",
+      "Thứ Sáu",
+      "Thứ Bảy",
+      "Chủ nhật",
+    ]);
+  });
+  it("mốc cố định 01/01/2000 là Thứ Bảy", () => {
+    expect(weekdayName({ day: 1, month: 1, year: 2000 })).toBe("Thứ Bảy");
   });
 });
