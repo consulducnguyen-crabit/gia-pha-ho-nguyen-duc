@@ -125,23 +125,23 @@ p {
   font-family: var(--font-heading);
   font-weight: 700;
   /* Cột trái rộng ~38vw: "Dòng họ Nguyễn Đức" (18 ký tự) phải nằm gọn một dòng nên cỡ chữ tính theo vw. */
-  font-size: clamp(28px, 3.4vw, 52px);
+  font-size: clamp(20px, 3.4vw, 52px);
   line-height: 1.15;
   letter-spacing: 0.01em;
   white-space: nowrap;
   color: var(--color-seal);
 }
 /* Câu đối thư pháp ở cuối panel trái: chiếm phần trống bên dưới, cách xa dòng chữ nhỏ phía trên.
-   Hình co theo chiều cao khung nhìn; ẩn khi màn hẹp hoặc quá thấp để không đẩy nội dung. */
+   Luôn hiển thị; hình co theo chiều cao khung nhìn (không bao giờ nhỏ hơn 120px) để mọi kích thước đều đủ nội dung. */
 .gate-art-slot {
   margin-top: auto;
-  padding-top: var(--space-7);
+  padding-top: clamp(var(--space-3), 5vh, var(--space-7));
 }
 .gate-art {
   display: block;
   width: auto;
   max-width: 100%;
-  max-height: calc(100vh - 400px);
+  max-height: max(120px, calc(100vh - 400px));
   margin: 0 auto;
 }
 .couplet-ink-fill {
@@ -166,14 +166,9 @@ p {
   letter-spacing: 2px;
   fill: var(--color-seal);
 }
-@media (max-height: 700px) {
-  .gate-art-slot {
-    display: none;
-  }
-}
 .story small {
   display: block;
-  margin-top: var(--space-7);
+  margin-top: clamp(var(--space-3), 5vh, var(--space-7));
   letter-spacing: 2px;
   font-size: 11px;
 }
@@ -181,6 +176,10 @@ p {
   font-size: 100px;
   color: var(--color-mark);
   line-height: 1.2;
+}
+/* Màn đăng nhập: biểu trưng co theo chiều cao khung nhìn (không đổi ở màn cao ≥ 715px). */
+.story .tree-mark {
+  font-size: clamp(48px, 14vh, 100px);
 }
 .login {
   padding: var(--space-5) 7vw var(--space-6);
@@ -406,7 +405,15 @@ main {
   font-size: 23px;
   font-weight: 500;
 }
-@media (max-width: 800px) {
+/* Ngang nhưng thấp (điện thoại/tablet xoay ngang): câu đối nằm ngay dưới dòng chữ nhỏ, không bị đẩy xuống đáy cột. */
+@media (orientation: landscape) and (max-height: 760px) {
+  .gate-art-slot {
+    margin-top: 0;
+  }
+}
+/* Màn đăng nhập khi xoay DỌC (hoặc rất hẹp): một cột từ trên xuống — tiêu đề + biểu trưng + câu đối, rồi ô đăng nhập.
+   Mọi thành phần co theo chiều rộng/cao khung nhìn, không bị ẩn. Xoay ngang giữ bố cục hai cột như desktop. */
+@media (orientation: portrait), (max-width: 560px) {
   .gate {
     grid-template-columns: 1fr;
   }
@@ -414,18 +421,26 @@ main {
     padding: var(--space-5);
   }
   .story small {
-    margin-top: var(--space-5);
+    margin-top: var(--space-4);
   }
-  .story .tree-mark,
+  .story .tree-mark {
+    font-size: clamp(56px, 13vw, 100px);
+  }
   .gate-art-slot {
-    display: none;
+    margin-top: 0;
+    padding-top: var(--space-4);
+  }
+  .gate-art {
+    max-height: clamp(140px, 30vh, 360px);
   }
   .story .gate-title {
-    font-size: clamp(28px, 7.8vw, 44px);
+    font-size: clamp(24px, 7.8vw, 44px);
   }
   .login {
     padding: var(--space-5);
   }
+}
+@media (max-width: 800px) {
   .shell {
     display: block;
   }
