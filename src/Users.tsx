@@ -9,6 +9,11 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { CreateAccountSection } from "./CreateAccount";
+import {
+  listGmailGrants,
+  revokeGmailGrant,
+  type PendingGrant,
+} from "./gmailGrant";
 import { emailToPhone } from "./phoneLogin";
 import { formatVnTime } from "./auditView";
 import {
@@ -45,6 +50,8 @@ function roleLabel(r: Row) {
 export function UsersPage({ uid }: { uid: string }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [ledger, setLedger] = useState<Ledger | null>(null);
+  const [grants, setGrants] = useState<PendingGrant[]>([]);
+  const [revoking, setRevoking] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [done, setDone] = useState("");
@@ -64,6 +71,7 @@ export function UsersPage({ uid }: { uid: string }) {
         .then((s) => (s.exists() ? s.data() : null))
         .catch(() => null);
       setLedger(ledgerShapeOk(ledgerData) ? ledgerData : null);
+      setGrants(await listGmailGrants(db!).catch(() => []));
       setRows(
         snap.docs
           .map((d) => {
@@ -119,8 +127,8 @@ export function UsersPage({ uid }: { uid: string }) {
       <p className="tree-summary">
         Danh sách tài khoản đã được cấp hoặc vô hiệu hóa quyền. Quản trị viên có
         thể sửa tên hiển thị, đổi quyền Quản trị/Chỉ xem, vô hiệu hóa hoặc bật
-        lại tài khoản đã có, và tạo tài khoản mới (đăng nhập bằng số điện thoại
-        hoặc email) ở khu “Tạo tài khoản” bên dưới.
+        lại tài khoản đã có, và tạo tài khoản mới (đăng nhập bằng số điện thoại,
+        email hoặc chỉ Gmail) ở khu “Tạo tài khoản” bên dưới.
       </p>
       {done && (
         <p role="status" className="notice" tabIndex={-1} ref={doneRef}>
@@ -233,12 +241,61 @@ export function UsersPage({ uid }: { uid: string }) {
           }}
         />
       )}
+      {grants.length > 0 && (
+        <section className="users-grants" aria-labelledby="grants-h">
+          <h2 id="grants-h">Gmail đã ghi sẵn quyền, chờ đăng nhập lần đầu</h2>
+          <ul>
+            {grants.map((g) => (
+              <li key={g.email}>
+                {g.displayName ? `${g.displayName} · ` : ""}
+                {g.email}{" "}
+                {revoking === g.email ? (
+                  <span role="group" aria-label={`Xác nhận thu hồi ${g.email}`}>
+                    Thu hồi quyền của {g.email}?{" "}
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => {
+                        setDone("");
+                        setRevoking(null);
+                        void revokeGmailGrant(db!, g.email)
+                          .then(() => {
+                            setDone(`Đã thu hồi quyền ghi sẵn cho ${g.email}.`);
+                            return load();
+                          })
+                          .catch(() =>
+                            setError("Không thu hồi được. Thử lại sau."),
+                          );
+                      }}
+                    >
+                      Xác nhận thu hồi
+                    </button>{" "}
+                    <button type="button" onClick={() => setRevoking(null)}>
+                      Không thu hồi
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Thu hồi quyền ghi sẵn cho ${g.email}`}
+                    onClick={() => setRevoking(g.email)}
+                  >
+                    Thu hồi
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <CreateAccountSection
         enabled={ledgerReady}
         uid={uid}
         existingEmails={
           new Set(
-            (rows ?? []).map((r) => r.email.toLowerCase()).filter(Boolean),
+            [...(rows ?? []).map((r) => r.email), ...grants.map((g) => g.email)]
+              .map((e) => e.toLowerCase())
+              .filter(Boolean),
           )
         }
         onCreated={() => void load()}

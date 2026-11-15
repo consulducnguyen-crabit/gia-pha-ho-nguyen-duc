@@ -214,6 +214,143 @@ try {
   ).trim();
 
   stage =
+    "Chỉ Gmail: ghi sẵn quyền (không mật khẩu), sai định dạng và trùng bị chặn";
+  const GM = "thanh.vien@gmail.com";
+  await ap.getByRole("radio", { name: "Chỉ Gmail (không mật khẩu)" }).check();
+  section = ap.getByRole("region", { name: "Tạo tài khoản" });
+  await section
+    .getByRole("textbox", { name: "Gmail", exact: true })
+    .fill("a@example.com");
+  await section
+    .getByRole("button", { name: "Ghi sẵn quyền cho Gmail" })
+    .click();
+  await expect(section.getByRole("alert")).toContainText(
+    "Chỉ nhận địa chỉ Gmail",
+  );
+  await section
+    .getByRole("textbox", { name: "Gmail", exact: true })
+    .fill("Thanh.Vien@Gmail.com");
+  await section.getByLabel(/Họ và tên thành viên/).fill("Giả Gmail");
+  await section
+    .getByRole("button", { name: "Ghi sẵn quyền cho Gmail" })
+    .click();
+  await expect(section.getByRole("status")).toContainText(
+    "Đã ghi sẵn quyền Chỉ xem cho " + GM,
+  );
+  await expect(section.getByRole("status").locator("code")).toHaveCount(0);
+  await expect(
+    ap.getByRole("heading", { name: /Gmail đã ghi sẵn quyền/ }),
+  ).toBeVisible();
+  await section.getByRole("textbox", { name: "Gmail", exact: true }).fill(GM);
+  await section
+    .getByRole("button", { name: "Ghi sẵn quyền cho Gmail" })
+    .click();
+  await expect(section.getByRole("alert")).toContainText("Đã có tài khoản");
+  {
+    const g = (await db.doc(`emailGrants/${GM}`).get()).data();
+    if (!g || g.createdBy !== admin.uid || g.displayName !== "Giả Gmail")
+      throw Error("Grant sai: " + JSON.stringify(g));
+    if ((await auth.listUsers()).users.some((u) => u.email === GM))
+      throw Error("Không được tạo người dùng Auth cho Gmail-only");
+  }
+
+  stage = "Thu hồi grant có bước xác nhận";
+  await section
+    .getByRole("textbox", { name: "Gmail", exact: true })
+    .fill("nham@gmail.com");
+  await section
+    .getByRole("button", { name: "Ghi sẵn quyền cho Gmail" })
+    .click();
+  await expect(section.getByRole("status")).toContainText("nham@gmail.com");
+  await ap
+    .getByRole("button", { name: "Thu hồi quyền ghi sẵn cho nham@gmail.com" })
+    .click();
+  await ap.getByRole("button", { name: "Không thu hồi" }).click();
+  if (!(await db.doc("emailGrants/nham@gmail.com").get()).exists)
+    throw Error("Grant bị xóa dù chưa xác nhận");
+  await ap
+    .getByRole("button", { name: "Thu hồi quyền ghi sẵn cho nham@gmail.com" })
+    .click();
+  await ap.getByRole("button", { name: "Xác nhận thu hồi" }).click();
+  await expect(
+    ap.getByText("Đã thu hồi quyền ghi sẵn cho nham@gmail.com"),
+  ).toBeVisible();
+  if ((await db.doc("emailGrants/nham@gmail.com").get()).exists)
+    throw Error("Grant chưa bị thu hồi");
+
+  stage =
+    "Gmail lạ (chưa được ghi sẵn) đăng nhập Google: chờ cấp quyền, không có hồ sơ";
+  const googlePopup = async (page, email) => {
+    const [popup] = await Promise.all([
+      page.waitForEvent("popup"),
+      page
+        .getByRole("button", { name: "Đăng nhập bằng Gmail đã đăng ký" })
+        .click(),
+    ]);
+    await popup.waitForLoadState("domcontentloaded");
+    await popup.getByText("Add new account", { exact: false }).click();
+    await popup.locator("#email-input").fill(email);
+    await popup
+      .locator("#autogen-button")
+      .click()
+      .catch(() => undefined);
+    await popup.locator("#email-input").fill(email);
+    await popup.locator("#sign-in").click();
+  };
+  {
+    const { ctx, page } = await newPage(360);
+    await googlePopup(page, "la.mat@gmail.com");
+    await expect(
+      page.getByRole("heading", { name: "Chờ cấp quyền" }),
+    ).toBeVisible({
+      timeout: 20000,
+    });
+    const strange = await auth.getUserByEmail("la.mat@gmail.com");
+    if ((await db.doc(`users/${strange.uid}`).get()).exists)
+      throw Error("Gmail lạ không được tự có hồ sơ");
+    if (!(await db.doc(`emailGrants/${GM}`).get()).exists)
+      throw Error("Grant của người khác bị mất");
+    await ctx.close();
+  }
+
+  stage =
+    "Gmail đã ghi sẵn đăng nhập Google lần đầu: vào thẳng, không đổi mật khẩu; grant dùng một lần";
+  {
+    const { ctx, page } = await newPage(360);
+    await googlePopup(page, GM);
+    await expect(
+      page.getByRole("heading", { name: "Từng hồ sơ, một câu chuyện" }),
+    ).toBeVisible({ timeout: 20000 });
+    await expect(
+      page.getByRole("heading", { name: "Đổi mật khẩu" }),
+    ).toHaveCount(0);
+    const gu = await auth.getUserByEmail(GM);
+    // Giao diện hiện ngay theo ghi cục bộ; chờ máy chủ xác nhận rồi mới đọc.
+    let gd;
+    for (let i = 0; i < 40 && !gd; i++) {
+      gd = (await db.doc(`users/${gu.uid}`).get()).data();
+      if (!gd) await sleep(250);
+    }
+    if (
+      !gd ||
+      gd.enabled !== true ||
+      gd.canManageMembership === true ||
+      gd.createdVia !== "google" ||
+      gd.approvedBy !== admin.uid ||
+      gd.displayName !== "Giả Gmail" ||
+      "mustChangePassword" in gd
+    )
+      throw Error("users của Gmail sai: " + JSON.stringify(gd));
+    if ((await db.doc(`emailGrants/${GM}`).get()).exists)
+      throw Error("Grant chưa bị xóa sau khi nhận");
+    const ga = (await db.doc(`auditLogs/account-${gu.uid}-1`).get()).data();
+    if (ga?.event !== "ACCOUNT_CLAIMED" || ga.actorUid !== gu.uid)
+      throw Error("Nhật ký nhận quyền sai: " + JSON.stringify(ga));
+    if (JSON.stringify(ga).includes("gmail")) throw Error("Nhật ký chứa email");
+    await ctx.close();
+  }
+
+  stage =
     "đăng xuất khỏi #/users rồi thành viên mới đăng nhập trên cùng trình duyệt: về Tổng quan, không bị 404";
   await expect(ap).toHaveURL(/#\/users/);
   await ap.getByRole("button", { name: "Đăng xuất" }).click();

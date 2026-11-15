@@ -21,6 +21,7 @@ import { AdminViewContext } from "./adminView";
 import { LoginForm } from "./LoginForm";
 import { loginLabel, REGISTER_CONTACT } from "./phoneLogin";
 import { ChangePasswordGate } from "./ChangePassword";
+import { claimGmailGrant } from "./gmailGrant";
 import { WelcomeBanner } from "./WelcomeBanner";
 import { OverviewStats } from "./OverviewStatsView";
 import { pruneWelcome } from "./welcome";
@@ -46,6 +47,7 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const signedInUid = useRef<string | null>(null);
+  const claimTried = useRef<string | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
   const firstRoute = useRef(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -67,6 +69,7 @@ function App() {
       // bắt đầu ở Tổng quan thay vì "Không tìm thấy trang". Mở thẳng một liên kết khi chưa đăng nhập thì giữ nguyên.
       if (!u && signedInUid.current) navigate("/", { replace: true });
       signedInUid.current = u?.uid ?? null;
+      claimTried.current = null; // đăng nhập lại thì thử nhận quyền Gmail lại
       pruneWelcome(u?.uid ?? null); // cờ chào mừng không được sang tài khoản khác
       setCanManageMembership(false);
       setCanReviewChanges(false);
@@ -97,6 +100,19 @@ function App() {
                 s.data()?.enabled === true &&
                 s.data()?.canManageMembership === true,
             );
+            // Chưa có hồ sơ: nếu là đăng nhập Google và quản trị viên đã ghi sẵn Gmail này, nhận quyền một lần
+            // (thành công thì snapshot kế tiếp báo "member"; không có thì vẫn "chờ cấp quyền").
+            if (
+              !s.metadata.fromCache &&
+              !s.exists() &&
+              claimTried.current !== u.uid &&
+              u.providerData.some((p) => p.providerId === "google.com")
+            ) {
+              claimTried.current = u.uid;
+              void claimGmailGrant(db!, u).catch(() => {
+                claimTried.current = null;
+              });
+            }
             setAccess(
               s.metadata.fromCache
                 ? "loading"
