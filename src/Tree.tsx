@@ -46,6 +46,11 @@ function load(uid: string, force: boolean): Promise<TreeIndex | null> {
   return promise;
 }
 
+/** Xóa bộ nhớ tạm ảnh chụp: gọi khi đổi phiên đăng nhập để lần mở trang kế tiếp luôn đọc mới từ máy chủ. */
+export function clearTreeCache() {
+  cache.clear();
+}
+
 // Dùng chung với trang nhật ký (AuditLog.tsx): cùng một lần đọc ảnh chụp để lấy editVersion và tra tên người.
 export { load as loadTreeIndex };
 

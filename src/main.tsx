@@ -29,7 +29,7 @@ import { AncestorCountdown } from "./AncestorCountdown";
 import { startInstallCapture } from "./installPrompt";
 import { registerServiceWorker } from "./registerServiceWorker";
 import { Proposals } from "./Proposals";
-import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
+import { clearTreeCache, PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
 import "@fontsource-variable/source-serif-4/wght.css";
 // Phông thư pháp Playball (OFL) cho nhãn "Gìn giữ cội nguồn": đóng gói cùng ứng dụng, không tải từ CDN.
@@ -70,6 +70,7 @@ function App() {
       if (!u && signedInUid.current) navigate("/", { replace: true });
       signedInUid.current = u?.uid ?? null;
       claimTried.current = null; // đăng nhập lại thì thử nhận quyền Gmail lại
+      clearTreeCache(); // đăng nhập/đăng xuất: dữ liệu gia phả luôn đọc mới từ máy chủ
       pruneWelcome(u?.uid ?? null); // cờ chào mừng không được sang tài khoản khác
       setCanManageMembership(false);
       setCanReviewChanges(false);
