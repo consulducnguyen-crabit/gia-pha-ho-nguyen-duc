@@ -248,8 +248,16 @@ export function UsersPage({ uid }: { uid: string }) {
         <p>
           Đặt lại mật khẩu và xóa hẳn tài khoản (users + tài khoản đăng nhập)
           chưa làm được trên giao diện (gói Spark), nên dùng lệnh (thêm{" "}
-          <b>--apply</b> để thực hiện; không có thì chỉ chạy thử). Tài khoản
-          đăng nhập bằng số điện thoại có email dạng{" "}
+          <b>--apply</b> để thực hiện; không có thì chỉ chạy thử). Trên dữ liệu
+          thật (production) mọi lệnh ghi cần thêm{" "}
+          <b>
+            --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod
+            --ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod"
+          </b>{" "}
+          (lệnh <b>delete</b> dùng câu{" "}
+          <b>"XOA TAI KHOAN gia-pha-nguyen-duc-prod"</b>) và biến môi trường{" "}
+          <b>GOOGLE_APPLICATION_CREDENTIALS</b> trỏ tới khóa để ngoài repo. Tài
+          khoản đăng nhập bằng số điện thoại có email dạng{" "}
           <b>0914222987@gp.nguyenduc</b>. Nút <b>Sửa</b> ở trên chỉ áp dụng cho
           tài khoản đã có.
         </p>
@@ -297,6 +305,15 @@ export function UsersPage({ uid }: { uid: string }) {
         </p>
         <code>npm run gia-pha:accounts -- registry --verify</code>
         <code>npm run gia-pha:accounts -- registry --rebuild --apply</code>
+        <h3>Khi nào dùng Firebase Console</h3>
+        <p>
+          Console phù hợp để xem danh sách hoặc xóa tài khoản đăng nhập mồ côi
+          (có trong Authentication nhưng không có hồ sơ ở đây). Console{" "}
+          <b>không đặt lại được mật khẩu</b> của tài khoản số điện thoại (email
+          ngầm không nhận được thư): dùng lệnh <b>reset-password</b> ở trên,
+          hoặc xóa tài khoản rồi tạo lại ở khu “Tạo tài khoản”. Xóa trong
+          Console cũng cần xóa hồ sơ <b>users</b> tương ứng.
+        </p>
       </section>
     </>
   );
