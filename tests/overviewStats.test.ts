@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   comparePeople,
   computeOverviewStats,
+  isMarkedDeceased,
   lifeStatus,
   missingFields,
   vnYear,
@@ -182,18 +183,18 @@ describe("computeOverviewStats", () => {
       p("c", { birthYear: 1900, deathYear: 1980 }), // đã mất
       p("d", { birthYear: null }), // chưa rõ
       p("e", { flags: ["BIRTH_CONFLICT"] }), // cần kiểm tra
-      p("f", { birthYear: 1700, deathYear: 1900 }), // thọ 200: cần kiểm tra
+      p("f", { birthYear: 1700, deathYear: 1900 }), // thọ 200 nhưng có năm mất: đã mất, bị loại
     ]);
     expect(s.ages).toMatchObject({
       living: 1,
-      deceased: 2,
+      deceased: 3,
       unknown: 1,
-      invalid: 2,
+      invalid: 1,
       counted: 1,
     });
     const a = s.ages;
     expect(a.living + a.unknown + a.invalid).toBe(s.totals.all);
-    expect(s.totals.all).toBe(4);
+    expect(s.totals.all).toBe(3);
   });
   it("mọi số lượng (loại, giới tính, chi, đời, thiếu thông tin) chỉ tính người không tích Đã mất", () => {
     const s = computeOverviewStats(
@@ -228,6 +229,29 @@ describe("computeOverviewStats", () => {
       s.missing.groups.flatMap((g) => g.people.map((x) => x.id)),
     );
     for (const gone of ["b", "c", "d"]) expect(ids.has(gone)).toBe(false);
+  });
+  it("có năm mất hoặc tích Đã mất thì bị loại kể cả khi dữ liệu năm bất thường; chỉ người chưa mất mới vào nhóm cần kiểm tra", () => {
+    const s = stats([
+      p("a", { birthYear: 1950 }), // tính (có tuổi)
+      p("b", { birthYear: 1990, deathYear: 1980 }), // mất trước sinh nhưng có năm mất: loại
+      p("c", { birthYear: 1700, deathYear: 1900 }), // thọ 200 nhưng có năm mất: loại
+      p("d", { flags: ["BIRTH_CONFLICT"], deceased: true }), // mâu thuẫn + tích Đã mất: loại
+      p("e", { flags: ["BIRTH_CONFLICT"], birthYear: 1960 }), // mâu thuẫn, chưa mất: vẫn tính, cần kiểm tra
+      p("f", { birthYear: 2020, deathYear: 2030 }), // năm mất ở tương lai nhưng có năm mất: loại
+    ]);
+    expect(s.totals.all).toBe(2);
+    expect(s.ages).toMatchObject({ deceased: 4, living: 1, invalid: 1 });
+    expect(s.missing.conflicts.map((x) => x.id)).toEqual(["e"]);
+  });
+  it("isMarkedDeceased: năm mất hoặc tick Đã mất, độc lập với tính hợp lệ của năm", () => {
+    expect(isMarkedDeceased({ deathYear: 1990, deceased: undefined })).toBe(
+      true,
+    );
+    expect(isMarkedDeceased({ deathYear: null, deceased: true })).toBe(true);
+    expect(isMarkedDeceased({ deathYear: null, deceased: false })).toBe(false);
+    expect(isMarkedDeceased({ deathYear: null, deceased: undefined })).toBe(
+      false,
+    );
   });
   it("tháp tuổi: ranh giới nhóm và 100 tuổi vào nhóm cuối", () => {
     const s = stats([

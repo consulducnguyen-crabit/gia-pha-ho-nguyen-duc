@@ -1,3 +1,9 @@
+# Tổng quan: người có năm mất hoặc tích "Đã mất" luôn bị loại — 2026-11-15
+
+- Logic chốt: có năm mất → tự động là "Đã mất"; chưa có năm mất mà có tick "Đã mất" → cũng là "Đã mất". Hai nhóm này bị loại khỏi MỌI số liệu ở Tổng quan, **kể cả khi dữ liệu năm của họ bất thường** (năm mất trước năm sinh, thọ quá 120 tuổi, năm ở tương lai, cờ năm sinh mâu thuẫn) — trước đây các ca đó vẫn bị tính vào nhóm "cần kiểm tra". Hàm `isMarkedDeceased` (`src/overviewStats.ts`).
+- Hệ quả cần biết: dữ liệu năm bất thường của người đã mất không còn hiện ở khối thống kê; cờ năm sinh mâu thuẫn vẫn xem được ở trang Cần kiểm tra (quản trị viên).
+- Kiểm thử: `tests/overviewStats.test.ts` (ca dữ liệu năm bất thường + `isMarkedDeceased`).
+
 # Trang Tổng quan: số liệu chỉ tính thành viên không tích "Đã mất" — 2026-11-15
 
 - **Đổi logic thống kê:** tổng số, giới tính, theo chi, theo đời, tuổi và hồ sơ thiếu thông tin chỉ tính thành viên không tích "Đã mất" (người có năm mất cũng bị loại). Số thành viên không được tính hiển thị ở ghi chú đầu khối "Số liệu gia phả". Cây gia phả và Danh sách thành viên vẫn hiển thị đầy đủ.
