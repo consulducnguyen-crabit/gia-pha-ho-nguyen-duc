@@ -1,3 +1,8 @@
+# Favicon chữ Nguyễn và cài ứng dụng lên màn hình chính — 2026-11-15
+
+- Favicon 阮 (kiểu ấn son), manifest PWA, biểu tượng 192/512/maskable và apple-touch-icon; service worker tối giản **không cache** (`public/sw.js`); nút "Cài ứng dụng lên màn hình chính" (Chrome/Android) và hướng dẫn thêm vào màn hình chính (iPhone/iPad) ở trang đăng nhập. Chi tiết: `docs/INSTALL_APP.md`.
+- Thêm script `scripts/make-icons.mjs` để sinh lại biểu tượng; `eslint.config.js` khai báo `self` cho `public/sw.js`.
+
 # Số điện thoại 10 hoặc 11 chữ số đều hợp lệ — 2026-11-15
 
 - Theo yêu cầu: số điện thoại Việt Nam có 10 hoặc 11 chữ số (bắt đầu bằng `0`, chữ số thứ hai khác `0`) đều hợp lệ khi tạo tài khoản và khi đăng nhập (`normalizeVnPhone` trong `src/phoneLogin.ts`, dùng chung cho cả hai). Đổi `+84`/`84`/`0084` cho cả 10 và 11 chữ số.

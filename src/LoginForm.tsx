@@ -8,6 +8,7 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { auth } from "./firebase";
+import { InstallApp } from "./InstallApp";
 import { loginInputToEmail, REGISTER_CONTACT } from "./phoneLogin";
 
 /** Biểu tượng Gmail (nhiều màu) để dễ nhận biết nút đăng nhập bằng Gmail. */
@@ -152,6 +153,7 @@ export function LoginForm() {
         Đăng nhập bằng Gmail đã đăng ký
       </button>
       {googleError && <p role="alert">{googleError}</p>}
+      <InstallApp />
     </div>
   );
 }

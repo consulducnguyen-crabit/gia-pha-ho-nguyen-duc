@@ -2726,6 +2726,36 @@ body {
   }
 }
 
+/* Nút cài ứng dụng / hướng dẫn thêm vào màn hình chính (iOS) ở cuối form đăng nhập */
+.install-app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: var(--space-4) auto 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  color: var(--color-seal);
+  background: transparent;
+  border: 1px dashed var(--color-rule);
+  border-radius: var(--radius-md);
+}
+.install-app-ios {
+  margin: var(--space-4) auto 0;
+  max-width: 19rem;
+  font-size: 13px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.install-app-ios summary {
+  cursor: pointer;
+  color: var(--color-seal);
+  font-weight: 600;
+}
+.install-app-ios p {
+  margin: var(--space-2) 0 0;
+  line-height: 1.5;
+}
 /* Đăng nhập: thông báo lỗi và nút Gmail */
 .gmail-button {
   display: flex;

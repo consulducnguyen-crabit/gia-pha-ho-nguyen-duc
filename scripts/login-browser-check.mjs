@@ -496,6 +496,137 @@ try {
     await ctx.close();
   }
 
+  stage =
+    "favicon chữ Nguyễn + manifest cài ứng dụng (Add to Home), service worker không cache";
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1280, height: 800 },
+    });
+    const page = await ctx.newPage();
+    await page.goto(URL);
+    const links = await page.evaluate(() => ({
+      icons: [...globalThis.document.querySelectorAll('link[rel="icon"]')].map(
+        (l) => l.getAttribute("href"),
+      ),
+      apple: globalThis.document
+        .querySelector('link[rel="apple-touch-icon"]')
+        ?.getAttribute("href"),
+      manifest: globalThis.document
+        .querySelector('link[rel="manifest"]')
+        ?.getAttribute("href"),
+      capable: globalThis.document
+        .querySelector('meta[name="apple-mobile-web-app-capable"]')
+        ?.getAttribute("content"),
+      theme: globalThis.document
+        .querySelector('meta[name="theme-color"]')
+        ?.getAttribute("content"),
+    }));
+    if (!links.icons.includes("/favicon.svg") || links.icons.length < 2)
+      throw Error(`Thiếu favicon: ${JSON.stringify(links.icons)}`);
+    if (
+      !links.apple ||
+      !links.manifest ||
+      links.capable !== "yes" ||
+      !links.theme
+    )
+      throw Error(
+        `Thiếu apple-touch-icon/manifest/meta: ${JSON.stringify(links)}`,
+      );
+    const get = async (path) => {
+      const r = await page.request.get(
+        new globalThis.URL(path, URL + "/").href,
+      );
+      if (!r.ok()) throw Error(`${path} -> ${r.status()}`);
+      return r;
+    };
+    const svg = await (await get("/favicon.svg")).text();
+    if (!svg.includes("<svg") || !svg.includes("<path"))
+      throw Error("favicon.svg sai");
+    const manifest = JSON.parse(await (await get(links.manifest)).text());
+    if (
+      manifest.display !== "standalone" ||
+      manifest.start_url !== "./" ||
+      manifest.scope !== "./"
+    )
+      throw Error(
+        `Manifest sai display/start_url/scope: ${JSON.stringify(manifest)}`,
+      );
+    if (!manifest.name || !manifest.short_name || manifest.lang !== "vi")
+      throw Error("Manifest thiếu tên hoặc ngôn ngữ");
+    const need = [
+      ["192x192", "any"],
+      ["512x512", "any"],
+      ["512x512", "maskable"],
+    ];
+    for (const [size, purpose] of need)
+      if (
+        !manifest.icons.some(
+          (i) =>
+            i.sizes === size && i.purpose === purpose && i.type === "image/png",
+        )
+      )
+        throw Error(`Manifest thiếu icon ${size} ${purpose}`);
+    for (const icon of manifest.icons) {
+      const body = await (await get("/" + icon.src)).body();
+      // PNG hợp lệ và đúng kích thước khai báo (đọc từ tiêu đề IHDR).
+      if (body.readUInt32BE(0) !== 0x89504e47)
+        throw Error(`${icon.src} không phải PNG`);
+      const [w, h] = icon.sizes.split("x").map(Number);
+      if (body.readUInt32BE(16) !== w || body.readUInt32BE(20) !== h)
+        throw Error(`${icon.src} sai kích thước so với khai báo ${icon.sizes}`);
+    }
+    for (const p of [
+      links.apple,
+      ...links.icons.filter((h) => h.endsWith(".png")),
+    ])
+      await get(p);
+    // Service worker chỉ để cho phép cài đặt: không cache, không chặn mạng (không lưu dữ liệu gia phả trên máy).
+    const sw = (await (await get("/sw.js")).text()).replace(/\/\/.*$/gm, ""); // bỏ chú thích
+    if (!/addEventListener\(\s*["']fetch["']/.test(sw))
+      throw Error("sw.js thiếu fetch handler");
+    if (/caches\.|respondWith|cache\.put|cache\.add/.test(sw))
+      throw Error("sw.js không được cache hay chặn mạng");
+
+    // Chrome/Android: có sự kiện beforeinstallprompt thì hiện nút Cài ứng dụng; bấm thì mở hộp cài đặt.
+    const installBtn = page.getByRole("button", {
+      name: "Cài ứng dụng lên màn hình chính",
+    });
+    await expect(installBtn).toHaveCount(0); // chưa có sự kiện -> ẩn
+    await page.evaluate(() => {
+      globalThis.__prompted = 0;
+      const e = new globalThis.Event("beforeinstallprompt", {
+        cancelable: true,
+      });
+      e.prompt = async () => {
+        globalThis.__prompted++;
+      };
+      e.userChoice = Promise.resolve({ outcome: "accepted" });
+      globalThis.dispatchEvent(e);
+    });
+    await expect(installBtn).toBeVisible();
+    await installBtn.click();
+    await expect(installBtn).toHaveCount(0);
+    if ((await page.evaluate(() => globalThis.__prompted)) !== 1)
+      throw Error("Bấm nút không mở hộp cài đặt");
+    await ctx.close();
+
+    // iPhone/iPad (Safari): không có sự kiện, hiện hướng dẫn "Thêm vào màn hình chính".
+    const ios = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+    });
+    const ip = await ios.newPage();
+    await ip.goto(URL);
+    const hint = ip.locator("details.install-app-ios");
+    await expect(hint).toBeVisible();
+    await hint.locator("summary").click();
+    await expect(hint).toContainText("Chia sẻ");
+    await expect(hint).toContainText("Thêm vào Màn hình chính");
+    await noOverflow(ip);
+    await ios.close();
+  }
+
   stage = "không tràn ngang ở 360/768/1280, kể cả khi hiện thông báo lỗi";
   for (const width of [360, 768, 1280]) {
     const { ctx, page } = await fresh(width);
