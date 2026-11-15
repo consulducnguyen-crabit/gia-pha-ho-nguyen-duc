@@ -1,7 +1,7 @@
 // Đếm ngược đến ngày giỗ Tổ (mùng 1 tháng 9 âm lịch) ở góc trên bên phải panel đăng nhập.
 // Chỉ là thông tin công khai tính tại trình duyệt, không gọi máy chủ, không dùng dữ liệu gia phả.
 import { useEffect, useState } from "react";
-import { formatSolar, nextAncestorDay } from "./ancestorDay";
+import { formatSolar, nextAncestorDay, weekdayName } from "./ancestorDay";
 
 function CalendarIcon() {
   return (
@@ -49,7 +49,9 @@ export function AncestorCountdown() {
       <div className="ancestor-title">Giỗ Tổ · 01/9 âm lịch</div>
       <div className="ancestor-date">
         <CalendarIcon />
-        <time dateTime={iso}>{formatSolar(date)}</time>
+        <time dateTime={iso}>
+          {weekdayName(date)}, {formatSolar(date)}
+        </time>
       </div>
       <div className="ancestor-left">
         {daysLeft === 0 ? (

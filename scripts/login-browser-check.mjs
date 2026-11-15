@@ -319,7 +319,7 @@ try {
     await expect(box).toContainText("Giỗ Tổ · 01/9 âm lịch");
     await expect(box.locator("svg.ancestor-icon")).toBeVisible();
     // Đồng hồ cố định: 09/10/2026 (giờ VN) -> giỗ Tổ 10/10/2026, còn 1 ngày.
-    await expect(box).toContainText("10/10/2026");
+    await expect(box).toContainText("Thứ Bảy, 10/10/2026");
     await expect(box).toContainText("Còn 1 ngày");
     await expect(box.locator("time")).toHaveAttribute("datetime", "2026-10-10");
     // Góc trên bên phải của panel đăng nhập: thẳng mép phải với ô nhập liệu, cùng hàng với nhãn phía trên.
@@ -345,8 +345,8 @@ try {
   stage =
     "đếm ngược giỗ Tổ theo các mốc ngày cố định (hôm nay, sau ngày giỗ, nửa đêm giờ Việt Nam)";
   for (const [now, dateText, leftText] of [
-    ["2026-10-10T05:00:00Z", "10/10/2026", "Hôm nay"],
-    ["2026-10-11T05:00:00Z", "30/09/2027", "Còn 354 ngày"],
+    ["2026-10-10T05:00:00Z", "Thứ Bảy, 10/10/2026", "Hôm nay"],
+    ["2026-10-11T05:00:00Z", "Thứ Năm, 30/09/2027", "Còn 354 ngày"],
     ["2026-10-09T18:00:00Z", "10/10/2026", "Hôm nay"], // 01:00 ngày 10/10 giờ Việt Nam
     ["2026-10-09T16:59:00Z", "10/10/2026", "Còn 1 ngày"], // 23:59 ngày 09/10 giờ Việt Nam
   ]) {
