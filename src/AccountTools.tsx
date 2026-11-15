@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
   buildCommandGroups,
+  DEFAULT_PROJECT_DIR,
   PROD_PROJECT,
   type CommandGroup,
 } from "./accountCommands";
+
+const DIR_KEY = "giapha.adminToolsDir";
 
 function CopyIcon() {
   return (
@@ -99,7 +102,22 @@ function Group({ g, selected }: { g: CommandGroup; selected: boolean }) {
 
 export function AccountTools({ emails }: { emails: string[] }) {
   const [prod, setProd] = useState(false);
-  const groups = buildCommandGroups(emails, prod);
+  // Thư mục dự án trên máy quản trị: nhớ lại ở trình duyệt này (chỉ là đường dẫn máy, không có dữ liệu gia phả).
+  const [dir, setDir] = useState(() => {
+    try {
+      return globalThis.localStorage.getItem(DIR_KEY) ?? DEFAULT_PROJECT_DIR;
+    } catch {
+      return DEFAULT_PROJECT_DIR;
+    }
+  });
+  useEffect(() => {
+    try {
+      globalThis.localStorage.setItem(DIR_KEY, dir);
+    } catch {
+      /* trình duyệt chặn lưu: bỏ qua */
+    }
+  }, [dir]);
+  const groups = buildCommandGroups(emails, prod, dir);
   const selected = emails.length > 0;
   return (
     <section className="users-howto" aria-labelledby="account-tools-h">
@@ -116,6 +134,17 @@ export function AccountTools({ emails }: { emails: string[] }) {
           ? `Đang tạo lệnh cho ${emails.length} tài khoản đã tick ở bảng trên.`
           : "Chưa tick tài khoản nào: lệnh dùng email mẫu. Tick tài khoản ở bảng trên để lệnh tự điền email."}
       </p>
+      <label className="cmd-dir">
+        Thư mục dự án trên máy quản trị (mỗi lệnh bắt đầu bằng <code>cd</code>{" "}
+        vào đây; để trống nếu bạn đã đứng sẵn trong thư mục)
+        <input
+          type="text"
+          value={dir}
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(e) => setDir(e.target.value)}
+        />
+      </label>
       <label className="checkbox-field cmd-prod">
         <input
           type="checkbox"

@@ -71,4 +71,22 @@ describe("lệnh quản lý tài khoản", () => {
     expect(psArg("it's@x.vn")).toBe("'it''s@x.vn'");
     expect(psArg("$(id)@x.vn")).toBe("'$(id)@x.vn'");
   });
+  it("có thư mục dự án: mỗi lệnh bắt đầu bằng cd (nháy đơn nhân đôi); để trống thì không có cd", () => {
+    const dir = "C:\\Dự án 'x'";
+    const prefix = "cd 'C:\\Dự án ''x'''; npm run gia-pha:accounts";
+    for (const g of buildCommandGroups(["a@x.vn"], false, dir).filter(
+      (g) => g.id !== "setup",
+    ))
+      for (const l of g.lines) expect(l.startsWith(prefix)).toBe(true);
+    const none = buildCommandGroups([], false, "").flatMap((g) => g.lines);
+    expect(none.some((l) => l.startsWith("cd "))).toBe(false);
+  });
+  it("nhóm chuẩn bị đặt GOOGLE_APPLICATION_CREDENTIALS bằng đường dẫn mẫu", () => {
+    const setup = buildCommandGroups([], false, "C:\\p").find(
+      (g) => g.id === "setup",
+    )!;
+    expect(setup.lines).toHaveLength(1);
+    expect(setup.lines[0]).toContain("$env:GOOGLE_APPLICATION_CREDENTIALS = ");
+    expect(setup.lines[0].startsWith("cd 'C:\\p'; ")).toBe(true);
+  });
 });
