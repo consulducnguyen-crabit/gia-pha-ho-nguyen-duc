@@ -183,42 +183,125 @@ p {
   padding: var(--space-5) 7vw var(--space-6);
   max-width: 650px;
   align-self: start;
-  margin: 0; /* .login là <main>: bỏ margin:auto của quy tắc main toàn cục */
+  width: 100%;
+  margin: 0 auto; /* vùng đăng nhập căn giữa theo chiều ngang trong cột của nó */
 }
 .login h2 {
   font-size: 36px;
+  text-align: center;
 }
-/* Hàng đầu panel đăng nhập: nhãn bên trái, đếm ngược giỗ Tổ ở góc trên bên phải (xuống dòng khi hẹp). */
+/* Đầu vùng đăng nhập, căn giữa từ trên xuống: nhãn "Gìn giữ cội nguồn", rồi tờ lịch đếm ngược giỗ Tổ. */
 .login-top {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-3);
+  text-align: center;
 }
+/* Tờ lịch bloc: gáy lịch, ô tháng/năm, thứ và số ngày lớn màu son; hai tờ xếp chồng nhẹ phía dưới. */
 .ancestor-countdown {
-  margin-left: auto;
-  text-align: right;
-  line-height: 1.4;
-  padding: var(--space-2) var(--space-3);
+  margin: 0 auto;
+  width: min(268px, 100%);
+  overflow: hidden;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 3px 0 -1px var(--color-surface),
+    0 4px 0 -1px var(--color-rule);
+}
+.ancestor-binding {
+  position: relative;
+  height: 12px;
+  background: var(--color-text);
+}
+.ancestor-binding::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 44px;
+  height: 6px;
+  margin-left: -22px;
+  border-radius: 3px;
+  background: var(--color-surface);
+  opacity: 0.85;
+}
+.ancestor-body {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+}
+.ancestor-page {
+  padding: var(--space-2);
+  text-align: center;
+  border-right: 1px dotted var(--color-rule);
+}
+.ancestor-mini {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+}
+.ancestor-mini span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 0;
+  line-height: 1.1;
   border: 1px solid var(--color-rule);
   border-radius: var(--radius-sm);
-  background: var(--color-soft);
+}
+.ancestor-mini small {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.ancestor-mini b {
+  font-family: var(--font-heading);
+  font-size: 14px;
+}
+.ancestor-weekday {
+  margin-top: var(--space-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.ancestor-day {
+  font-family: var(--font-heading);
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-seal);
+}
+.ancestor-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  text-align: left;
+  line-height: 1.35;
 }
 .ancestor-title {
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-family: var(--font-heading);
+  font-size: 20px;
   font-weight: 700;
   color: var(--color-seal);
+}
+.ancestor-sub {
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 .ancestor-date {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--space-2);
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
+  font-size: 13px;
   font-weight: 600;
-  color: var(--color-text);
+  white-space: nowrap;
 }
 .ancestor-icon {
   flex: none;
@@ -227,9 +310,12 @@ p {
 .ancestor-left {
   font-size: 13px;
   color: var(--color-text-muted);
+  white-space: nowrap;
 }
 .ancestor-left b {
-  font-size: 15px;
+  font-family: var(--font-heading);
+  font-size: 24px;
+  line-height: 1;
   color: var(--color-seal);
 }
 .login label {
@@ -858,6 +944,7 @@ textarea {
 
 /* Đăng nhập Google và quản lý tài khoản */
 .login-or {
+  text-align: center;
   margin: var(--space-4) 0 var(--space-2);
   color: var(--color-text-muted);
   font-size: 14px;
@@ -2601,8 +2688,9 @@ body {
 
 /* Đăng nhập: thông báo lỗi và nút Gmail */
 .gmail-button {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  margin-inline: auto;
   gap: var(--space-3);
 }
 .gmail-icon {
