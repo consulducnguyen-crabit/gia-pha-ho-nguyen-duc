@@ -164,13 +164,13 @@ async function checkRole(email, isAdmin) {
     page.getByRole("heading", { name: "Số liệu gia phả" }),
   ).toBeVisible();
   await expect(page.getByText(`${TOTAL} thành viên`)).toBeVisible();
-  await expect(page.getByText("Theo dữ liệu lúc tải")).toBeVisible();
-  // Nêu rõ cơ sở tính, không dùng cách nói phân biệt đang sống / đã mất.
+  // Không còn ghi chú "lúc tải"/cơ sở tính và không có nút tải lại riêng (người dùng tải lại cả trang).
+  await expect(page.getByText("Theo dữ liệu lúc tải")).toHaveCount(0);
+  await expect(page.getByText("Tuổi tính theo năm dương")).toHaveCount(0);
+  await expect(page.getByText("Mọi số liệu chỉ tính")).toHaveCount(0);
   await expect(
-    page.getByText(
-      `Mọi số liệu chỉ tính thành viên không tích “Đã mất” (không tính ${DECEASED} thành viên đã tích “Đã mất” hoặc có năm mất)`,
-    ),
-  ).toBeVisible();
+    page.getByRole("button", { name: "Tải lại dữ liệu" }),
+  ).toHaveCount(0);
   const body = await page.locator(".stats").innerText();
   for (const gone of [
     "đang sống",
@@ -263,11 +263,8 @@ async function checkRole(email, isAdmin) {
   ).toHaveCount(0);
   await noOverflow(page, `${label}-overview`);
 
-  stage = `${label}: Tải lại dữ liệu giữ focus trong khối thống kê`;
-  await page.getByRole("button", { name: "Tải lại dữ liệu" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Số liệu gia phả" }),
-  ).toBeFocused();
+  stage = `${label}: tải lại trang vẫn ra số liệu`;
+  await page.reload();
   await expect(page.getByText(`${TOTAL} thành viên`)).toBeVisible();
 
   stage = `${label}: liên kết hồ sơ dẫn đúng trang`;
@@ -280,7 +277,8 @@ async function checkRole(email, isAdmin) {
   await ctx.close();
 }
 async function checkUnsynced() {
-  stage = "ảnh chụp chưa đồng bộ giới tính (bộ 6/7 phần tử) + Tải lại dữ liệu";
+  stage =
+    "ảnh chụp chưa đồng bộ giới tính (bộ 6/7 phần tử) + tải lại trang lấy dữ liệu mới";
   const ref = db.doc("treeSnapshots/main");
   const doc = (await ref.get()).data();
   const data = JSON.parse(doc.data);
@@ -294,7 +292,7 @@ async function checkUnsynced() {
   await login(page, "thanhvien@example.test");
   await expect(page.getByText(`${TOTAL} thành viên`)).toBeVisible();
   await ref.set({ ...doc, data: JSON.stringify(data) });
-  await page.getByRole("button", { name: "Tải lại dữ liệu" }).click();
+  await page.reload(); // tải lại cả trang là đọc mới từ máy chủ
   await expect(
     page.getByText("Chưa đồng bộ giới tính", { exact: false }).first(),
   ).toBeVisible();
@@ -312,7 +310,7 @@ async function checkUnsynced() {
   // Giữ giới tính của một người được tính (d); thủy tổ có năm mất nên không nằm trong số liệu.
   ids.filter((id) => id !== "d").forEach((id) => (full.persons[id].length = 7));
   await ref.set({ ...doc, data: JSON.stringify(full) });
-  await page.getByRole("button", { name: "Tải lại dữ liệu" }).click();
+  await page.reload();
   await expect(
     page.getByRole("table", { name: "Giới tính", exact: true }),
   ).toBeVisible();
@@ -321,6 +319,22 @@ async function checkUnsynced() {
   ).toBeVisible();
   await page.setViewportSize({ width: 360, height: 800 });
   await noOverflow(page, "member-partial-sync-360");
+
+  stage =
+    "đăng xuất rồi đăng nhập lại (không tải lại trang): luôn đọc dữ liệu mới";
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await ref.set(doc); // trả ảnh chụp đầy đủ giới tính
+  await page.getByRole("button", { name: "Đăng xuất" }).click();
+  // Không page.goto: giữ nguyên trang (SPA) để chứng minh bộ nhớ tạm bị xóa khi đổi phiên đăng nhập.
+  await page
+    .getByLabel("Số điện thoại", { exact: true })
+    .fill("thanhvien@example.test");
+  await page.getByLabel("Mật khẩu").fill(PASSWORD);
+  await page.getByRole("button", { name: "Đăng nhập →" }).click();
+  await expect(page.getByText(`${TOTAL} thành viên`)).toBeVisible();
+  await expect(
+    page.getByText("chưa phản ánh toàn bộ", { exact: false }),
+  ).toHaveCount(0);
   if (errors.length) throw Error("Lỗi trang: " + errors.join("; "));
   await ctx.close();
 }

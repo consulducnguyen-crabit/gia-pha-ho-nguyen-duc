@@ -1,14 +1,8 @@
 // Thống kê trang Tổng quan, trình bày như các trang sổ gia phả: tiêu đề mục, đường kẻ, bảng số liệu.
 // Mỗi biểu đồ là <figure> có <figcaption> và <table> thật làm bản thay thế; hình SVG tự vẽ chỉ để nhìn (aria-hidden).
-// Dữ liệu lấy từ ảnh chụp cây dùng chung (loadTreeIndex) và là dữ liệu "lúc tải", không tự cập nhật.
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+// Dữ liệu lấy từ ảnh chụp cây dùng chung (loadTreeIndex): luôn đọc mới từ máy chủ khi đăng nhập và khi tải lại trang
+// (bộ nhớ tạm của ảnh chụp bị xóa khi đổi phiên đăng nhập, xem clearTreeCache); không có nút tải lại riêng.
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadTreeIndex } from "./Tree";
 import {
@@ -28,57 +22,36 @@ type State =
   | { status: "loading" }
   | { status: "error" }
   | { status: "empty" }
-  | { status: "ready"; stats: OverviewStats; loadedAt: Date };
+  | { status: "ready"; stats: OverviewStats };
 
 const nf = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 const pct = (n: number, total: number) =>
   total > 0 ? `${nf.format((n / total) * 100)}%` : "0%";
-const loadedLabel = (d: Date) =>
-  d.toLocaleString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-
 export function OverviewStats({ uid }: { uid: string }) {
   const [state, setState] = useState<State>({ status: "loading" });
-  const run = useCallback(
-    (force: boolean) => {
-      let live = true;
-      setState({ status: "loading" });
-      loadTreeIndex(uid, force)
-        .then((index) => {
-          if (!live) return;
-          if (!index) return setState({ status: "empty" });
-          const now = new Date();
-          setState({
-            status: "ready",
-            loadedAt: now,
-            stats: computeOverviewStats(index.snapshot, {
-              currentYear: vnYear(now),
-            }),
-          });
-        })
-        .catch(() => live && setState({ status: "error" }));
-      return () => {
-        live = false;
-      };
-    },
-    [uid],
-  );
-  useEffect(() => run(false), [run]);
-  // Nút "Tải lại dữ liệu" bị thay bằng dòng "Đang tải": đưa focus về tiêu đề khối để không mất vị trí.
-  const heading = useRef<HTMLHeadingElement | null>(null);
-  const reload = () => {
-    heading.current?.focus();
-    run(true);
-  };
+  useEffect(() => {
+    let live = true;
+    setState({ status: "loading" });
+    loadTreeIndex(uid, false)
+      .then((index) => {
+        if (!live) return;
+        if (!index) return setState({ status: "empty" });
+        setState({
+          status: "ready",
+          stats: computeOverviewStats(index.snapshot, {
+            currentYear: vnYear(new Date()),
+          }),
+        });
+      })
+      .catch(() => live && setState({ status: "error" }));
+    return () => {
+      live = false;
+    };
+  }, [uid]);
 
   return (
     <div className="stats">
-      <h2 tabIndex={-1} ref={heading}>
-        Số liệu gia phả
-      </h2>
+      <h2>Số liệu gia phả</h2>
       {state.status === "loading" && (
         <p role="status" className="stats-note">
           Đang tải số liệu…
@@ -92,30 +65,10 @@ export function OverviewStats({ uid }: { uid: string }) {
       {state.status === "error" && (
         <div role="alert" className="notice">
           Không tải được số liệu. Hãy kiểm tra kết nối và quyền truy cập, rồi
-          thử lại.{" "}
-          <button type="button" onClick={reload}>
-            Tải lại dữ liệu
-          </button>
+          tải lại trang.
         </div>
       )}
-      {state.status === "ready" && (
-        <>
-          <p className="stats-note">
-            Theo dữ liệu lúc tải ({loadedLabel(state.loadedAt)}, giờ Việt Nam).
-            Tuổi tính theo năm dương trên giao diện: năm{" "}
-            {state.stats.currentYear} trừ năm sinh, nên có thể lệch một tuổi.
-            Mọi số liệu chỉ tính thành viên không tích “Đã mất”
-            {state.stats.ages.deceased > 0
-              ? ` (không tính ${nf.format(state.stats.ages.deceased)} thành viên đã tích “Đã mất” hoặc có năm mất)`
-              : ""}
-            .{" "}
-            <button type="button" onClick={reload}>
-              Tải lại dữ liệu
-            </button>
-          </p>
-          <StatsBody stats={state.stats} />
-        </>
-      )}
+      {state.status === "ready" && <StatsBody stats={state.stats} />}
     </div>
   );
 }
