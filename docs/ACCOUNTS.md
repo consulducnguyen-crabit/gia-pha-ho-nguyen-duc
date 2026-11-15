@@ -5,6 +5,7 @@ Chưa có Cloud Functions nên tài khoản được quản lý bằng **công c
 ## Hai cách đăng nhập
 
 - **Gmail (Google):** quản trị viên chạy `grant --email <gmail>`; công cụ tạo sẵn tài khoản không mật khẩu và cấp quyền. Người dùng bấm "Đăng nhập bằng Google" bằng đúng email đó là vào cùng tài khoản (Firebase gộp theo email đã xác minh). Phải nhập đúng email Google họ dùng.
+- **Gmail trong app (không cần chờ thành viên đăng nhập trước):** ở `#/users` > Tạo tài khoản chọn **Chỉ Gmail (không mật khẩu)**. Xem mục "Chỉ Gmail" bên dưới.
 - **Không có Gmail:** quản trị viên chạy `create --email <email> --name "Họ tên"`; công cụ tạo tài khoản email/mật khẩu (email đã xác minh), in mật khẩu ngẫu nhiên **một lần**; gửi riêng cho người dùng. Mất mật khẩu thì `reset-password`. Email có thể là địa chỉ bất kỳ đúng định dạng nhưng nên là địa chỉ người dùng đọc được.
 
 Đăng nhập thành công **chưa** đồng nghĩa được xem dữ liệu: cần có `users/{uid}` với `enabled: true`. Tài khoản chưa được cấp quyền thấy màn "Chờ cấp quyền".
@@ -107,3 +108,12 @@ Khu "Mời thành viên", đăng nhập bằng liên kết email, `?invitee=` v�
 - **Số/email bị đăng ký trước:** đăng ký Email/Mật khẩu của Firebase là công khai, nên người lạ có thể đã đăng ký trước một số điện thoại. Khi Auth báo đã tồn tại, app thử đăng nhập bằng đúng mật khẩu vừa sinh: được ⇒ do chính lần tạo trước (hoàn tất/thử lại an toàn); không được ⇒ báo cần dùng script (`reset-password` hoặc `delete`). Kẻ chiếm trước vẫn **không** xem được dữ liệu vì chưa có `users/{uid}`.
 - **Hiển thị:** email ngầm `@gp.nguyenduc` luôn được ẩn, chỉ hiện số điện thoại (`loginLabel`).
 - **Giới hạn trên Spark:** giao diện không đặt lại mật khẩu hay xóa tài khoản Auth của người khác (cần Admin SDK hoặc Cloud Functions/Blaze); dùng script trên máy quản trị.
+
+## Chỉ Gmail trong app (không mật khẩu, duyệt 2026-11-15)
+
+- Quản trị viên (có trong sổ `accessControl/admins`) nhập một địa chỉ `@gmail.com` (viết thường, tối đa 64 ký tự) và họ tên (tùy chọn). App ghi `emailGrants/{gmail}` gồm `email`, `displayName?`, `createdBy`, `createdAt`, `schemaVersion`. Không tạo người dùng Auth, không có mật khẩu.
+- Thành viên bấm "Đăng nhập bằng Gmail" bằng đúng địa chỉ đó. Lần đầu (chưa có `users/{uid}`) app **nhận quyền một lần** trong MỘT batch: tạo `users/{uid}` (Chỉ xem, `createdVia: "google"`, `approvedBy` = người cấp, **không** `mustChangePassword`), xóa grant, ghi `auditLogs/account-{uid}-1` (`ACCOUNT_CLAIMED`, không chứa email).
+- Rules (`gmailClaimOk`): token phải là đăng nhập `google.com` với `email_verified == true`, email (viết thường) là `@gmail.com` và bằng id grant; người tạo grant vẫn phải là quản trị viên trong sổ; hồ sơ chỉ xem đúng khuôn; `!exists(users/{uid})` (tài khoản đã có hồ sơ, kể cả bị vô hiệu hóa, không nhận lại được); grant bị xóa cùng batch nên không dùng lại.
+- Thu hồi: danh sách "Gmail đã ghi sẵn quyền" ở `#/users` có nút Thu hồi (xóa grant) trước khi thành viên nhận quyền. Sau khi nhận quyền thì dùng nút Sửa/Vô hiệu hóa như mọi tài khoản.
+- Giới hạn đã biết: chỉ `@gmail.com` (không Google Workspace); Gmail bỏ qua dấu chấm nhưng grant so khớp đúng chuỗi token Google trả về, nên nhập đúng địa chỉ thành viên dùng; ghi/thu hồi grant chưa có nhật ký riêng (grant là bản ghi tồn tại đến khi nhận; sự kiện nhận quyền có nhật ký). Lệnh script `grant --email` vẫn dùng được (cho người đã đăng nhập và đang chờ duyệt).
+- Triển khai: cần deploy `firestore.rules` mới lên production (bước riêng, cần người dùng duyệt) và bật nhà cung cấp Google trong Firebase Auth nếu chưa bật.

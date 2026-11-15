@@ -11,6 +11,11 @@ import {
   type LoginKind,
 } from "./accountCreate";
 import { accountErrorMessage } from "./accountsClient";
+import {
+  createGmailGrant,
+  GmailGrantError,
+  normalizeGmail,
+} from "./gmailGrant";
 
 export function CreateAccountSection({
   enabled,
@@ -26,7 +31,8 @@ export function CreateAccountSection({
   onCreated: () => void;
 }) {
   const uniq = useId();
-  const [kind, setKind] = useState<LoginKind>("phone");
+  const [kind, setKind] = useState<LoginKind | "gmail">("phone");
+  const [grantedGmail, setGrantedGmail] = useState("");
   const [value, setValue] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,9 +47,11 @@ export function CreateAccountSection({
     e.preventDefault();
     setError("");
     setCopied(false);
+    setGrantedGmail("");
     let email: string;
     try {
-      email = loginEmailFor(kind, value);
+      email =
+        kind === "gmail" ? normalizeGmail(value) : loginEmailFor(kind, value);
     } catch (cause) {
       setError((cause as Error).message);
       setRetryable(false);
@@ -54,6 +62,28 @@ export function CreateAccountSection({
         "Đã có tài khoản với số điện thoại/email này trong danh sách bên dưới.",
       );
       setRetryable(false);
+      return;
+    }
+    if (kind === "gmail") {
+      setBusy(true);
+      try {
+        setGrantedGmail(
+          await createGmailGrant(db!, uid, { email, displayName: name }),
+        );
+        setResult(null);
+        setValue("");
+        setName("");
+        setRetryable(false);
+        onCreated();
+      } catch (cause) {
+        setError(
+          cause instanceof GmailGrantError
+            ? cause.message
+            : accountErrorMessage(cause),
+        );
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     if (!pending.current || pending.current.key !== email)
@@ -108,7 +138,9 @@ export function CreateAccountSection({
         Thành viên đăng ký trực tiếp với quản trị viên. Tạo tài khoản theo số
         điện thoại hoặc email; hệ thống sinh mật khẩu tạm để bạn gửi riêng cho
         thành viên (Zalo), thành viên phải đổi mật khẩu ở lần đăng nhập đầu. Tài
-        khoản mới chỉ có quyền Chỉ xem.
+        khoản mới chỉ có quyền Chỉ xem. Thành viên có Gmail thì chọn “Chỉ
+        Gmail”: không cần mật khẩu, thành viên bấm “Đăng nhập bằng Gmail” là
+        vào.
       </p>
       {!enabled && (
         <p role="alert" className="notice">
@@ -123,7 +155,10 @@ export function CreateAccountSection({
               type="radio"
               name={`${uniq}-kind`}
               checked={kind === "phone"}
-              onChange={() => setKind("phone")}
+              onChange={() => {
+                setKind("phone");
+                setRetryable(false);
+              }}
             />{" "}
             Số điện thoại
           </label>
@@ -132,19 +167,44 @@ export function CreateAccountSection({
               type="radio"
               name={`${uniq}-kind`}
               checked={kind === "email"}
-              onChange={() => setKind("email")}
+              onChange={() => {
+                setKind("email");
+                setRetryable(false);
+              }}
             />{" "}
             Email
           </label>
+          <label className="inline-choice">
+            <input
+              type="radio"
+              name={`${uniq}-kind`}
+              checked={kind === "gmail"}
+              onChange={() => {
+                setKind("gmail");
+                setRetryable(false);
+              }}
+            />{" "}
+            Chỉ Gmail (không mật khẩu)
+          </label>
           <label>
-            {kind === "phone" ? "Số điện thoại" : "Email"}
+            {kind === "phone"
+              ? "Số điện thoại"
+              : kind === "gmail"
+                ? "Gmail"
+                : "Email"}
             <input
               type={kind === "phone" ? "tel" : "email"}
               inputMode={kind === "phone" ? "tel" : "email"}
               autoComplete="off"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder={kind === "phone" ? "Ví dụ 0914 222 987" : undefined}
+              placeholder={
+                kind === "phone"
+                  ? "Ví dụ 0914 222 987"
+                  : kind === "gmail"
+                    ? "ten@gmail.com"
+                    : undefined
+              }
               required
             />
           </label>
@@ -159,7 +219,13 @@ export function CreateAccountSection({
             />
           </label>
           <button className="primary" type="submit">
-            {busy ? "Đang tạo…" : retryable ? "Thử lại" : "Tạo tài khoản"}
+            {busy
+              ? "Đang tạo…"
+              : retryable
+                ? "Thử lại"
+                : kind === "gmail"
+                  ? "Ghi sẵn quyền cho Gmail"
+                  : "Tạo tài khoản"}
           </button>
         </fieldset>
       </form>
@@ -167,6 +233,19 @@ export function CreateAccountSection({
         <p role="alert" className="notice">
           {error}
         </p>
+      )}
+      {grantedGmail && (
+        <div role="status" className="notice users-created">
+          <p>
+            <strong>Đã ghi sẵn quyền Chỉ xem cho {grantedGmail}.</strong> Không
+            có mật khẩu. Báo thành viên mở trang đăng nhập và bấm “Đăng nhập
+            bằng Gmail” bằng đúng địa chỉ này; quyền được kích hoạt ở lần đăng
+            nhập đầu. Nhập nhầm địa chỉ thì thu hồi ở danh sách bên dưới.
+          </p>
+          <button type="button" onClick={() => setGrantedGmail("")}>
+            Đã ghi lại
+          </button>
+        </div>
       )}
       {result && (
         <div role="status" className="notice users-created">
