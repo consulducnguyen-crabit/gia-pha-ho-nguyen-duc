@@ -447,7 +447,13 @@ try {
       input.y < submit.y
     ))
       throw Error(`${width}: sai thứ tự nhãn, tờ lịch, tiêu đề, ô nhập, nút`);
+    // Nút Đăng nhập (xanh) và nút Gmail cùng bề ngang.
+    if (Math.abs(submit.width - gmail.width) > 1)
+      throw Error(
+        `${width}: nút Đăng nhập (${submit.width}px) khác nút Gmail (${gmail.width}px)`,
+      );
     for (const [name, r] of [
+      ["nút Đăng nhập", submit],
       ["nhãn", eyebrow],
       ["tờ lịch", b],
       ["nút Gmail", gmail],

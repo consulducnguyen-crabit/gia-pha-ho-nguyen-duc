@@ -357,6 +357,14 @@ input {
   width: 100%;
   margin-top: var(--space-2);
 }
+.login .login-btn {
+  /* Nút Đăng nhập và nút Gmail cùng một bề ngang, căn giữa (thu lại theo chiều rộng khi màn hẹp). */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 19rem);
+  margin-inline: auto;
+}
 /* Form đăng nhập gọn: nhãn bên trái, ô nhập bên phải cùng một hàng (tiết kiệm một dòng cho mỗi trường). */
 .login .login-row {
   display: grid;
