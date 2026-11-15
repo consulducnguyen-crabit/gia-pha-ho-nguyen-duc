@@ -95,7 +95,7 @@ Khu "Mời thành viên", đăng nhập bằng liên kết email, `?invitee=` v�
 
 ## Đăng nhập bằng số điện thoại (đã duyệt 2026-11-14)
 
-- Trang đăng nhập có hai tab **Điện thoại | Email**, cùng dùng Email/Mật khẩu của Firebase Auth. Số điện thoại được chuẩn hóa (bỏ khoảng trắng, `+84`/`84` thành `0`, đầu số di động 03/05/07/08/09) rồi ngầm ghép thành `0914222987@gp.nguyenduc` (`src/phoneLogin.ts`). Địa chỉ này là giả: không gửi thư, không dùng để đặt lại mật khẩu.
+- Trang đăng nhập có hai tab **Điện thoại | Email**, cùng dùng Email/Mật khẩu của Firebase Auth. Số điện thoại được chuẩn hóa (bỏ khoảng trắng, `+84`/`84` thành `0`; hợp lệ khi có **10 hoặc 11 chữ số**, bắt đầu bằng `0`, chữ số thứ hai khác `0`; từ 2026-11-15 không còn giới hạn đầu số di động 03/05/07/08/09) rồi ngầm ghép thành `0914222987@gp.nguyenduc` (`src/phoneLogin.ts`). Địa chỉ này là giả: không gửi thư, không dùng để đặt lại mật khẩu.
 - Đăng nhập không thành công (sai mật khẩu, chưa có tài khoản, số sai định dạng) luôn hiện **cùng một thông báo** kèm số Zalo người nhận đăng ký (`REGISTER_CONTACT` trong `src/phoneLogin.ts`), không tiết lộ tài khoản có tồn tại hay không.
 - Quyết định đã chốt: giữ nút Google cho tài khoản sẵn có; quên mật khẩu thì liên hệ quản trị viên (chạy `gia-pha:accounts reset-password --email 0914222987@gp.nguyenduc --apply` trên máy); bắt buộc đổi mật khẩu ở lần đăng nhập đầu.
 

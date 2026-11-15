@@ -67,7 +67,7 @@ export function loginEmailFor(kind: LoginKind, value: string): string {
     if (!email)
       throw new CreateAccountError(
         "INVALID_IDENTIFIER",
-        "Số điện thoại không hợp lệ. Nhập số di động Việt Nam 10 chữ số, ví dụ 0914222987.",
+        "Số điện thoại không hợp lệ. Nhập số điện thoại Việt Nam 10 hoặc 11 chữ số, ví dụ 0914222987.",
       );
     return email;
   }
@@ -126,7 +126,7 @@ const code = (e: unknown) => (e as { code?: string } | null)?.code ?? "";
 export interface CreatedAccount {
   uid: string;
   email: string;
-  /** Số điện thoại 10 chữ số (khi tạo theo điện thoại) để hiển thị cho quản trị viên. */
+  /** Số điện thoại 10 hoặc 11 chữ số (khi tạo theo điện thoại) để hiển thị cho quản trị viên. */
   phone: string | null;
   password: string;
 }

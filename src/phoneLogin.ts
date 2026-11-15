@@ -9,17 +9,20 @@ export const REGISTER_CONTACT = {
   label: "cháu/em Chi II - Đời 7",
 } as const;
 
+/** Số điện thoại Việt Nam hợp lệ: 10 hoặc 11 chữ số, bắt đầu bằng 0 và chữ số thứ hai khác 0 (00 là tiền tố quốc tế). */
+const VN_PHONE_RE = /^0[1-9]\d{8,9}$/;
+
 /**
- * Chuẩn hóa số điện thoại di động Việt Nam về dạng 10 số bắt đầu bằng 0.
+ * Chuẩn hóa số điện thoại Việt Nam về dạng 10 hoặc 11 chữ số bắt đầu bằng 0 (cả hai độ dài đều hợp lệ).
  * Chấp nhận khoảng trắng, dấu chấm, gạch ngang, ngoặc; tiền tố +84 / 84 / 0084. Không hợp lệ thì trả null.
  */
 export function normalizeVnPhone(input: string): string | null {
   let s = input.trim().replace(/[\s.\-()]/g, "");
   if (s.startsWith("+")) s = s.slice(1);
   if (s.startsWith("0084")) s = "0" + s.slice(4);
-  else if (s.startsWith("84") && s.length === 11) s = "0" + s.slice(2);
-  // Đầu số di động Việt Nam hiện hành: 03x, 05x, 07x, 08x, 09x.
-  return /^0[35789]\d{8}$/.test(s) ? s : null;
+  else if (s.startsWith("84") && (s.length === 11 || s.length === 12))
+    s = "0" + s.slice(2);
+  return VN_PHONE_RE.test(s) ? s : null;
 }
 
 /** Email ngầm của số điện thoại; null nếu số không hợp lệ. */
@@ -30,7 +33,7 @@ export function phoneToEmail(input: string): string | null {
 
 /** Email ngầm dạng số điện thoại (để giao diện ẩn đuôi, hiện lại thành số điện thoại). */
 export function emailToPhone(email: string): string | null {
-  const m = /^(0[35789]\d{8})@gp\.nguyenduc$/i.exec(email.trim());
+  const m = /^(0[1-9]\d{8,9})@gp\.nguyenduc$/i.exec(email.trim());
   return m ? m[1] : null;
 }
 

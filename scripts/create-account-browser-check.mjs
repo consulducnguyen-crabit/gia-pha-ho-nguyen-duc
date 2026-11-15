@@ -168,6 +168,36 @@ try {
     "Số điện thoại không hợp lệ",
   );
 
+  stage = "số 12 chữ số vẫn báo lỗi (chỉ nhận 10 hoặc 11 chữ số)";
+  section = await createAccount(ap, "phone", "090000000123");
+  await expect(section.getByRole("alert")).toContainText("10 hoặc 11 chữ số");
+
+  stage = "số 11 chữ số hợp lệ: tạo được và đăng nhập được (buộc đổi mật khẩu)";
+  const PHONE11 = "01691234567";
+  section = await createAccount(
+    ap,
+    "phone",
+    "0169 123 4567",
+    "Giả Văn Mười Một",
+  );
+  const status11 = section.getByRole("status");
+  await expect(status11).toContainText("Đã tạo tài khoản");
+  await expect(status11).toContainText(PHONE11);
+  const temp11 = (await status11.locator("code").innerText()).trim();
+  const user11 = await auth.getUserByEmail(`${PHONE11}@gp.nguyenduc`);
+  const doc11 = (await db.doc(`users/${user11.uid}`).get()).data();
+  if (!doc11 || doc11.createdVia !== "phone" || doc11.enabled !== true)
+    throw Error("Hồ sơ tài khoản 11 chữ số sai");
+  await expect(
+    ap.getByRole("cell", { name: PHONE11, exact: true }),
+  ).toBeVisible();
+  const { ctx: c11, page: p11 } = await newPage(360);
+  await login(p11, "Số điện thoại", PHONE11, temp11);
+  await expect(
+    p11.getByRole("heading", { name: "Đổi mật khẩu" }),
+  ).toBeVisible();
+  await c11.close();
+
   stage = "tạo tài khoản bằng email thật";
   await ap.getByRole("radio", { name: "Email" }).check();
   section = await createAccount(ap, "email", "Co.Email@Example.test");

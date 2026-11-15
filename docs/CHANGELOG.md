@@ -1,3 +1,9 @@
+# Số điện thoại 10 hoặc 11 chữ số đều hợp lệ — 2026-11-15
+
+- Theo yêu cầu: số điện thoại Việt Nam có 10 hoặc 11 chữ số (bắt đầu bằng `0`, chữ số thứ hai khác `0`) đều hợp lệ khi tạo tài khoản và khi đăng nhập (`normalizeVnPhone` trong `src/phoneLogin.ts`, dùng chung cho cả hai). Đổi `+84`/`84`/`0084` cho cả 10 và 11 chữ số.
+- **Đổi chính sách:** trước đây chỉ nhận 10 chữ số với đầu số di động 03/05/07/08/09; nay không còn kiểm đầu số (số cố định như 02x và số 11 chữ số kiểu cũ 01xx đều nhận). Hệ quả: gõ nhầm đầu số khó bị phát hiện hơn; chỉ cần đúng độ dài.
+- Không đổi `firestore.rules` (rules chỉ kiểm email chung). Tài khoản 10 chữ số đã có vẫn đăng nhập như cũ (email ngầm `số@gp.nguyenduc` không đổi). Số 10 và 11 chữ số khác nhau là hai tài khoản khác nhau.
+
 # Trang đăng nhập: đếm ngược đến ngày giỗ Tổ — 2026-11-15
 
 - Góc trên bên phải panel đăng nhập hiện ngày dương của lần giỗ Tổ kế tiếp (mùng 1 tháng 9 âm lịch), icon lịch và số ngày còn lại ("Hôm nay" nếu trùng). Tính tại trình duyệt theo giờ Việt Nam, không gọi máy chủ, không dùng dữ liệu gia phả; nếu không tính được thì ẩn khối này, không ảnh hưởng form đăng nhập.
