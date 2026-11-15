@@ -118,6 +118,9 @@ p {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  /* Tiêu đề, logo Hán Nôm và câu đối căn giữa theo chiều ngang của panel. */
+  align-items: center;
+  text-align: center;
 }
 /* Tên gia phả: tiêu đề chính của màn đăng nhập (lớn, đậm, màu son) */
 .story .gate-title {
@@ -134,6 +137,7 @@ p {
 /* Câu đối thư pháp ở cuối panel trái: chiếm phần trống bên dưới, cách xa dòng chữ nhỏ phía trên.
    Luôn hiển thị; hình co theo chiều cao khung nhìn (không bao giờ nhỏ hơn 120px) để mọi kích thước đều đủ nội dung. */
 .gate-art-slot {
+  align-self: stretch;
   margin-top: auto;
   padding-top: clamp(var(--space-3), 5vh, var(--space-7));
 }
@@ -165,12 +169,6 @@ p {
   font-weight: 600;
   letter-spacing: 2px;
   fill: var(--color-seal);
-}
-.story small {
-  display: block;
-  margin-top: clamp(var(--space-3), 5vh, var(--space-7));
-  letter-spacing: 2px;
-  font-size: 11px;
 }
 .tree-mark {
   font-size: 100px;
@@ -207,12 +205,6 @@ input {
 .login .primary {
   width: 100%;
   margin-top: var(--space-2);
-}
-.privacy {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin-top: var(--space-6);
-  line-height: 1.8;
 }
 .notice {
   border-left: 3px solid var(--color-primary);
@@ -419,9 +411,6 @@ main {
   }
   .story {
     padding: var(--space-5);
-  }
-  .story small {
-    margin-top: var(--space-4);
   }
   .story .tree-mark {
     font-size: clamp(56px, 13vw, 100px);

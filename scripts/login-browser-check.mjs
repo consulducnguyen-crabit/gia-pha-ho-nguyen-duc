@@ -155,7 +155,7 @@ try {
     await expect(art).toContainText("Cây có gốc, nước có nguồn");
     await expect(art).toContainText("MỘC HỮU BẢN · THỦY HỮU NGUYÊN");
     const box = await art.boundingBox();
-    const tag = await page.locator(".story small").boundingBox();
+    const tag = await page.locator(".story .tree-mark").boundingBox();
     if (!box || !tag) throw Error("Không đo được hình");
     const gap = box.y - (tag.y + tag.height);
     if (gap < (width > 800 ? 24 : 12))
@@ -164,6 +164,9 @@ try {
     if (width > 800 && box.y + box.height > 900 + 1)
       throw Error(`Hình vượt khung nhìn ở ${width}px`);
     for (const gone of [
+      "RIÊNG TƯ",
+      "Đăng nhập bằng tài khoản đã được cấp quyền",
+      "Dữ liệu gia phả chỉ mở sau khi kiểm tra quyền truy cập",
       "Từ cội nguồn",
       "nối những thế hệ",
       "Một nơi lưu giữ ký ức",
@@ -282,6 +285,13 @@ try {
         throw Error(
           `${tag}: sai thứ tự tiêu đề, biểu trưng, câu đối, đăng nhập`,
         );
+    }
+    // Tiêu đề, logo Hán Nôm và câu đối căn giữa theo chiều ngang của panel trái (hoặc cả trang khi dọc).
+    for (const name of ["title", "mark", "art"]) {
+      const off = Math.abs(
+        m[name].x + m[name].w / 2 - (m.story.x + m.story.w / 2),
+      );
+      if (off > 6) throw Error(`${tag}: ${name} lệch tâm ${Math.round(off)}px`);
     }
     // Đủ nội dung: mọi thành phần có kích thước thật, nằm gọn theo chiều ngang.
     for (const [name, b] of Object.entries(m))
