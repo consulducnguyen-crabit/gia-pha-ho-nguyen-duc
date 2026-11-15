@@ -81,6 +81,21 @@ describe("lệnh quản lý tài khoản", () => {
     const none = buildCommandGroups([], false, "").flatMap((g) => g.lines);
     expect(none.some((l) => l.startsWith("cd "))).toBe(false);
   });
+  it("đã nhập file khóa: mỗi lệnh tự đặt GOOGLE_APPLICATION_CREDENTIALS sau cd (nháy đơn thoát đúng) và bỏ nhóm chuẩn bị", () => {
+    const gs = buildCommandGroups(["a@x.vn"], false, "C:\\p", "D:\\k'ey.json");
+    expect(gs.some((g) => g.id === "setup")).toBe(false);
+    expect(gs.find((g) => g.id === "revoke")!.lines[0]).toBe(
+      "cd 'C:\\p'; $env:GOOGLE_APPLICATION_CREDENTIALS = 'D:\\k''ey.json'; npm run gia-pha:accounts -- revoke --email a@x.vn --apply",
+    );
+    // Không có thư mục: chỉ có biến khóa.
+    expect(
+      buildCommandGroups([], false, "", "K:\\k.json").find(
+        (g) => g.id === "list",
+      )!.lines[0],
+    ).toBe(
+      "$env:GOOGLE_APPLICATION_CREDENTIALS = 'K:\\k.json'; npm run gia-pha:accounts -- list",
+    );
+  });
   it("nhóm chuẩn bị đặt GOOGLE_APPLICATION_CREDENTIALS bằng đường dẫn mẫu", () => {
     const setup = buildCommandGroups([], false, "C:\\p").find(
       (g) => g.id === "setup",

@@ -46,10 +46,15 @@ export function buildCommandGroups(
   rawEmails: string[],
   prod: boolean,
   projectDir = "",
+  keyPath = "",
 ): CommandGroup[] {
   // Mỗi dòng tự chuyển vào thư mục dự án (npm chỉ tìm thấy script ở đó) nên dán vào PowerShell ở đâu cũng chạy được.
   const dir = projectDir.trim();
-  const cd = dir ? `cd ${psPath(dir)}; ` : "";
+  const key = keyPath.trim();
+  // Khóa Admin: script chỉ kết nối được khi biến này trỏ tới file khóa (để ngoài repo). Gắn sẵn vào từng lệnh khi đã nhập đường dẫn.
+  const cd =
+    (dir ? `cd ${psPath(dir)}; ` : "") +
+    (key ? `$env:GOOGLE_APPLICATION_CREDENTIALS = ${psPath(key)}; ` : "");
   const emails = [...new Set(rawEmails.map((e) => e.trim()).filter(Boolean))];
   const selected = emails.length > 0;
   const each = (sample: string, make: (email: string) => string): string[] =>
@@ -136,16 +141,22 @@ export function buildCommandGroups(
       perAccount: false,
     },
   ];
+  // Chưa nhập đường dẫn khóa: có thêm nhóm "Chuẩn bị" với đường dẫn mẫu để người dùng thay bằng file thật.
+  const setup: CommandGroup[] = key
+    ? []
+    : [
+        {
+          id: "setup",
+          title: "Chuẩn bị (mỗi cửa sổ PowerShell mới)",
+          note: "Đặt khóa Admin (file khóa nằm ngoài repo) cho cửa sổ hiện tại; thay đường dẫn bằng file thật, hoặc nhập đường dẫn vào ô “File khóa Admin” để mọi lệnh tự đặt biến này. Thiếu bước này, lệnh sẽ báo “Thiếu GOOGLE_APPLICATION_CREDENTIALS”.",
+          lines: [
+            `${cd}$env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\\đường-dẫn\\khóa-admin.json'`,
+          ],
+          perAccount: false,
+        },
+      ];
   return [
-    {
-      id: "setup",
-      title: "Chuẩn bị (mỗi cửa sổ PowerShell mới)",
-      note: "Đặt khóa Admin (file khóa nằm ngoài repo) cho cửa sổ hiện tại; thay đường dẫn bằng file thật. Thiếu bước này, lệnh sẽ báo “Thiếu GOOGLE_APPLICATION_CREDENTIALS”.",
-      lines: [
-        `${cd}$env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\\đường-dẫn\\khóa-admin.json'`,
-      ],
-      perAccount: false,
-    },
+    ...setup,
     ...groups.map((g) => ({ ...g, lines: g.lines.map((l) => cd + l) })),
   ];
 }
