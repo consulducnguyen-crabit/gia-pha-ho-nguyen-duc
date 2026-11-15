@@ -1,3 +1,9 @@
+# Dọn backend lời mời emulator-only — 2026-11-15
+
+- Xóa `src/Membership.tsx` (mã chết), `functions/src/membership.ts` (4 endpoint `createInvitation`/`acceptInvitation`/`revokeInvitation`/`disableMembership`), `functions/tests/backend.test.ts`, `scripts/invitation-browser-check.mjs`, `functions/scripts/seed.mjs` (`seed:invitations`), `docs/INVITATIONS*.md`; bỏ bước `test:backend` khỏi CI. Backend đề xuất (`proposals.ts`) giữ nguyên.
+- Lệnh `gia-pha:accounts delete` không còn đọc `accountInvites`/chặn khi có lời mời PENDING; bỏ tham số `invite`, `nowMs` của `planDelete`/`recheckDelete`.
+- Không đổi `firestore.rules`, giao diện hay quyền.
+
 # Tổng quan: người có năm mất hoặc tích "Đã mất" luôn bị loại — 2026-11-15
 
 - Logic chốt: có năm mất → tự động là "Đã mất"; chưa có năm mất mà có tick "Đã mất" → cũng là "Đã mất". Hai nhóm này bị loại khỏi MỌI số liệu ở Tổng quan, **kể cả khi dữ liệu năm của họ bất thường** (năm mất trước năm sinh, thọ quá 120 tuổi, năm ở tương lai, cờ năm sinh mâu thuẫn) — trước đây các ca đó vẫn bị tính vào nhóm "cần kiểm tra". Hàm `isMarkedDeceased` (`src/overviewStats.ts`).

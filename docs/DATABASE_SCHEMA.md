@@ -42,19 +42,9 @@ Paths like `private/persons/{personId}/{mediaId}`; Storage Rules must check memb
 `memberProfiles/{personId}` là projection tạo bằng allowlist: displayName, normalizedName, profileVersion, schemaVersion, birthYear, deathYear (nạp bằng script quản trị; cập nhật trong lô sửa của quản trị viên). Không chứa ngày sinh đầy đủ, liên hệ, nguồn, ghi chú hoặc lý do ngoại lệ. Client chỉ đọc collection này khi enabled.
 `persons`, `personPrivate` chỉ quản trị viên (`manager`) đọc; `relations` chỉ `get` theo mã (trong giao dịch của quản trị viên), `unions` chỉ quản trị viên `get` theo mã (không liệt kê; thay đổi 2026-11-12 để biết liên kết đã gỡ), ghi qua lô sửa; thành viên thường không đọc được các collection này (tên và quan hệ cho thành viên lấy từ `memberProfiles` và `treeSnapshots/main`). Không migrate hay tự công bố dữ liệu cũ; phải có dry-run và review phân loại trước backfill. Seed dev chỉ ghi projection giả.
 
-## Lời mời — schema 1, chỉ emulator
+## Lời mời — ĐÃ GỠ (2026-11-15)
 
-- invitations/{sha256Token}: targetUid, email, issuerUid, issuerAccessVersion,
-  targetAccessVersion, status (PENDING/ACCEPTED/REVOKED), createdAt, expiresAt,
-  schemaVersion; acceptedBy/At hoặc revokedBy/At khi chuyển trạng thái. Không lưu mã thô.
-- users bổ sung accessVersion: integer tăng khi cấp/thu hồi membership;
-  canManageMembership chỉ ở fixture manager do server tạo. Legacy missing version=0;
-  null/invalid version bị từ chối. Không cho client tự sửa bất kỳ trường quyền nào.
-- auditLogs bổ sung sự kiện INVITATION_CREATED/ACCEPTED/REVOKED và MEMBERSHIP_DISABLED.
-  Receipt thu hồi dùng request UUID để retry không ghi lại; không có email/token thô.
-
-Không migrate dữ liệu thật hoặc đổi schema version gốc. Xem INVITATIONS.md cho
-invariants transaction và các quyết định production chưa chốt.
+Backend lời mời emulator-only (`invitations/{sha256Token}`, sự kiện `INVITATION_*`/`MEMBERSHIP_DISABLED`) đã bị gỡ khỏi mã; cấp quyền do quản trị viên làm trong `#/users`. Dữ liệu thật chưa từng có các collection này. Sự kiện cũ nếu còn trong `auditLogs` vẫn hiển thị là "Sự kiện khác".
 
 ## Đề xuất — schema 1, chỉ emulator
 
@@ -75,6 +65,8 @@ reviewer được bảo vệ khỏi luồng quản lý ordinary-member để kh�
 Xem PROPOSALS.md về workflow, giới hạn graph và rollback.
 
 ## Tài khoản và lời mời trong app — schema 1 (PR-A, chưa deploy)
+
+> **Lưu ý (2026-11-15):** phần lời mời (`accountInvites`, `invitationNonce`, sự kiện `INVITATION_*`/`INVITE_*`) đã bị gỡ ở PR3 và đợt dọn backend; chỉ còn lại để tra cứu lịch sử. Không còn rule hay mã nào ghi/đọc chúng; dữ liệu cũ nếu có không cấp quyền gì. Phần `accessControl/admins`, `users` và `ACCOUNT_*` vẫn đang dùng.
 
 - `accessControl/admins`: `adminUids` (list<string>, 1..20), `version` (int, +1 mỗi lần đổi), `lastTargetUid` (string), `schemaVersion` 1. Bất biến: uid thuộc `adminUids` khi và chỉ khi `users/{uid}.enabled == true && canManageMembership == true`. Client chỉ update; khởi tạo bằng script Admin.
 - `accountInvites/{emailViếtThường}`: `email`, `role` ('VIEWER'), `displayName`?, `status` (PENDING|ACCEPTED|REVOKED), `nonce` (36 ký tự), `createdBy`, `createdAt`, `expiresAt` (<= 7 ngày), `acceptedBy/At`, `revokedBy/At`, `schemaVersion` 1. Chứa email nên chỉ quản trị viên và đúng người được mời đọc được.

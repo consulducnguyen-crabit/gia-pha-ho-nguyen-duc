@@ -1,5 +1,5 @@
 // Logic thuần cho quản lý tài khoản (không I/O). Dùng bởi scripts/gia-pha/accounts.ts.
-// Cấu trúc users/{uid} khớp backend lời mời (functions/src/membership.ts).
+// Cấu trúc users/{uid} khớp rules và app (src/accountsClient.ts).
 import { randomInt } from "node:crypto";
 
 export const ACTOR = "admin-local-script";
@@ -470,15 +470,13 @@ export interface DeletePlan {
 /**
  * Kế hoạch xóa HẲN một tài khoản (users + Firebase Auth); thao tác KHÔNG hoàn tác nên chặn chặt:
  * phải tìm thấy Auth; users (nếu có) phải ĐÃ vô hiệu hóa; không phải quản trị viên (users, sổ hoặc canManageMembership);
- * sổ phải khớp users; sau khi xóa vẫn còn quản trị viên hiệu lực nằm trong sổ. Lời mời PENDING chỉ cảnh báo.
+ * sổ phải khớp users; sau khi xóa vẫn còn quản trị viên hiệu lực nằm trong sổ.
  */
 export function planDelete(input: {
   authUser: { uid: string } | null;
   userDoc: Record<string, unknown> | undefined;
   ledger: Ledger | undefined;
   allUsers: Map<string, Record<string, unknown>>;
-  invite: Record<string, unknown> | undefined;
-  nowMs: number;
 }): DeletePlan {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -525,14 +523,6 @@ export function planDelete(input: {
     if (!remaining.length)
       errors.push("Sau khi xóa sẽ không còn quản trị viên hiệu lực nào.");
   }
-  const status = inviteStatusOf(input.invite, input.nowMs);
-  if (status === "PENDING")
-    // Sau khi xóa users + Auth, người này đăng nhập lại cùng email (uid mới) sẽ NHẬN LẠI quyền qua chính lời mời đang chờ.
-    errors.push(
-      "Còn lời mời ĐANG CHỜ cho email này. Thu hồi lời mời trong #/users trước: nếu không, người này đăng nhập lại cùng email sẽ nhận lại quyền qua chính lời mời đó.",
-    );
-  else if (status)
-    warnings.push(`Lời mời cho email này ở trạng thái ${status} (không đổi).`);
   if (userDoc)
     steps.push(
       "Xóa hồ sơ users và ghi nhật ký ACCOUNT_DELETED (không có email/tên).",
@@ -553,7 +543,7 @@ export function planDelete(input: {
 
 /**
  * Kiểm lại ngay trước khi xóa (trong giao dịch): trạng thái có thể đã đổi giữa lúc lập kế hoạch và lúc xóa
- * (bật lại, nâng quyền, sổ lệch, lời mời mới...). Trả về lý do chặn hoặc null nếu vẫn hợp lệ.
+ * (bật lại, nâng quyền, sổ lệch...). Trả về lý do chặn hoặc null nếu vẫn hợp lệ.
  */
 export function recheckDelete(
   plannedUid: string,
@@ -561,19 +551,6 @@ export function recheckDelete(
 ): string | null {
   const again = planDelete({ ...current, authUser: { uid: plannedUid } });
   return again.ok ? null : again.errors.join(" ");
-}
-
-function inviteStatusOf(
-  invite: Record<string, unknown> | undefined,
-  nowMs: number,
-): string | null {
-  if (!invite) return null;
-  if (invite.status === "ACCEPTED" || invite.status === "REVOKED")
-    return invite.status;
-  if (invite.status !== "PENDING") return null;
-  const t = invite.expiresAt as { toMillis?: () => number } | undefined;
-  const exp = t && typeof t.toMillis === "function" ? t.toMillis() : null;
-  return exp !== null && exp > nowMs ? "PENDING" : "EXPIRED";
 }
 
 export type Command =

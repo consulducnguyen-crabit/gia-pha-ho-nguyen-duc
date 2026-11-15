@@ -3,8 +3,7 @@
 ## Phạm vi
 
 Schema version 1. Dữ liệu thật (prod) đã nạp một lần từ file nguồn riêng; sau đó quản trị viên sửa trong app qua các lô
-có nhật ký (xem IN_APP_EDIT.md). Backend lời mời chỉ ghi membership, invitations và audit trong emulator; trình duyệt chỉ
-ghi được các lô sửa của quản trị viên đã qua rules (không có ghi trực tiếp nào khác).
+có nhật ký (xem IN_APP_EDIT.md). Trình duyệt chỉ ghi được các lô sửa của quản trị viên đã qua rules (không có ghi trực tiếp nào khác).
 Media bị khóa toàn bộ cho đến khi triển khai và kiểm chứng ACL chi tiết. Vai trò
 editor/approver chưa có đặc quyền. Không phân phối dữ liệu giả trong frontend bundle.
 
@@ -15,9 +14,8 @@ Node 24, Java 21. `npm ci`; `npm ci --prefix functions`; `npm run emulators` (pr
 Chạy frontend: `VITE_USE_EMULATORS=true npm run dev`. Đăng nhập thanhvien@example.test / Demo-only-2026! (chỉ emulator).
 Không dùng emulator từ hostname bên ngoài localhost/127.0.0.1. Không expose cổng emulator.
 
-Luồng lời mời/cấp quyền có hướng dẫn riêng tại [INVITATIONS.md](INVITATIONS.md).
-Functions emulator trên 127.0.0.1:5001; backend fail closed ngoài emulator.
-Kết quả mới nhất tại [INVITATIONS_VERIFICATION.md](INVITATIONS_VERIFICATION.md).
+Cấp quyền và quản lý tài khoản xem [ACCOUNTS.md](ACCOUNTS.md).
+Functions emulator trên 127.0.0.1:5001; backend (chỉ phần đề xuất) fail closed ngoài emulator.
 
 Luồng đề xuất/phê duyệt thử nghiệm có hướng dẫn tại [PROPOSALS.md](PROPOSALS.md).
 Chỉ chạy graph integration/browser trên fixture cô lập; không chạy đồng thời bộ
