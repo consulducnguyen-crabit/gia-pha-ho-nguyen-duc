@@ -152,8 +152,27 @@ try {
       "true",
     );
     await expect(art).toBeVisible();
-    await expect(art).toContainText("Cây có gốc, nước có nguồn");
-    await expect(art).toContainText("MỘC HỮU BẢN · THỦY HỮU NGUYÊN");
+    const slot = page.locator(".gate-art-slot");
+    await expect(slot).toContainText("Cây có gốc, nước có nguồn");
+    await expect(slot).toContainText("MỘC HỮU BẢN · THỦY HỮU NGUYÊN");
+    // Hai dòng chú thích là chữ thường, cỡ đủ đọc (không bị co theo hình): >= 18px và >= 11px, căn giữa.
+    const capPx = await page
+      .locator(".gate-art-caption")
+      .evaluate((e) =>
+        Number.parseFloat(globalThis.getComputedStyle(e).fontSize),
+      );
+    const readPx = await page
+      .locator(".gate-art-reading")
+      .evaluate((e) =>
+        Number.parseFloat(globalThis.getComputedStyle(e).fontSize),
+      );
+    if (capPx < 18 || readPx < 11)
+      throw Error(
+        `${width}: chú thích câu đối quá nhỏ (${capPx}px, ${readPx}px)`,
+      );
+    const capBox = await page.locator(".gate-art-caption").boundingBox();
+    if (!capBox || capBox.x < 0 || capBox.x + capBox.width > width + 1)
+      throw Error(`${width}: chú thích câu đối tràn ngang`);
     const box = await art.boundingBox();
     const tag = await page.locator(".story .tree-mark").boundingBox();
     if (!box || !tag) throw Error("Không đo được hình");
@@ -386,9 +405,37 @@ try {
         throw Error(`${width}: ${sel} lệch tâm cột bên phải`);
     }
     const b = await box.boundingBox();
-    const input = await page.locator(".login input").first().boundingBox();
+    const input = await page.locator(".login form").boundingBox();
     const eyebrow = await page.locator(".login-top .eyebrow").boundingBox();
     const h2 = await page.locator(".login h2").boundingBox();
+    // Nhãn và ô nhập cùng một hàng: nhãn bên trái, ô bên phải, hai cột thẳng hàng; ô nhập chưa bị co quá nhỏ.
+    const rows = [];
+    for (const name of ["Số điện thoại", "Mật khẩu"]) {
+      const row = page.locator("label.login-row", { hasText: name });
+      const field = await row.locator("input").boundingBox();
+      const text = await row.evaluate((e) => {
+        const r = globalThis.document.createRange();
+        r.selectNodeContents(e.firstChild);
+        const q = r.getBoundingClientRect();
+        return { x: q.x, y: q.y, width: q.width, height: q.height };
+      });
+      if (!field) throw Error(`${width}: không đo được ô ${name}`);
+      if (Math.abs(text.y + text.height / 2 - (field.y + field.height / 2)) > 4)
+        throw Error(`${width}: nhãn "${name}" không cùng hàng với ô nhập`);
+      if (!(text.x + text.width <= field.x))
+        throw Error(`${width}: nhãn "${name}" không nằm bên trái ô nhập`);
+      if (field.width < 150)
+        throw Error(`${width}: ô "${name}" quá hẹp: ${field.width}px`);
+      rows.push({ text, field });
+    }
+    if (
+      Math.abs(rows[0].field.x - rows[1].field.x) > 1 ||
+      Math.abs(rows[0].text.x - rows[1].text.x) > 1
+    )
+      throw Error(`${width}: hai hàng nhãn/ô nhập không thẳng cột`);
+    // Hai hàng liền nhau, mỗi hàng chỉ cao bằng ô nhập (không còn dòng nhãn riêng).
+    if (rows[1].field.y - rows[0].field.y > rows[0].field.height + 40)
+      throw Error(`${width}: khoảng cách giữa hai ô nhập quá lớn`);
     const submit = await page.locator(".login .primary").boundingBox();
     const gmail = await page.locator(".gmail-button").boundingBox();
     if (!b || !input || !eyebrow || !h2 || !submit || !gmail)
