@@ -9,6 +9,18 @@ Chưa có Cloud Functions nên tài khoản được quản lý bằng **công c
 
 Đăng nhập thành công **chưa** đồng nghĩa được xem dữ liệu: cần có `users/{uid}` với `enabled: true`. Tài khoản chưa được cấp quyền thấy màn "Chờ cấp quyền".
 
+## Chạy trên production
+
+Script chạy được trên `gia-pha-nguyen-duc-prod` nhưng có cổng bảo vệ (`scripts/gia-pha/prod-gate.ts`). Lệnh ghi cần đủ: `--project gia-pha-nguyen-duc-prod`, `--confirm gia-pha-nguyen-duc-prod`, `--ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod"` (riêng `delete`: `--ack "XOA TAI KHOAN gia-pha-nguyen-duc-prod"`), `--apply`, và biến môi trường `GOOGLE_APPLICATION_CREDENTIALS` trỏ tới khóa Admin SDK để **ngoài repo**. Không có `--apply` thì chỉ chạy thử. Ví dụ đặt lại mật khẩu:
+
+`npm run gia-pha:accounts -- reset-password --email 0914222987@gp.nguyenduc --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod" --apply`
+
+### Khi nào dùng Firebase Console thay cho script
+
+- Phù hợp: xem danh sách Authentication; xóa tài khoản Auth **mồ côi** (như sau lần tạo lỗi ở #63) — nhớ xóa luôn hồ sơ `users/{uid}` tương ứng trong Firestore.
+- **Không dùng được để đặt lại mật khẩu** tài khoản đăng nhập bằng số điện thoại: Console chỉ gửi thư đặt lại, mà email `@gp.nguyenduc` là địa chỉ giả. Dùng `reset-password` ở trên, hoặc xóa tài khoản rồi tạo lại ở `#/users`.
+- Không dùng Console để đổi quyền quản trị: sổ `accessControl/admins` phải khớp `users` (dùng nút trong `#/users` hoặc lệnh `role`/`registry`).
+
 ## Lệnh
 
 `npm run gia-pha:accounts -- <lệnh> [tùy chọn]`

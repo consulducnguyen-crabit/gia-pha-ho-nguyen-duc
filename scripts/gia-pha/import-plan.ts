@@ -266,7 +266,8 @@ export type TargetDecision =
   | { ok: true; kind: "emulator" | "dev" | "prod"; project: string }
   | { ok: false; reason: string };
 
-// Chỉ cho phép emulator cục bộ hoặc project kết thúc bằng -dev. Production bị cấm.
+// Cho phép emulator cục bộ hoặc project kết thúc bằng -dev. Production chỉ khi người gọi bật allowProd
+// (và vẫn phải qua cổng evaluateProdGate); mặc định production bị cấm.
 export function decideTarget(
   env: Record<string, string | undefined>,
   project: string | undefined,

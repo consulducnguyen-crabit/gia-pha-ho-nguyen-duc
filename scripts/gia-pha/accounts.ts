@@ -14,7 +14,8 @@
 // canManageMembership == true. Mọi lệnh ghi users đổi trạng thái quản trị viên cũng ghi sổ trong CÙNG giao dịch.
 // Không bao giờ làm số quản trị viên về 0 (kể cả khi có --force; --force không còn được hỗ trợ).
 // Mặc định các lệnh ghi chỉ in kế hoạch (không kết nối). Đích: emulator loopback (cả Firestore và Auth) hoặc
-// project -dev (cần GOOGLE_APPLICATION_CREDENTIALS ngoài repo và --confirm <project>). Production bị từ chối.
+// project -dev hoặc production (cần GOOGLE_APPLICATION_CREDENTIALS ngoài repo, --confirm <project>; riêng
+// production thêm --ack "QUAN LY TAI KHOAN <project>", lệnh delete dùng "XOA TAI KHOAN <project>").
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import {
