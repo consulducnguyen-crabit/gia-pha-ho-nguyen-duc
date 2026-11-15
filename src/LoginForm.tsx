@@ -137,14 +137,14 @@ export function LoginForm() {
           />
         </label>
         {failed && <LoginFailedNotice id="login-error" />}
-        <button className="primary" disabled={busy}>
+        <button className="primary login-btn" disabled={busy}>
           {busy ? "Đang đăng nhập…" : "Đăng nhập →"}
         </button>
       </form>
       <p className="login-or">hoặc</p>
       <button
         type="button"
-        className="gmail-button"
+        className="gmail-button login-btn"
         disabled={busy}
         onClick={() => void onGoogle()}
       >
