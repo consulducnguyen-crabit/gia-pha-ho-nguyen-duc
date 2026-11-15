@@ -1,9 +1,20 @@
 import js from "@eslint/js";
 import ts from "typescript-eslint";
 export default ts.config(
-  { ignores: ["dist/**", "**/node_modules/**", "functions/lib/**", "*-debug.log"] },
+  {
+    ignores: [
+      "dist/**",
+      "**/node_modules/**",
+      "functions/lib/**",
+      "*-debug.log",
+    ],
+  },
   js.configs.recommended,
   ...ts.configs.recommended,
+  {
+    files: ["public/sw.js"],
+    languageOptions: { globals: { self: "readonly" } },
+  },
   {
     files: ["**/scripts/**/*.mjs", "**/scripts/**/*.ts"],
     languageOptions: {

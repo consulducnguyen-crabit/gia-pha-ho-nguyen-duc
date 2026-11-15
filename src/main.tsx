@@ -25,6 +25,8 @@ import { WelcomeBanner } from "./WelcomeBanner";
 import { OverviewStats } from "./OverviewStatsView";
 import { pruneWelcome } from "./welcome";
 import { AncestorCountdown } from "./AncestorCountdown";
+import { startInstallCapture } from "./installPrompt";
+import { registerServiceWorker } from "./registerServiceWorker";
 import { Proposals } from "./Proposals";
 import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
@@ -482,6 +484,9 @@ function Overview({
     </>
   );
 }
+// Bắt sự kiện cài đặt sớm (trước khi trang đăng nhập hiện) và đăng ký service worker tối giản (không cache).
+startInstallCapture();
+registerServiceWorker();
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <HashRouter>
