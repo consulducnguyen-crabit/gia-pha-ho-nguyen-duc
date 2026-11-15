@@ -143,7 +143,7 @@ try {
       if (formTop > 40)
         throw Error(`Khối đăng nhập cách mép trên ${formTop}px ở ${width}px`);
     }
-    // Câu đối thư pháp ở cuối panel trái: chỉ trang trí (aria-hidden), hiện khi hai cột, ẩn khi màn hẹp,
+    // Câu đối thư pháp: chỉ trang trí (aria-hidden), LUÔN hiện (dọc: dưới tiêu đề; ngang: cuối panel trái),
     // cách dòng chữ nhỏ phía trên, không đè và không vượt khung nhìn.
     const art = page.locator(".gate-art");
     await expect(art).toHaveCount(1);
@@ -151,21 +151,18 @@ try {
       "aria-hidden",
       "true",
     );
-    if (width > 800) {
-      await expect(art).toBeVisible();
-      await expect(art).toContainText("Cây có gốc, nước có nguồn");
-      await expect(art).toContainText("MỘC HỮU BẢN · THỦY HỮU NGUYÊN");
-      const box = await art.boundingBox();
-      const tag = await page.locator(".story small").boundingBox();
-      if (!box || !tag) throw Error("Không đo được hình");
-      const gap = box.y - (tag.y + tag.height);
-      if (gap < 24)
-        throw Error(`Hình cách chữ phía trên chỉ ${gap}px ở ${width}px`);
-      if (box.y + box.height > 900 + 1)
-        throw Error(`Hình vượt khung nhìn ở ${width}px`);
-    } else {
-      await expect(art).toBeHidden();
-    }
+    await expect(art).toBeVisible();
+    await expect(art).toContainText("Cây có gốc, nước có nguồn");
+    await expect(art).toContainText("MỘC HỮU BẢN · THỦY HỮU NGUYÊN");
+    const box = await art.boundingBox();
+    const tag = await page.locator(".story small").boundingBox();
+    if (!box || !tag) throw Error("Không đo được hình");
+    const gap = box.y - (tag.y + tag.height);
+    if (gap < (width > 800 ? 24 : 12))
+      throw Error(`Hình cách chữ phía trên chỉ ${gap}px ở ${width}px`);
+    if (box.height < 120) throw Error(`Hình quá nhỏ ở ${width}px`);
+    if (width > 800 && box.y + box.height > 900 + 1)
+      throw Error(`Hình vượt khung nhìn ở ${width}px`);
     for (const gone of [
       "Từ cội nguồn",
       "nối những thế hệ",
@@ -233,6 +230,65 @@ try {
     const { ctx, page } = await fresh();
     await signIn(page, "Số điện thoại", "khong-co@example.test");
     await expectFailureNotice(page);
+    await ctx.close();
+  }
+
+  stage =
+    "bố cục theo hướng xoay: ngang như desktop (hai cột), dọc từ trên xuống; đủ nội dung ở mọi kích thước";
+  for (const [width, height] of [
+    [360, 640],
+    [480, 800],
+    [768, 1024],
+    [820, 1180],
+    [1000, 1200],
+    [640, 360],
+    [667, 375],
+    [800, 600],
+    [1024, 768],
+    [1180, 820],
+    [1280, 800],
+  ]) {
+    const ctx = await browser.newContext({ viewport: { width, height } });
+    const page = await ctx.newPage();
+    await page.goto(URL);
+    const tag = `${width}x${height}`;
+    await noOverflow(page);
+    const m = await page.evaluate(() => {
+      const r = (s) => {
+        const b = globalThis.document.querySelector(s).getBoundingClientRect();
+        return { x: b.x, y: b.y, w: b.width, h: b.height };
+      };
+      return {
+        story: r(".story"),
+        login: r(".login"),
+        art: r(".gate-art"),
+        mark: r(".story .tree-mark"),
+        title: r(".gate-title"),
+        h2: r(".login h2"),
+      };
+    });
+    const landscape = width > height && width > 560;
+    if (landscape) {
+      // Như desktop: hai cột cạnh nhau; câu đối thấy ngay không cần cuộn.
+      if (!(m.login.x >= m.story.x + m.story.w - 1))
+        throw Error(`${tag}: ngang nhưng không phải hai cột`);
+      if (m.art.y >= height)
+        throw Error(`${tag}: câu đối nằm ngoài màn hình đầu tiên`);
+    } else {
+      // Dọc: một cột, tiêu đề + biểu trưng + câu đối ở trên, ô đăng nhập ở dưới.
+      if (!(m.login.y >= m.story.y + m.story.h - 1))
+        throw Error(`${tag}: dọc nhưng ô đăng nhập không nằm dưới`);
+      if (!(m.title.y < m.mark.y && m.mark.y < m.art.y && m.art.y < m.login.y))
+        throw Error(
+          `${tag}: sai thứ tự tiêu đề, biểu trưng, câu đối, đăng nhập`,
+        );
+    }
+    // Đủ nội dung: mọi thành phần có kích thước thật, nằm gọn theo chiều ngang.
+    for (const [name, b] of Object.entries(m))
+      if (b.w < 40 || b.h < 20 || b.x < -1 || b.x + b.w > width + 1)
+        throw Error(`${tag}: ${name} thiếu hoặc tràn: ${JSON.stringify(b)}`);
+    await expect(page.getByLabel("Số điện thoại")).toBeVisible();
+    await expect(page.getByLabel("Mật khẩu")).toBeVisible();
     await ctx.close();
   }
 
