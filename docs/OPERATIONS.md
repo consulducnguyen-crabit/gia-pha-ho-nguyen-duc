@@ -90,6 +90,15 @@ số lượng và SHA-256 nội dung của 10 collections fixture cùng subcolle
 kiểm tra sáu hồ sơ giả, UID/đăng nhập Auth và SHA-256 media. Đây là diễn tập fixture
 emulator, không chứng minh restore production hoặc kiểm kê toàn bộ schema.
 
+## Chuẩn hóa "Đã mất" theo đời (2026-11-16)
+
+Quy tắc người dùng đã duyệt: mọi thành viên đời 1–4 (đời 4, 3, 2, 1) và mọi vợ/chồng của họ đều đã mất. Lệnh `npm run gia-pha:person-deceased` đặt `persons/{id}.deceased = true` và phần tử 9 của bộ trong `treeSnapshots/main` cho các người đó. Điều kiện: ảnh chụp đã có giới tính (`gia-pha:snapshot-sex` trước) và `gia-pha:reconcile` sạch (lệnh tự dừng nếu đời/loại giữa persons và ảnh chụp lệch nhau, kiểm cả hai chiều). Lưu ý: `gia-pha:snapshot-sex --strip` cắt bộ về 7 phần tử và làm mất luôn cờ "đã mất" trong ảnh chụp.
+
+1. Chạy thử (chỉ đọc): `npm run gia-pha:person-deceased -- --project <id> --show`. In số đếm và `editVersion`; `--show` in `mã | đời | sinh | vai trò | tên` để RÀ SOÁT (chỉ ra màn hình). Mục "CẦN XEM LẠI" liệt kê vợ/chồng thuộc dòng họ (đời > 4) hoặc loại EXTERNAL: lệnh KHÔNG tự đổi những người này. Mục "LƯU Ý" nêu người sinh từ 1940 (có thể còn sống) nhưng vẫn đánh dấu theo quy tắc đã duyệt: hãy xem kỹ. `--max-generation N` đổi mức đời. Dry-run dùng giao dịch chỉ đọc.
+2. Ghi: lệnh dry-run in sẵn dòng cần thêm: `... --apply --expect-version <editVersion> --expect-count <số cần đổi> --max-generation N --confirm <project>`; prod thêm `--ack "CHUAN HOA DA MAT <project>"` và `GOOGLE_APPLICATION_CREDENTIALS`. `--expect-count` buộc kế hoạch lúc ghi khớp bản đã rà soát (gõ nhầm `--max-generation` thì bị từ chối). Một giao dịch (tối đa 450 người), mỗi người đổi được nâng `profileVersion` + 1 (dùng để phát hiện sửa tay sau đó khi hoàn tác), KHÔNG tăng `editVersion`, ghi `auditLogs/maint-person-deceased-<ISO>` (`PERSON_DECEASED_BULK`: số đếm + mã người + trạng thái trước, không tên). Idempotent. Một phiên sửa đang mở trong app vẫn lưu được: biểu mẫu chỉ gửi các trường đã đổi và đọc `profileVersion` mới trong giao dịch.
+3. Hoàn tác: `--undo <mã nhật ký>` (dry-run rồi thêm cờ như bước 2): khôi phục ĐÚNG trạng thái trước của từng người (người vốn đã mất vẫn giữ đã mất). Người đã được sửa tay sau lần đánh dấu (`profileVersion` khác) bị bỏ qua và báo mã. Mỗi nhật ký chỉ hoàn tác được một lần.
+4. Sau đó chạy `gia-pha:snapshot-note` (mục dưới) để công bố ghi chú cho mọi người (nâng bộ lên 10 phần tử) mà không làm mất cờ đã mất. Kiểm thử emulator: `npm run test:person-deceased:e2e` (chưa nằm trong CI).
+
 ## Công bố ghi chú vào ảnh chụp cây (quyết định 2026-11-14)
 
 Ghi chú từng người hiển thị cho mọi thành viên ở Cây gia phả (bản cắt 300 ký tự, phần tử thứ 10 của bộ). Ghi chú ĐÃ CÓ không tự công bố; chỉ công bố khi quản trị viên lưu lại người đó trong app hoặc khi chạy lệnh dưới đây. Điều kiện: ảnh chụp đã có giới tính (`gia-pha:snapshot-sex` trước).
