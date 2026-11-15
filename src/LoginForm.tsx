@@ -114,7 +114,7 @@ export function LoginForm() {
   return (
     <div>
       <form noValidate onSubmit={(e) => void onSubmit(e)}>
-        <label>
+        <label className="login-row">
           Số điện thoại
           <input
             name="login"
@@ -126,7 +126,7 @@ export function LoginForm() {
             required
           />
         </label>
-        <label>
+        <label className="login-row">
           Mật khẩu
           <input
             name="password"
