@@ -1,3 +1,9 @@
+# Trang đăng nhập: đếm ngược đến ngày giỗ Tổ — 2026-11-15
+
+- Góc trên bên phải panel đăng nhập hiện ngày dương của lần giỗ Tổ kế tiếp (mùng 1 tháng 9 âm lịch), icon lịch và số ngày còn lại ("Hôm nay" nếu trùng). Tính tại trình duyệt theo giờ Việt Nam, không gọi máy chủ, không dùng dữ liệu gia phả; nếu không tính được thì ẩn khối này, không ảnh hưởng form đăng nhập.
+- `src/lunarCalendar.ts` (đổi âm → dương lịch Việt Nam, UTC+7, thuật toán Hồ Ngọc Đức), `src/ancestorDay.ts`, `src/AncestorCountdown.tsx`. Không dùng `Intl` lịch "chinese" vì tính theo UTC+8 (khác lịch Việt Nam ở một số tháng; mùng 1/9 giai đoạn 2020–2045 thì trùng).
+- Kiểm thử: `tests/ancestorDay.test.ts` (Tết 2020–2029, Rằm tháng 8, tháng nhuận 2023/2025, sóc sát nửa đêm), `scripts/login-browser-check.mjs` (vị trí, icon, đồng hồ cố định, múi giờ máy khác Việt Nam).
+
 # Dọn backend lời mời emulator-only — 2026-11-15
 
 - Xóa `src/Membership.tsx` (mã chết), `functions/src/membership.ts` (4 endpoint `createInvitation`/`acceptInvitation`/`revokeInvitation`/`disableMembership`), `functions/tests/backend.test.ts`, `scripts/invitation-browser-check.mjs`, `functions/scripts/seed.mjs` (`seed:invitations`), `docs/INVITATIONS*.md`; bỏ bước `test:backend` khỏi CI. Backend đề xuất (`proposals.ts`) giữ nguyên.

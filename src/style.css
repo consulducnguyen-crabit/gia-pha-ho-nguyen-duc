@@ -188,6 +188,50 @@ p {
 .login h2 {
   font-size: 36px;
 }
+/* Hàng đầu panel đăng nhập: nhãn bên trái, đếm ngược giỗ Tổ ở góc trên bên phải (xuống dòng khi hẹp). */
+.login-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.ancestor-countdown {
+  margin-left: auto;
+  text-align: right;
+  line-height: 1.4;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-soft);
+}
+.ancestor-title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--color-seal);
+}
+.ancestor-date {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-weight: 600;
+  color: var(--color-text);
+}
+.ancestor-icon {
+  flex: none;
+  color: var(--color-seal);
+}
+.ancestor-left {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.ancestor-left b {
+  font-size: 15px;
+  color: var(--color-seal);
+}
 .login label {
   display: block;
   margin: var(--space-5) 0;

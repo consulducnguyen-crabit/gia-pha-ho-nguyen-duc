@@ -24,6 +24,7 @@ import { ChangePasswordGate } from "./ChangePassword";
 import { WelcomeBanner } from "./WelcomeBanner";
 import { OverviewStats } from "./OverviewStatsView";
 import { pruneWelcome } from "./welcome";
+import { AncestorCountdown } from "./AncestorCountdown";
 import { Proposals } from "./Proposals";
 import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
@@ -365,7 +366,10 @@ function Gate({ state, user }: { state: string; user: User | null }) {
         </div>
       </section>
       <main className="login">
-        <div className="eyebrow">GÌN GIỮ CỘI NGUỒN</div>
+        <div className="login-top">
+          <div className="eyebrow">GÌN GIỮ CỘI NGUỒN</div>
+          <AncestorCountdown />
+        </div>
         <h2>
           {state === "setup"
             ? "Sẵn sàng kết nối"
