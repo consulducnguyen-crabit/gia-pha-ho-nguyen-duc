@@ -40,6 +40,13 @@ describe("loginEmailFor", () => {
       "0914222987@gp.nguyenduc",
     );
   });
+  it("điện thoại 11 chữ số cũng hợp lệ; 9 hoặc 12 chữ số bị từ chối", () => {
+    expect(loginEmailFor("phone", "0169 123 4567")).toBe(
+      "01691234567@gp.nguyenduc",
+    );
+    for (const bad of ["091422298", "091422298712"])
+      expect(() => loginEmailFor("phone", bad)).toThrow(CreateAccountError);
+  });
   it("email: viết thường, bỏ khoảng trắng", () => {
     expect(loginEmailFor("email", "  A.B@Example.TEST ")).toBe(
       "a.b@example.test",
