@@ -110,6 +110,76 @@ try {
     await ctx.close();
   }
 
+  stage = "tiêu đề tên gia phả lớn, nổi bật; đã bỏ khẩu hiệu cũ";
+  for (const width of [360, 768, 1280]) {
+    const { ctx, page } = await fresh(width);
+    const title = page.getByRole("heading", { level: 1 });
+    await expect(title).toHaveCount(1);
+    await expect(title).toHaveText("Gia phả Dòng họ Nguyễn Đức Phùng Xá");
+    // Đúng ba dòng: Gia phả / Dòng họ Nguyễn Đức / Phùng Xá (không bị tràn xuống dòng thứ tư).
+    const lines = await title.evaluate((e) => {
+      const r = globalThis.document.createRange();
+      r.selectNodeContents(e);
+      return new Set([...r.getClientRects()].map((x) => Math.round(x.top)))
+        .size;
+    });
+    if (lines !== 3) throw Error(`Tiêu đề có ${lines} dòng ở ${width}px`);
+    const size = await title.evaluate((e) =>
+      Number.parseFloat(globalThis.getComputedStyle(e).fontSize),
+    );
+    if (size < 26) throw Error(`Tiêu đề quá nhỏ: ${size}px ở ${width}px`);
+    const weight = await title.evaluate((e) =>
+      Number.parseInt(globalThis.getComputedStyle(e).fontWeight, 10),
+    );
+    if (weight < 600) throw Error(`Tiêu đề chưa đậm: ${weight}`);
+    // Nội dung sát mép trên: không còn khoảng trống lớn phía trên (tiêu đề, và cột đăng nhập khi hai cột).
+    const titleTop = await title.evaluate((e) => e.getBoundingClientRect().top);
+    if (titleTop > 40)
+      throw Error(`Tiêu đề cách mép trên ${titleTop}px ở ${width}px`);
+    if (width > 800) {
+      const formTop = await page
+        .getByText("GÌN GIỮ CỘI NGUỒN", { exact: true })
+        .evaluate((e) => e.getBoundingClientRect().top);
+      if (formTop > 40)
+        throw Error(`Khối đăng nhập cách mép trên ${formTop}px ở ${width}px`);
+    }
+    // Câu đối thư pháp ở cuối panel trái: chỉ trang trí (aria-hidden), hiện khi hai cột, ẩn khi màn hẹp,
+    // cách dòng chữ nhỏ phía trên, không đè và không vượt khung nhìn.
+    const art = page.locator(".gate-art");
+    await expect(art).toHaveCount(1);
+    await expect(page.locator(".gate-art-slot")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    if (width > 800) {
+      await expect(art).toBeVisible();
+      await expect(art).toContainText("Cây có gốc, nước có nguồn");
+      await expect(art).toContainText("MỘC HỮU BẢN · THỦY HỮU NGUYÊN");
+      const box = await art.boundingBox();
+      const tag = await page.locator(".story small").boundingBox();
+      if (!box || !tag) throw Error("Không đo được hình");
+      const gap = box.y - (tag.y + tag.height);
+      if (gap < 24)
+        throw Error(`Hình cách chữ phía trên chỉ ${gap}px ở ${width}px`);
+      if (box.y + box.height > 900 + 1)
+        throw Error(`Hình vượt khung nhìn ở ${width}px`);
+    } else {
+      await expect(art).toBeHidden();
+    }
+    for (const gone of [
+      "Từ cội nguồn",
+      "nối những thế hệ",
+      "Một nơi lưu giữ ký ức",
+    ])
+      await expect(page.getByText(gone)).toHaveCount(0);
+    if (process.env.SHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.SHOT_DIR}/login-title-${width}.png`,
+        fullPage: true,
+      });
+    await ctx.close();
+  }
+
   stage = "đăng nhập bằng số điện thoại (dạng viết có khoảng trắng)";
   {
     const { ctx, page } = await fresh();

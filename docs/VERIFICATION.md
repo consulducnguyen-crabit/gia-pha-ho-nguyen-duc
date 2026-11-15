@@ -10,18 +10,18 @@ cung cấp. Không kết nối remote, không deploy và không thao tác produc
 
 ## Kết quả thực chạy
 
-| Hạng mục | Kết quả |
-| --- | --- |
-| Firestore + Storage emulator, bộ rules gốc | 17/17 đạt trước khi bổ sung regression |
-| Suite rules mở rộng | 30/30 đạt |
-| Unit tests | 6/6 đạt, gồm graph, chuẩn hóa tên và response tìm kiếm đảo thứ tự |
-| ESLint, TypeScript | Đạt |
-| Vite production build cục bộ | Đạt; cảnh báo bundle JavaScript ~817,66 kB trước gzip |
-| Chromium với Auth/Firestore emulator | Đạt đăng nhập, tìm kiếm, không có kết quả, tra cứu lại, hồ sơ và đăng xuất |
-| Chromium mobile 390 px | Không tràn ngang; không có pageerror trong luồng kiểm thử |
-| Thu hồi membership online | Đóng giao diện dữ liệu; cấp lại thì tra cứu được |
-| Offline và thu hồi khi offline | Chờ xác nhận quyền, không hiện hồ sơ; reconnect vẫn bị chặn cho tới khi cấp lại |
-| Export/import Auth, Firestore, Storage | Đạt trên tiến trình emulator mới |
+| Hạng mục                                   | Kết quả                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------- |
+| Firestore + Storage emulator, bộ rules gốc | 17/17 đạt trước khi bổ sung regression                                          |
+| Suite rules mở rộng                        | 30/30 đạt                                                                       |
+| Unit tests                                 | 6/6 đạt, gồm graph, chuẩn hóa tên và response tìm kiếm đảo thứ tự               |
+| ESLint, TypeScript                         | Đạt                                                                             |
+| Vite production build cục bộ               | Đạt; cảnh báo bundle JavaScript ~817,66 kB trước gzip                           |
+| Chromium với Auth/Firestore emulator       | Đạt đăng nhập, tìm kiếm, không có kết quả, tra cứu lại, hồ sơ và đăng xuất      |
+| Chromium mobile 390 px                     | Không tràn ngang; không có pageerror trong luồng kiểm thử                       |
+| Thu hồi membership online                  | Đóng giao diện dữ liệu; cấp lại thì tra cứu được                                |
+| Offline và thu hồi khi offline             | Chờ xác nhận quyền, không hiện hồ sơ; reconnect vẫn bị chặn cho tới khi cấp lại |
+| Export/import Auth, Firestore, Storage     | Đạt trên tiến trình emulator mới                                                |
 
 Regression rules bổ sung gồm tự ghi đè/sửa/xóa tài khoản của mình, tự tạo quyền
 khi chưa được mời, sửa/xóa canonical, truy cập subcollection names, thu hồi quyền

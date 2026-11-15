@@ -103,7 +103,12 @@ export function OverviewStats({ uid }: { uid: string }) {
           <p className="stats-note">
             Theo dữ liệu lúc tải ({loadedLabel(state.loadedAt)}, giờ Việt Nam).
             Tuổi tính theo năm dương trên giao diện: năm{" "}
-            {state.stats.currentYear} trừ năm sinh, nên có thể lệch một tuổi.{" "}
+            {state.stats.currentYear} trừ năm sinh, nên có thể lệch một tuổi.
+            Mọi số liệu chỉ tính thành viên không tích “Đã mất”
+            {state.stats.ages.deceased > 0
+              ? ` (không tính ${nf.format(state.stats.ages.deceased)} thành viên đã tích “Đã mất” hoặc có năm mất)`
+              : ""}
+            .{" "}
             <button type="button" onClick={reload}>
               Tải lại dữ liệu
             </button>
@@ -123,7 +128,7 @@ function StatsBody({ stats }: { stats: OverviewStats }) {
         <section aria-labelledby="stats-members">
           <h3 id="stats-members">Thành viên</h3>
           <p className="stats-total">
-            <b>{nf.format(totals.all)}</b> người trong cây
+            <b>{nf.format(totals.all)}</b> thành viên
           </p>
           <dl className="stats-facts">
             <Fact label="Thuộc dòng họ">{nf.format(totals.clan)}</Fact>
@@ -139,38 +144,25 @@ function StatsBody({ stats }: { stats: OverviewStats }) {
         <div className="stats-grid">
           <div>
             <dl className="stats-facts">
-              <Fact label="Tuổi thọ cao nhất (cả đang sống và đã mất)">
-                <Extreme value={ages.oldest} />
-              </Fact>
-              <Fact label="Cao tuổi nhất trong số người đang sống">
+              <Fact label="Tuổi cao nhất">
                 <Extreme value={ages.oldestLiving} />
               </Fact>
-              <Fact label="Ít tuổi nhất (người đang sống)">
+              <Fact label="Ít tuổi nhất">
                 <Extreme value={ages.youngestLiving} />
               </Fact>
-              <Fact label="Tuổi trung bình người đang sống">
+              <Fact label="Tuổi trung bình">
                 {ages.averageLiving === null
                   ? "Chưa đủ dữ liệu"
                   : `${nf.format(ages.averageLiving)} tuổi, trên ${nf.format(ages.averageLivingN)} người`}
               </Fact>
             </dl>
             <p className="stats-note">
-              Đang sống: {nf.format(ages.living)} · Đã mất:{" "}
-              {nf.format(ages.deceased)}
-              {(ages.deceasedNoBirth > 0 || ages.deceasedNoDeathYear > 0) &&
-                ` (trong đó ${[
-                  ages.deceasedNoBirth > 0 &&
-                    `${nf.format(ages.deceasedNoBirth)} người chưa có năm sinh`,
-                  ages.deceasedNoDeathYear > 0 &&
-                    `${nf.format(ages.deceasedNoDeathYear)} người chưa rõ năm mất`,
-                ]
-                  .filter(Boolean)
-                  .join(", ")})`}{" "}
-              · Chưa đủ dữ liệu tính tuổi: {nf.format(ages.unknown)} · Dữ liệu
-              năm cần kiểm tra: {nf.format(ages.invalid)} (bốn nhóm này cộng
-              bằng tổng số người; thọ trên {MAX_LIFESPAN} tuổi cũng xếp vào nhóm
-              cần kiểm tra). Coi là đang sống khi không có năm mất, không đánh
-              dấu “Đã mất”, có năm sinh và không quá {stats.livingMaxAge} tuổi.
+              Tính được tuổi: {nf.format(ages.living)} · Chưa đủ dữ liệu tính
+              tuổi: {nf.format(ages.unknown)} · Dữ liệu năm cần kiểm tra:{" "}
+              {nf.format(ages.invalid)} (ba nhóm này cộng bằng số thành viên
+              được tính; thọ trên {MAX_LIFESPAN} tuổi cũng xếp vào nhóm cần kiểm
+              tra). Chỉ tính tuổi khi có năm sinh và không quá{" "}
+              {stats.livingMaxAge} tuổi.
             </p>
           </div>
           <Pyramid bands={stats.livingAgeBands} unsynced={sex.allUnsynced} />
@@ -381,7 +373,7 @@ function Donut({
   );
 }
 
-/* ---------- Tháp tuổi người đang sống ---------- */
+/* ---------- Tháp tuổi ---------- */
 function Pyramid({ bands, unsynced }: { bands: AgeBand[]; unsynced: boolean }) {
   const captionId = useId();
   // Tháp hai phía (nam | nữ) chỉ khi có ít nhất một người đã biết giới tính; ngược lại một cột tổng.
@@ -398,7 +390,7 @@ function Pyramid({ bands, unsynced }: { bands: AgeBand[]; unsynced: boolean }) {
   return (
     <figure className="stats-figure">
       <figcaption id={captionId}>
-        Người đang sống theo nhóm 10 tuổi{split ? " và giới tính" : ""}
+        Số thành viên theo nhóm 10 tuổi{split ? " và giới tính" : ""}
       </figcaption>
       <svg
         className="stats-pyramid"

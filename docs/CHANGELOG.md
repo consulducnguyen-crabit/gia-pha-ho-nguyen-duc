@@ -1,3 +1,31 @@
+# Tổng quan: người có năm mất hoặc tích "Đã mất" luôn bị loại — 2026-11-15
+
+- Logic chốt: có năm mất → tự động là "Đã mất"; chưa có năm mất mà có tick "Đã mất" → cũng là "Đã mất". Hai nhóm này bị loại khỏi MỌI số liệu ở Tổng quan, **kể cả khi dữ liệu năm của họ bất thường** (năm mất trước năm sinh, thọ quá 120 tuổi, năm ở tương lai, cờ năm sinh mâu thuẫn) — trước đây các ca đó vẫn bị tính vào nhóm "cần kiểm tra". Hàm `isMarkedDeceased` (`src/overviewStats.ts`).
+- Hệ quả cần biết: dữ liệu năm bất thường của người đã mất không còn hiện ở khối thống kê; cờ năm sinh mâu thuẫn vẫn xem được ở trang Cần kiểm tra (quản trị viên).
+- Kiểm thử: `tests/overviewStats.test.ts` (ca dữ liệu năm bất thường + `isMarkedDeceased`).
+
+# Trang Tổng quan: số liệu chỉ tính thành viên không tích "Đã mất" — 2026-11-15
+
+- **Đổi logic thống kê:** tổng số, giới tính, theo chi, theo đời, tuổi và hồ sơ thiếu thông tin chỉ tính thành viên không tích "Đã mất" (người có năm mất cũng bị loại). Số thành viên không được tính hiển thị ở ghi chú đầu khối "Số liệu gia phả". Cây gia phả và Danh sách thành viên vẫn hiển thị đầy đủ.
+- **Đổi chữ:** bỏ cách nói "đang sống/đã mất" ở nhãn (Tuổi cao nhất, Ít tuổi nhất, Tuổi trung bình, "Số thành viên theo nhóm 10 tuổi", "N thành viên"). Bỏ chỉ số "Tuổi thọ cao nhất (cả đang sống và đã mất)" và dòng "Đã mất: n (… chưa có năm sinh/năm mất)".
+- Kiểm thử: `tests/overviewStats.test.ts` (thêm ca mọi số lượng loại người đã mất), `scripts/overview-browser-check.mjs`.
+
+# Trang đăng nhập: câu đối thư pháp thay cuốn thư — 2026-11-15
+
+- Thay hình cuốn thư bằng câu đối đôi **木有本 · 水有源** (Mộc hữu bản, thủy hữu nguyên: cây có gốc, nước có nguồn) nét cọ trong vòng mực, kèm lời dịch và phiên âm Hán-Việt, ấn son 阮 đặt ngoài vòng; khoảng cách rộng rãi. SVG aria-hidden; ẩn khi màn hẹp (≤800px) hoặc thấp (≤700px).
+- Kiểm thử: `scripts/login-browser-check.mjs` kiểm hình, lời dịch, khoảng cách với chữ phía trên, không vượt khung nhìn, và ẩn ở màn hẹp/thấp.
+
+# Trang đăng nhập: cuốn thư ở panel trái — 2026-11-15
+
+- Thêm hình cuốn thư cuộn mở (SVG, aria-hidden) ở cuối panel trái: câu "Uống nước nhớ nguồn", các dòng "Đời 1…5" (minh họa chung, không phải dữ liệu) và ấn son 阮. Ẩn trên màn hẹp (≤800px).
+- Kiểm thử: `scripts/login-browser-check.mjs` kiểm hình có mặt, aria-hidden, không đè chữ, ẩn ở màn hẹp.
+
+# Menu gọn và Cần kiểm tra chỉ cho quản trị viên — 2026-11-15
+
+- Bỏ tab và trang **Tiến độ triển khai** và **Tra cứu thành viên** (`#/roadmap`, `#/persons` nay báo "Không tìm thấy trang"). Ô tìm theo tên vẫn có ở Cây gia phả và Danh sách thành viên; nút ở Tổng quan đổi thành "Xem danh sách thành viên →".
+- **Cần kiểm tra** (tab, trang `#/review-queue`, nhãn trong cây/danh sách, khối ở hồ sơ) chỉ hiện với quản trị viên; thành viên thường mở thẳng `#/review-queue` thì về Tổng quan. Đây là ẩn giao diện, KHÔNG phải kiểm soát quyền đọc dữ liệu (rules không đổi).
+- Kiểm thử: `scripts/nav-browser-check.mjs` (`npm run test:browser:nav`, đã thêm vào CI).
+
 # Tài khoản điện thoại/email do quản trị viên tạo — 2026-11-14
 
 - PR1: trang đăng nhập hai tab Điện thoại | Email; số điện thoại ngầm thành `0914222987@gp.nguyenduc`; thông báo lỗi thống nhất kèm Zalo đăng ký.

@@ -50,7 +50,8 @@ const source = [
   "B|I|Chi Một|a||",
 ].join("\n");
 const plan = buildImportPlan(parseDsl(source), "overview-fake");
-const TOTAL = 11 + EXTRA;
+const DECEASED = 3; // ts, a, c có năm mất: không nằm trong bất kỳ số liệu nào
+const TOTAL = 11 + EXTRA - DECEASED; // số thành viên được tính
 
 const requireAdmin = createRequire(
   resolve(import.meta.dirname, "..", "functions", "package.json"),
@@ -162,21 +163,37 @@ async function checkRole(email, isAdmin) {
   await expect(
     page.getByRole("heading", { name: "Số liệu gia phả" }),
   ).toBeVisible();
-  await expect(page.getByText(`${TOTAL} người trong cây`)).toBeVisible();
+  await expect(page.getByText(`${TOTAL} thành viên`)).toBeVisible();
   await expect(page.getByText("Theo dữ liệu lúc tải")).toBeVisible();
+  // Nêu rõ cơ sở tính, không dùng cách nói phân biệt đang sống / đã mất.
+  await expect(
+    page.getByText(
+      `Mọi số liệu chỉ tính thành viên không tích “Đã mất” (không tính ${DECEASED} thành viên đã tích “Đã mất” hoặc có năm mất)`,
+    ),
+  ).toBeVisible();
+  const body = await page.locator(".stats").innerText();
+  for (const gone of [
+    "đang sống",
+    "còn sống",
+    "Tuổi thọ cao nhất",
+    "Đang sống:",
+  ])
+    if (body.includes(gone)) throw Error(`Còn chữ cũ: ${gone}`);
   await expect(
     page.getByRole("link", { name: "+ Thêm thành viên" }),
   ).toHaveCount(isAdmin ? 1 : 0);
 
-  stage = `${label}: người cao tuổi nhất bằng nhau đều có liên kết hồ sơ`;
+  stage = `${label}: người cao tuổi nhất bằng nhau đều có liên kết hồ sơ (không tính người đã mất)`;
   const oldest = page
     .locator(".stats-fact")
-    .filter({ hasText: "Tuổi thọ cao nhất" });
-  await expect(oldest.getByText("85 tuổi")).toBeVisible();
+    .filter({ hasText: "Tuổi cao nhất" });
+  await expect(oldest.getByText("70 tuổi")).toBeVisible();
   await expect(
-    oldest.getByRole("link", { name: "Giả Văn An" }),
-  ).toHaveAttribute("href", "#/person/a");
-  await expect(oldest.getByRole("link", { name: "Giả Thị Ân" })).toBeVisible();
+    oldest.getByRole("link", { name: "Giả Văn Dũng" }),
+  ).toHaveAttribute("href", "#/person/d");
+  await expect(oldest.getByRole("link", { name: "Giả Thị Em" })).toBeVisible();
+  // Giả Văn An và Giả Thị Ân (có năm mất, thọ 85) không được tính.
+  await expect(oldest.getByRole("link", { name: "Giả Văn An" })).toHaveCount(0);
   const youngest = page
     .locator(".stats-fact")
     .filter({ hasText: "Ít tuổi nhất" });
@@ -193,7 +210,7 @@ async function checkRole(email, isAdmin) {
     page.getByRole("table", { name: "Số người thuộc dòng họ theo đời" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("table", { name: /Người đang sống theo nhóm 10 tuổi/ }),
+    page.getByRole("table", { name: /Số thành viên theo nhóm 10 tuổi/ }),
   ).toHaveCount(1);
   if ((await page.locator("svg[aria-hidden='true']").count()) < 2)
     throw Error("Hình SVG phải aria-hidden");
@@ -251,13 +268,13 @@ async function checkRole(email, isAdmin) {
   await expect(
     page.getByRole("heading", { name: "Số liệu gia phả" }),
   ).toBeFocused();
-  await expect(page.getByText(`${TOTAL} người trong cây`)).toBeVisible();
+  await expect(page.getByText(`${TOTAL} thành viên`)).toBeVisible();
 
   stage = `${label}: liên kết hồ sơ dẫn đúng trang`;
-  await oldest.getByRole("link", { name: "Giả Văn An" }).click();
-  await expect(page).toHaveURL(/#\/person\/a$/);
+  await oldest.getByRole("link", { name: "Giả Văn Dũng" }).click();
+  await expect(page).toHaveURL(/#\/person\/d$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "Giả Văn An",
+    "Giả Văn Dũng",
   );
   if (errors.length) throw Error("Lỗi trang: " + errors.join("; "));
   await ctx.close();
@@ -275,7 +292,7 @@ async function checkUnsynced() {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await login(page, "thanhvien@example.test");
-  await expect(page.getByText(`${TOTAL} người trong cây`)).toBeVisible();
+  await expect(page.getByText(`${TOTAL} thành viên`)).toBeVisible();
   await ref.set({ ...doc, data: JSON.stringify(data) });
   await page.getByRole("button", { name: "Tải lại dữ liệu" }).click();
   await expect(
@@ -292,7 +309,8 @@ async function checkUnsynced() {
   stage = "đồng bộ giới tính một phần: bảng có số liệu kèm cảnh báo";
   const full = JSON.parse(doc.data);
   const ids = Object.keys(full.persons);
-  ids.slice(1).forEach((id) => (full.persons[id].length = 7));
+  // Giữ giới tính của một người được tính (d); thủy tổ có năm mất nên không nằm trong số liệu.
+  ids.filter((id) => id !== "d").forEach((id) => (full.persons[id].length = 7));
   await ref.set({ ...doc, data: JSON.stringify(full) });
   await page.getByRole("button", { name: "Tải lại dữ liệu" }).click();
   await expect(

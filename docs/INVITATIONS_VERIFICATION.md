@@ -6,17 +6,17 @@ demo-gia-pha và emulator loopback. Không gửi thông báo, deploy hoặc đ�
 
 ## Kết quả thực chạy
 
-| Hạng mục | Kết quả |
-| --- | --- |
+| Hạng mục                                                         | Kết quả                                                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Backend callable qua HTTP trên Functions/Auth/Firestore emulator | 32 ca chạy cùng suite đạt; sau đó thêm 1 ca retry sau cấp lại, chạy riêng đạt; tổng 33 ca đã kiểm chứng |
-| Guard môi trường backend | 11/11 unit tests đạt |
-| Firestore/Storage rules regression | 30/30 đạt |
-| Unit tests bản nền | 6/6 đạt |
-| ESLint và TypeScript toàn dự án | Đạt sau sửa cuối |
-| Backend TypeScript build | Đạt |
-| Frontend production build cục bộ | Đạt, JavaScript 832,37 kB trước gzip; còn cảnh báo kích thước bundle |
-| Chromium luồng lời mời | Đạt sau sửa UI cuối, không pageerror |
-| Chromium hồi quy bản nền | Đạt đăng nhập/tra cứu/hồ sơ, thu hồi, offline/reconnect và đăng xuất |
+| Guard môi trường backend                                         | 11/11 unit tests đạt                                                                                    |
+| Firestore/Storage rules regression                               | 30/30 đạt                                                                                               |
+| Unit tests bản nền                                               | 6/6 đạt                                                                                                 |
+| ESLint và TypeScript toàn dự án                                  | Đạt sau sửa cuối                                                                                        |
+| Backend TypeScript build                                         | Đạt                                                                                                     |
+| Frontend production build cục bộ                                 | Đạt, JavaScript 832,37 kB trước gzip; còn cảnh báo kích thước bundle                                    |
+| Chromium luồng lời mời                                           | Đạt sau sửa UI cuối, không pageerror                                                                    |
+| Chromium hồi quy bản nền                                         | Đạt đăng nhập/tra cứu/hồ sơ, thu hồi, offline/reconnect và đăng xuất                                    |
 
 Không cộng 32 ca skipped trong lần targeted vào số lần chạy mới. Không tuyên bố đã
 chạy cả 33 ca cùng một lượt hoặc đã kiểm chứng production.

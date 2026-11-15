@@ -2,31 +2,22 @@ import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
   HashRouter,
-  Link,
+  Navigate,
   NavLink,
   Route,
   Routes,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
-import {
-  collection,
-  doc,
-  getDocsFromServer,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  startAt,
-  endAt,
-} from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db, emulator } from "./firebase";
-import { normalizeName, type Person } from "./domain";
-import { latestRequest } from "./latestRequest";
 import { AddMemberPage } from "./AddMember";
 import { AuditLogPage } from "./AuditLog";
 import { BrandMark } from "./BrandMark";
+import { CoupletArt } from "./CoupletArt";
 import { ScrollButtons } from "./ScrollButtons";
+import { AdminViewContext } from "./adminView";
 import { LoginForm } from "./LoginForm";
 import { loginLabel, REGISTER_CONTACT } from "./phoneLogin";
 import { ChangePasswordGate } from "./ChangePassword";
@@ -48,6 +39,8 @@ function Titled({ title, children }: { title: string; children: ReactNode }) {
 }
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const signedInUid = useRef<string | null>(null);
   const mainRef = useRef<HTMLElement | null>(null);
   const firstRoute = useRef(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -65,6 +58,10 @@ function App() {
     let stop = () => {};
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       stop();
+      // Đăng xuất: bỏ đường dẫn cũ (ví dụ #/users của quản trị viên) để người đăng nhập kế tiếp, có thể ít quyền hơn,
+      // bắt đầu ở Tổng quan thay vì "Không tìm thấy trang". Mở thẳng một liên kết khi chưa đăng nhập thì giữ nguyên.
+      if (!u && signedInUid.current) navigate("/", { replace: true });
+      signedInUid.current = u?.uid ?? null;
       pruneWelcome(u?.uid ?? null); // cờ chào mừng không được sang tài khoản khác
       setCanManageMembership(false);
       setCanReviewChanges(false);
@@ -158,7 +155,6 @@ function App() {
             <span>
               <span className="brand-name">
                 Gia phả dòng họ Nguyễn Đức{" "}
-                <span className="brand-place">- Thôn Hạ</span>{" "}
                 <span className="brand-place">- Phùng Xá</span>
               </span>
               <small>GÌN GIỮ CỘI NGUỒN</small>
@@ -183,8 +179,9 @@ function App() {
               Tổng quan
             </NavLink>
             <NavLink to="/tree">Cây gia phả</NavLink>
-            <NavLink to="/review-queue">Cần kiểm tra</NavLink>
-            <NavLink to="/persons">Tra cứu thành viên</NavLink>
+            {canManageMembership && (
+              <NavLink to="/review-queue">Cần kiểm tra</NavLink>
+            )}
             {emulator && <NavLink to="/changes">Đề xuất thay đổi</NavLink>}
             {emulator && canReviewChanges && (
               <NavLink to="/review">Hộp duyệt</NavLink>
@@ -195,7 +192,6 @@ function App() {
             {canManageMembership && (
               <NavLink to="/audit">Nhật ký chỉnh sửa</NavLink>
             )}
-            <NavLink to="/roadmap">Tiến độ triển khai</NavLink>
           </nav>
           <span className="header-user">
             <span className="header-user-email" title={loginLabel(user?.email)}>
@@ -208,140 +204,130 @@ function App() {
       </header>
       <div className="workspace">
         <main id="main" tabIndex={-1} ref={mainRef}>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <Titled title="Tổng quan">
-                  <Overview
-                    isAdmin={canManageMembership}
-                    uid={user!.uid}
-                    email={loginLabel(user!.email)}
-                  />
-                </Titled>
-              }
-            />
-            <Route
-              path="/tree/*"
-              element={
-                <Titled
-                  title={
-                    location.pathname === "/tree/danh-sach"
-                      ? "Danh sách thành viên"
-                      : "Cây gia phả"
+          <AdminViewContext.Provider value={canManageMembership}>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <Titled title="Tổng quan">
+                    <Overview
+                      isAdmin={canManageMembership}
+                      uid={user!.uid}
+                      email={loginLabel(user!.email)}
+                    />
+                  </Titled>
+                }
+              />
+              <Route
+                path="/tree/*"
+                element={
+                  <Titled
+                    title={
+                      location.pathname === "/tree/danh-sach"
+                        ? "Danh sách thành viên"
+                        : "Cây gia phả"
+                    }
+                  >
+                    <TreePage
+                      key={user!.uid}
+                      uid={user!.uid}
+                      isAdmin={canManageMembership}
+                    />
+                  </Titled>
+                }
+              />
+              <Route
+                path="/person/:id"
+                element={
+                  <Titled title="Hồ sơ thành viên">
+                    <PersonPage
+                      key={user!.uid}
+                      uid={user!.uid}
+                      canEdit={canManageMembership}
+                    />
+                  </Titled>
+                }
+              />
+              <Route
+                path="/review-queue"
+                element={
+                  canManageMembership ? (
+                    <Titled title="Cần kiểm tra">
+                      <ReviewQueuePage key={user!.uid} uid={user!.uid} />
+                    </Titled>
+                  ) : (
+                    <Navigate to="/" replace />
+                  )
+                }
+              />
+              {emulator && (
+                <Route
+                  path="/changes"
+                  element={
+                    <Titled title="Đề xuất thay đổi">
+                      <Proposals
+                        key={`own:${user!.uid}`}
+                        mode="OWN"
+                        currentUid={user!.uid}
+                      />
+                    </Titled>
                   }
-                >
-                  <TreePage
-                    key={user!.uid}
-                    uid={user!.uid}
-                    isAdmin={canManageMembership}
-                  />
-                </Titled>
-              }
-            />
-            <Route
-              path="/person/:id"
-              element={
-                <Titled title="Hồ sơ thành viên">
-                  <PersonPage
-                    key={user!.uid}
-                    uid={user!.uid}
-                    canEdit={canManageMembership}
-                  />
-                </Titled>
-              }
-            />
-            <Route
-              path="/review-queue"
-              element={
-                <Titled title="Cần kiểm tra">
-                  <ReviewQueuePage key={user!.uid} uid={user!.uid} />
-                </Titled>
-              }
-            />
-            <Route
-              path="/persons"
-              element={
-                <Titled title="Tra cứu thành viên">
-                  <People />
-                </Titled>
-              }
-            />
-            <Route
-              path="/roadmap"
-              element={
-                <Titled title="Tiến độ triển khai">
-                  <Roadmap />
-                </Titled>
-              }
-            />
-            {emulator && (
+                />
+              )}
+              {emulator && canReviewChanges && (
+                <Route
+                  path="/review"
+                  element={
+                    <Titled title="Hộp duyệt">
+                      <Proposals
+                        key={`review:${user!.uid}`}
+                        mode="REVIEW"
+                        currentUid={user!.uid}
+                      />
+                    </Titled>
+                  }
+                />
+              )}
+              {canManageMembership && (
+                <Route
+                  path="/add-member"
+                  element={
+                    <Titled title="Thêm thành viên">
+                      <AddMemberPage key={user!.uid} uid={user!.uid} />
+                    </Titled>
+                  }
+                />
+              )}
+              {canManageMembership && (
+                <Route
+                  path="/users"
+                  element={
+                    <Titled title="Quản lý tài khoản">
+                      <UsersPage key={user!.uid} uid={user!.uid} />
+                    </Titled>
+                  }
+                />
+              )}
+              {canManageMembership && (
+                <Route
+                  path="/audit"
+                  element={
+                    <Titled title="Nhật ký chỉnh sửa">
+                      <AuditLogPage key={user!.uid} uid={user!.uid} />
+                    </Titled>
+                  }
+                />
+              )}
               <Route
-                path="/changes"
+                path="*"
                 element={
-                  <Titled title="Đề xuất thay đổi">
-                    <Proposals
-                      key={`own:${user!.uid}`}
-                      mode="OWN"
-                      currentUid={user!.uid}
-                    />
+                  <Titled title="Không tìm thấy trang">
+                    <h1>Không tìm thấy trang</h1>
                   </Titled>
                 }
               />
-            )}
-            {emulator && canReviewChanges && (
-              <Route
-                path="/review"
-                element={
-                  <Titled title="Hộp duyệt">
-                    <Proposals
-                      key={`review:${user!.uid}`}
-                      mode="REVIEW"
-                      currentUid={user!.uid}
-                    />
-                  </Titled>
-                }
-              />
-            )}
-            {canManageMembership && (
-              <Route
-                path="/add-member"
-                element={
-                  <Titled title="Thêm thành viên">
-                    <AddMemberPage key={user!.uid} uid={user!.uid} />
-                  </Titled>
-                }
-              />
-            )}
-            {canManageMembership && (
-              <Route
-                path="/users"
-                element={
-                  <Titled title="Quản lý tài khoản">
-                    <UsersPage key={user!.uid} uid={user!.uid} />
-                  </Titled>
-                }
-              />
-            )}
-            {canManageMembership && (
-              <Route
-                path="/audit"
-                element={
-                  <Titled title="Nhật ký chỉnh sửa">
-                    <AuditLogPage key={user!.uid} uid={user!.uid} />
-                  </Titled>
-                }
-              />
-            )}
-            <Route
-              path="*"
-              element={
-                <Titled title="Không tìm thấy trang">
-                  <h1>Không tìm thấy trang</h1>
-                </Titled>
-              }
-            />
-          </Routes>
+            </Routes>
+          </AdminViewContext.Provider>
         </main>
       </div>
     </div>
@@ -366,24 +352,18 @@ function Gate({ state, user }: { state: string; user: User | null }) {
   return (
     <div className="gate">
       <section className="story">
-        <div className="eyebrow">
-          GIA PHẢ DÒNG HỌ NGUYỄN ĐỨC{" "}
-          <span className="brand-place">- THÔN HẠ</span>{" "}
-          <span className="brand-place">- PHÙNG XÁ</span>
-        </div>
+        <h1 className="gate-title">
+          Gia phả <br />
+          Dòng họ Nguyễn Đức <br />
+          Phùng Xá
+        </h1>
         <div className="tree-mark" aria-hidden="true">
           <BrandMark />
         </div>
-        <h1>
-          Từ cội nguồn,
-          <br />
-          nối những thế hệ.
-        </h1>
-        <p>
-          Một nơi lưu giữ ký ức, kết nối người thân và trao lại câu chuyện dòng
-          họ cho mai sau.
-        </p>
         <small>RIÊNG TƯ · CÓ NGUỒN GỐC · ĐƯỢC GÌN GIỮ</small>
+        <div className="gate-art-slot" aria-hidden="true">
+          <CoupletArt />
+        </div>
       </section>
       <main className="login">
         <div className="eyebrow">GÌN GIỮ CỘI NGUỒN</div>
@@ -467,8 +447,8 @@ function Overview({
             phục.
           </p>
           <div className="hero-actions">
-            <NavLink className="primary link" to="/persons">
-              Tra cứu thành viên →
+            <NavLink className="primary link" to="/tree/danh-sach">
+              Xem danh sách thành viên →
             </NavLink>
             {isAdmin && (
               <NavLink className="link add-member-link" to="/add-member">
@@ -497,156 +477,6 @@ function Overview({
           <p>Xem từ thủy tổ xuống, tìm theo tên, mở hồ sơ từng người.</p>
         </article>
       </div>
-    </>
-  );
-}
-function People() {
-  const requests = useRef(latestRequest());
-  useEffect(() => () => requests.current.invalidate(), []);
-  const [search, setSearch] = useState("");
-  const [people, setPeople] = useState<Person[]>([]);
-  const [status, setStatus] = useState("");
-  const [selected, setSelected] = useState<Person | null>(null);
-  // Mở hồ sơ: focus vào tiêu đề hồ sơ; đóng: trả focus về thẻ đã mở (WCAG 2.4.3).
-  const detailHeading = useRef<HTMLHeadingElement | null>(null);
-  const trigger = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    if (selected) detailHeading.current?.focus();
-  }, [selected]);
-  async function load(value: string) {
-    const isCurrent = requests.current.start();
-    setStatus("Đang tải…");
-    setPeople([]);
-    setSelected(null);
-    try {
-      const term = normalizeName(value);
-      const q = term
-        ? query(
-            collection(db!, "memberProfiles"),
-            orderBy("normalizedName"),
-            startAt(term),
-            endAt(term + "\uf8ff"),
-            limit(30),
-          )
-        : query(
-            collection(db!, "memberProfiles"),
-            orderBy("normalizedName"),
-            limit(30),
-          );
-      const result = await getDocsFromServer(q);
-      if (!isCurrent()) return;
-      setPeople(result.docs.map((d) => ({ ...d.data(), id: d.id }) as Person));
-      setStatus(
-        result.empty
-          ? "Không tìm thấy hồ sơ."
-          : "Hiển thị tối đa 30 hồ sơ. Tìm theo phần đầu tên để thu hẹp kết quả.",
-      );
-    } catch {
-      if (!isCurrent()) return;
-      setPeople([]);
-      setStatus("Không thể tải hồ sơ. Quyền truy cập có thể đã thay đổi.");
-    }
-  }
-  return (
-    <>
-      <div className="eyebrow">TƯ LIỆU DÒNG HỌ</div>
-      <h1>Tra cứu thành viên</h1>
-      <p>Tìm theo phần đầu họ tên, có thể nhập không dấu.</p>
-      <form
-        className="search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void load(search);
-        }}
-      >
-        <label className="sr-only" htmlFor="search">
-          Họ tên
-        </label>
-        <input
-          id="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Nhập họ tên…"
-        />
-        <button className="primary">Tìm kiếm</button>
-      </form>
-      <p role="status">
-        {status || "Nhấn Tìm kiếm để tải danh sách được cấp quyền."}
-      </p>
-      <div className="cards">
-        {people.map((p) => (
-          <button
-            className="person"
-            key={p.id}
-            onClick={(e) => {
-              trigger.current = e.currentTarget;
-              setSelected(p);
-            }}
-          >
-            <span className="avatar" aria-hidden="true">
-              {p.displayName.charAt(0)}
-            </span>
-            {/* Không dùng h3 trong button: nội dung của button chỉ được là phrasing content. */}
-            <span className="person-name">{p.displayName}</span>
-            <small>Xem hồ sơ →</small>
-          </button>
-        ))}
-      </div>
-      {selected && (
-        <section className="detail">
-          <button
-            onClick={() => {
-              setSelected(null);
-              // Thẻ đã mở có thể không còn (danh sách tải lại): focus ô tìm kiếm thay vì rơi về body.
-              (trigger.current?.isConnected
-                ? trigger.current
-                : document.getElementById("search")
-              )?.focus();
-            }}
-          >
-            Đóng hồ sơ
-          </button>
-          <h2 tabIndex={-1} ref={detailHeading}>
-            {selected.displayName}
-          </h2>
-          <p>
-            <Link className="primary link" to={`/person/${selected.id}`}>
-              Xem đời, chi và quan hệ trong cây →
-            </Link>
-          </p>
-        </section>
-      )}
-    </>
-  );
-}
-function Roadmap() {
-  return (
-    <>
-      <div className="eyebrow">BẢN NỀN 0.1</div>
-      <h1>Tiến độ triển khai</h1>
-      <article className="detail">
-        <h2>Đã triển khai</h2>
-        <p>
-          Đăng nhập, kiểm tra quyền theo thời gian thực, tra cứu có giới hạn,
-          cấu hình emulator và kiểm thử bảo mật.
-        </p>
-        <p>
-          Lời mời một lần, nhận quyền và thu hồi quyền tài khoản đã có bản thử
-          nghiệm trên emulator. Chưa mở trên production. Đề xuất họ tên và thêm
-          quan hệ có luồng duyệt thử nghiệm; quan hệ truyền dòng cũng do một
-          người duyệt (khác người đề xuất).
-        </p>
-        <h2>Chính sách đã được phê duyệt</h2>
-        <p>
-          Truyền dòng, con nuôi, số gốc, số người duyệt, cấp tài khoản, hồ sơ
-          phối ngẫu và quyền riêng tư người còn sống.
-        </p>
-        <h2>Chưa mở</h2>
-        <p>
-          Sơ đồ cây đồ họa, ảnh, tài liệu, kênh góp ý của thành viên và quản trị
-          tài khoản ngay trong ứng dụng.
-        </p>
-      </article>
     </>
   );
 }

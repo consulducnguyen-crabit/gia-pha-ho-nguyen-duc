@@ -179,6 +179,28 @@ try {
       .getByRole("cell", { name: "co.email@example.test", exact: true })
       .first(),
   ).toBeVisible();
+  const emailPassword = (
+    await section.getByRole("status").locator("code").innerText()
+  ).trim();
+
+  stage =
+    "đăng xuất khỏi #/users rồi thành viên mới đăng nhập trên cùng trình duyệt: về Tổng quan, không bị 404";
+  await expect(ap).toHaveURL(/#\/users/);
+  await ap.getByRole("button", { name: "Đăng xuất" }).click();
+  await expect(
+    ap.getByRole("heading", { name: "Chào mừng trở về" }),
+  ).toBeVisible();
+  await login(ap, "Số điện thoại", "co.email@example.test", emailPassword);
+  await expect(ap.getByRole("heading", { name: "Đổi mật khẩu" })).toBeVisible();
+  await ap.getByLabel("Mật khẩu mới", { exact: true }).fill(NEW_PASSWORD);
+  await ap.getByLabel("Nhập lại mật khẩu mới").fill(NEW_PASSWORD);
+  await ap.getByRole("button", { name: "Lưu mật khẩu mới" }).click();
+  await expect(
+    ap.getByRole("heading", { name: "Từng hồ sơ, một câu chuyện" }),
+  ).toBeVisible({ timeout: 20000 });
+  await expect(
+    ap.getByRole("heading", { name: "Không tìm thấy trang" }),
+  ).toHaveCount(0);
   await adminCtx.close();
 
   stage = "thành viên đăng nhập bằng số + mật khẩu tạm → buộc đổi mật khẩu";

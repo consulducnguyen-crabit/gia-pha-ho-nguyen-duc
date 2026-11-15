@@ -57,3 +57,11 @@ Người dùng yêu cầu (bắt buộc, áp dụng mọi phiên sửa code, gi�
 - Thay đổi chỉ gồm tài liệu (không đụng mã chạy) được miễn chạy Playwright, nhưng phải nói rõ là miễn.
 - Hiện chưa có môi trường dev triển khai riêng cho frontend (chỉ emulator cục bộ). Khi có project dev được triển khai, kiểm thêm trên đó.
 
+## Quy tắc: PR giao diện tự merge khi CI xanh — 2026-11-15
+
+Người dùng cho phép (áp dụng lâu dài, mọi phiên): **các PR giao diện cứ merge khi CI xanh**, không cần hỏi lại từng PR.
+- "PR giao diện" là PR chỉ đổi phần trình bày: component/CSS/văn bản hiển thị/hình SVG, kèm kịch bản kiểm thử và tài liệu của chính thay đổi đó. Đã tuân quy tắc Playwright ở mục trên (chạy kịch bản liên quan + toàn bộ job `browser`, kiểm 360/768/1280 px khi đổi bố cục) và báo kết quả.
+- Điều kiện merge: CI xanh (cả `verify` và `browser`), PR không xung đột. Merge bằng merge commit, rồi kéo `main` về local và báo kết quả.
+- **Không thuộc quy tắc này, vẫn phải hỏi trước khi merge:** PR đổi `firestore.rules`/quyền, xác thực, nghiệp vụ hoặc API, dữ liệu, cấu hình triển khai/CI, phụ thuộc, hoặc có thể ảnh hưởng production/dữ liệu thật; PR hỗn hợp vừa giao diện vừa các nội dung trên.
+- Việc deploy rules/backend lên production, bật billing và mọi thay đổi production vẫn cần duyệt riêng như cũ.
+
