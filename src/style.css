@@ -8,6 +8,7 @@
 /* Current palette and font families, centralized for every screen. */
 :root {
   --font-body: system-ui, -apple-system, sans-serif;
+  --font-script: "Playball", "Source Serif 4 Variable", Georgia, serif;
   --font-heading: "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
   --color-bg: #f3ead4;
   --color-surface: #fcf7ea;
@@ -190,6 +191,16 @@ p {
   font-size: 36px;
   text-align: center;
 }
+/* Nhãn "Gìn giữ cội nguồn" kiểu thư pháp, cỡ lớn, màu son. */
+.login-top .eyebrow,
+.login > .eyebrow {
+  font-family: var(--font-script);
+  font-size: clamp(28px, 3.2vw, 36px);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: var(--color-seal);
+}
 /* Đầu vùng đăng nhập, căn giữa từ trên xuống: nhãn "Gìn giữ cội nguồn", rồi tờ lịch đếm ngược giỗ Tổ. */
 .login-top {
   display: flex;
@@ -201,7 +212,7 @@ p {
 /* Tờ lịch bloc: gáy lịch, ô tháng/năm, thứ và số ngày lớn màu son; hai tờ xếp chồng nhẹ phía dưới. */
 .ancestor-countdown {
   margin: 0 auto;
-  width: min(268px, 100%);
+  width: min(288px, 100%);
   overflow: hidden;
   color: var(--color-text);
   background: var(--color-surface);
@@ -279,9 +290,10 @@ p {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   gap: 2px;
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
-  text-align: left;
+  padding: var(--space-2);
+  text-align: center;
   line-height: 1.35;
 }
 .ancestor-title {
@@ -295,16 +307,17 @@ p {
   color: var(--color-text-muted);
 }
 .ancestor-date {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
   margin-top: var(--space-2);
   font-size: 13px;
   font-weight: 600;
+}
+.ancestor-date .nowrap {
   white-space: nowrap;
 }
 .ancestor-icon {
-  flex: none;
+  display: inline-block;
+  vertical-align: -3px;
+  margin-right: var(--space-1);
   color: var(--color-seal);
 }
 .ancestor-left {
