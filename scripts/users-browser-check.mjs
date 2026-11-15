@@ -190,6 +190,100 @@ try {
   );
   await shot(admin, "users-1280-list");
 
+  stage = "tài khoản vô hiệu hóa xếp cuối và có màu khác";
+  {
+    const statuses = await admin
+      .locator("table.users-table-accounts tbody tr")
+      .evaluateAll((rows) => rows.map((r) => r.children[3].textContent));
+    const firstOff = statuses.findIndex((t) => t === "Đã vô hiệu hóa");
+    if (
+      firstOff < 0 ||
+      statuses.slice(firstOff).some((t) => t !== "Đã vô hiệu hóa")
+    )
+      throw Error("Tài khoản vô hiệu hóa chưa dồn cuối: " + statuses.join("|"));
+    const bg = (name) =>
+      row(admin, name)
+        .locator("td")
+        .nth(1)
+        .evaluate((td) => globalThis.getComputedStyle(td).backgroundColor);
+    if ((await bg("Đã Hủy R")) === (await bg("Thành Viên M")))
+      throw Error("Hàng vô hiệu hóa chưa có màu khác");
+  }
+
+  stage = "tick tài khoản và lệnh tự điền theo tài khoản đã tick";
+  {
+    await ctx.grantPermissions(["clipboard-read", "clipboard-write"]);
+    const tools = admin.getByRole("region", {
+      name: "Công cụ trên máy quản trị",
+    });
+    const revoke = admin.getByRole("region", { name: "Thu hồi quyền" });
+    await expect(tools.getByText("Chưa tick tài khoản nào")).toBeVisible();
+    await expect(revoke.locator("code")).toHaveText([
+      "npm run gia-pha:accounts -- revoke --email ten@gmail.com --apply",
+    ]);
+    await admin
+      .getByRole("checkbox", { name: "Chọn tài khoản Thành Viên M" })
+      .check();
+    await expect(tools.getByText("cho 1 tài khoản đã tick")).toBeVisible();
+    await expect(revoke.locator("code")).toHaveText([
+      "npm run gia-pha:accounts -- revoke --email thanhvien.m@example.test --apply",
+    ]);
+    const all = admin.getByRole("checkbox", {
+      name: "Chọn hoặc bỏ chọn tất cả tài khoản",
+    });
+    if (!(await all.evaluate((el) => el.indeterminate)))
+      throw Error("Ô chọn tất cả phải ở trạng thái lưng chừng");
+    await all.check();
+    await expect(revoke.locator("code")).toHaveCount(4);
+    await expect(
+      admin.getByRole("region", { name: "Đặt lại mật khẩu" }).locator("code"),
+    ).toHaveCount(4);
+    // Nhóm không theo từng tài khoản (create/list/registry) giữ nguyên.
+    await expect(
+      admin
+        .getByRole("region", { name: "Xem danh sách đầy đủ" })
+        .locator("code"),
+    ).toHaveCount(1);
+    await expect(
+      admin
+        .getByRole("checkbox", { name: /^Chọn tài khoản/ })
+        .and(admin.locator(":checked")),
+    ).toHaveCount(4);
+    await all.uncheck();
+    await expect(tools.getByText("Chưa tick tài khoản nào")).toBeVisible();
+
+    stage = "cờ production thêm đúng project/confirm/ack";
+    await admin
+      .getByRole("checkbox", { name: "Chọn tài khoản Đã Hủy R" })
+      .check();
+    await admin.getByRole("checkbox", { name: /Thêm cờ dữ liệu thật/ }).check();
+    const del = admin.getByRole("region", {
+      name: "Xóa hẳn: thực hiện (KHÔNG hoàn tác)",
+    });
+    await expect(del.locator("code")).toHaveText([
+      'npm run gia-pha:accounts -- delete --email dahuy.r@example.test --apply --confirm-delete dahuy.r@example.test --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "XOA TAI KHOAN gia-pha-nguyen-duc-prod"',
+    ]);
+    await expect(revoke.locator("code")).toHaveText([
+      'npm run gia-pha:accounts -- revoke --email dahuy.r@example.test --apply --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod"',
+    ]);
+
+    stage = "nút sao chép chép đúng dòng lệnh vào clipboard";
+    await revoke.getByRole("button", { name: /^Sao chép lệnh/ }).click();
+    await expect(revoke.getByText("Đã sao chép")).toBeVisible();
+    const clip = await admin.evaluate(() =>
+      globalThis.navigator.clipboard.readText(),
+    );
+    if (clip !== (await revoke.locator("code").innerText()))
+      throw Error("Clipboard khác dòng lệnh: " + clip);
+    await admin
+      .getByRole("checkbox", { name: /Thêm cờ dữ liệu thật/ })
+      .uncheck();
+    await admin
+      .getByRole("checkbox", { name: "Chọn tài khoản Đã Hủy R" })
+      .uncheck();
+    await shot(admin, "users-1280-tools");
+  }
+
   stage = "rename member";
   await openEdit(admin, "Thành Viên M");
   await admin.getByLabel("Tên hiển thị").fill("Thành Viên M Đã Sửa");

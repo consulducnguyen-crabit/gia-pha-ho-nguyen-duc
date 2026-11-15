@@ -8,6 +8,7 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { AccountTools } from "./AccountTools";
 import { CreateAccountSection } from "./CreateAccount";
 import {
   listGmailGrants,
@@ -52,6 +53,8 @@ export function UsersPage({ uid }: { uid: string }) {
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [grants, setGrants] = useState<PendingGrant[]>([]);
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const allBox = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [done, setDone] = useState("");
@@ -87,11 +90,14 @@ export function UsersPage({ uid }: { uid: string }) {
               approvedAt: formatVnTime(data.approvedAt),
             };
           })
-          .sort((a, b) =>
-            (a.displayName || a.email).localeCompare(
-              b.displayName || b.email,
-              "vi",
-            ),
+          // Tài khoản đang cấp quyền trước, tài khoản bị vô hiệu hóa dồn xuống cuối để dễ nhìn; mỗi nhóm theo tên.
+          .sort(
+            (a, b) =>
+              Number(b.enabled) - Number(a.enabled) ||
+              (a.displayName || a.email).localeCompare(
+                b.displayName || b.email,
+                "vi",
+              ),
           ),
       );
     } catch {
@@ -107,6 +113,28 @@ export function UsersPage({ uid }: { uid: string }) {
     if (done) doneRef.current?.focus();
   }, [done]);
 
+  // Bỏ tick của tài khoản không còn trong danh sách (sau khi tải lại).
+  useEffect(() => {
+    if (!rows) return;
+    const ids = new Set(rows.map((r) => r.id));
+    setPicked((prev) => {
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [rows]);
+  const pickedRows = (rows ?? []).filter((r) => picked.has(r.id));
+  const allPicked =
+    !!rows && rows.length > 0 && pickedRows.length === rows.length;
+  useEffect(() => {
+    if (allBox.current)
+      allBox.current.indeterminate = pickedRows.length > 0 && !allPicked;
+  }, [pickedRows.length, allPicked]);
+  const toggle = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const ledgerReady = !!ledger && ledger.adminUids.includes(uid);
   // Lệch nhẹ: có người là quản trị viên hiệu lực nhưng không có trong sổ, hoặc ngược lại.
   const drift =
@@ -163,10 +191,25 @@ export function UsersPage({ uid }: { uid: string }) {
         <div className="users-table-wrap">
           <table className="users-table users-table-accounts">
             <caption className="sr-only">
-              Danh sách tài khoản đã được cấp hoặc vô hiệu hóa quyền
+              Danh sách tài khoản đã được cấp hoặc vô hiệu hóa quyền; tài khoản
+              vô hiệu hóa xếp cuối
             </caption>
             <thead>
               <tr>
+                <th scope="col" className="users-check">
+                  <input
+                    ref={allBox}
+                    type="checkbox"
+                    checked={allPicked}
+                    disabled={rows.length === 0}
+                    aria-label="Chọn hoặc bỏ chọn tất cả tài khoản"
+                    onChange={() =>
+                      setPicked(
+                        allPicked ? new Set() : new Set(rows.map((r) => r.id)),
+                      )
+                    }
+                  />
+                </th>
                 <th scope="col">Họ tên</th>
                 <th scope="col">Số điện thoại / Email</th>
                 <th scope="col">Trạng thái</th>
@@ -178,14 +221,25 @@ export function UsersPage({ uid }: { uid: string }) {
             <tbody>
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={6}>Chưa có tài khoản nào được cấp quyền.</td>
+                  <td colSpan={7}>Chưa có tài khoản nào được cấp quyền.</td>
                 </tr>
               )}
               {rows.map((r) => {
                 const self = r.id === uid;
                 const label = r.displayName || r.email || r.id;
                 return (
-                  <tr key={r.id}>
+                  <tr
+                    key={r.id}
+                    className={r.enabled ? undefined : "users-row-off"}
+                  >
+                    <td className="users-check">
+                      <input
+                        type="checkbox"
+                        checked={picked.has(r.id)}
+                        aria-label={`Chọn tài khoản ${label}`}
+                        onChange={() => toggle(r.id)}
+                      />
+                    </td>
                     <td>{r.displayName || "—"}</td>
                     <td>{emailToPhone(r.email) ?? (r.email || "—")}</td>
                     <td>{r.enabled ? "Đang cấp quyền" : "Đã vô hiệu hóa"}</td>
@@ -300,78 +354,7 @@ export function UsersPage({ uid }: { uid: string }) {
         }
         onCreated={() => void load()}
       />
-      <section className="users-howto">
-        <h2>Công cụ trên máy quản trị</h2>
-        <p>
-          Đặt lại mật khẩu và xóa hẳn tài khoản (users + tài khoản đăng nhập)
-          chưa làm được trên giao diện (gói Spark), nên dùng lệnh (thêm{" "}
-          <b>--apply</b> để thực hiện; không có thì chỉ chạy thử). Trên dữ liệu
-          thật (production) mọi lệnh ghi cần thêm{" "}
-          <b>
-            --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod
-            --ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod"
-          </b>{" "}
-          (lệnh <b>delete</b> dùng câu{" "}
-          <b>"XOA TAI KHOAN gia-pha-nguyen-duc-prod"</b>) và biến môi trường{" "}
-          <b>GOOGLE_APPLICATION_CREDENTIALS</b> trỏ tới khóa để ngoài repo. Tài
-          khoản đăng nhập bằng số điện thoại có email dạng{" "}
-          <b>0914222987@gp.nguyenduc</b>. Nút <b>Sửa</b> ở trên chỉ áp dụng cho
-          tài khoản đã có.
-        </p>
-        <p>
-          Thành viên có Gmail (đăng nhập bằng Google, nhập đúng email Google):
-        </p>
-        <code>
-          npm run gia-pha:accounts -- grant --email ten@gmail.com --name "Họ
-          tên" --apply
-        </code>
-        <p>
-          Tạo tài khoản có mật khẩu bằng lệnh (thay cho khu “Tạo tài khoản”):
-        </p>
-        <code>
-          npm run gia-pha:accounts -- create --email ten@example.com --name "Họ
-          tên" --apply
-        </code>
-        <p>
-          Thu hồi quyền, đặt lại mật khẩu, xem danh sách đầy đủ kể cả tài khoản
-          chờ duyệt:
-        </p>
-        <code>
-          npm run gia-pha:accounts -- revoke --email ten@gmail.com --apply
-        </code>
-        <code>
-          npm run gia-pha:accounts -- reset-password --email
-          0914222987@gp.nguyenduc --apply
-        </code>
-        <code>npm run gia-pha:accounts -- list</code>
-        <p>
-          Xóa hẳn một tài khoản — <b>vô hiệu hóa trước, không hoàn tác</b>. Chạy
-          thử (chỉ đọc, in kế hoạch), rồi thực hiện kèm xác nhận đúng email.:
-        </p>
-        <code>
-          npm run gia-pha:accounts -- delete --email ten@example.com --project
-          &lt;id&gt;
-        </code>
-        <code>
-          npm run gia-pha:accounts -- delete --email ten@example.com --project
-          &lt;id&gt; --apply --confirm-delete ten@example.com
-        </code>
-        <p>
-          Kiểm tra và dựng lại sổ quản trị (khi trang này báo sổ chưa khởi tạo
-          hoặc lệch):
-        </p>
-        <code>npm run gia-pha:accounts -- registry --verify</code>
-        <code>npm run gia-pha:accounts -- registry --rebuild --apply</code>
-        <h3>Khi nào dùng Firebase Console</h3>
-        <p>
-          Console phù hợp để xem danh sách hoặc xóa tài khoản đăng nhập mồ côi
-          (có trong Authentication nhưng không có hồ sơ ở đây). Console{" "}
-          <b>không đặt lại được mật khẩu</b> của tài khoản số điện thoại (email
-          ngầm không nhận được thư): dùng lệnh <b>reset-password</b> ở trên,
-          hoặc xóa tài khoản rồi tạo lại ở khu “Tạo tài khoản”. Xóa trong
-          Console cũng cần xóa hồ sơ <b>users</b> tương ứng.
-        </p>
-      </section>
+      <AccountTools emails={pickedRows.map((r) => r.email).filter(Boolean)} />
     </>
   );
 }
