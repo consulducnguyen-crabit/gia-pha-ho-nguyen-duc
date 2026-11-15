@@ -316,27 +316,60 @@ try {
     await page.goto(URL);
     const box = page.getByRole("group", { name: "Đếm ngược đến ngày giỗ Tổ" });
     await expect(box).toBeVisible();
-    await expect(box).toContainText("Giỗ Tổ · 01/9 âm lịch");
+    await expect(box).toContainText("Giỗ Tổ");
+    await expect(box).toContainText("01/9 âm lịch");
     await expect(box.locator("svg.ancestor-icon")).toBeVisible();
     // Đồng hồ cố định: 09/10/2026 (giờ VN) -> giỗ Tổ 10/10/2026, còn 1 ngày.
-    await expect(box).toContainText("Thứ Bảy, 10/10/2026");
-    await expect(box).toContainText("Còn 1 ngày");
+    await expect(box.locator(".ancestor-date")).toContainText(
+      "Thứ Bảy, 10/10/2026",
+    );
+    await expect(box.locator(".ancestor-left")).toHaveText("Còn 1 ngày");
+    // Tờ lịch bloc: ô tháng/năm, thứ và số ngày lớn.
+    await expect(box.locator(".ancestor-weekday")).toHaveText("Thứ Bảy");
+    await expect(box.locator(".ancestor-day")).toHaveText("10");
+    await expect(box.locator(".ancestor-mini")).toContainText("10");
+    await expect(box.locator(".ancestor-mini")).toContainText("2026");
+    const dayPx = await box
+      .locator(".ancestor-day")
+      .evaluate((e) =>
+        Number.parseFloat(globalThis.getComputedStyle(e).fontSize),
+      );
+    if (dayPx < 40) throw Error(`${width}: số ngày quá nhỏ ${dayPx}px`);
     await expect(box.locator("time")).toHaveAttribute("datetime", "2026-10-10");
-    // Góc trên bên phải của panel đăng nhập: thẳng mép phải với ô nhập liệu, cùng hàng với nhãn phía trên.
+    // Vùng đăng nhập căn giữa, thứ tự từ trên xuống: "Gìn giữ cội nguồn", tờ lịch giỗ Tổ, "Chào mừng", ô nhập, nút.
+    const mid = (r) => r.x + r.width / 2;
     const b = await box.boundingBox();
     const input = await page.locator(".login input").first().boundingBox();
     const eyebrow = await page.locator(".login-top .eyebrow").boundingBox();
-    if (!b || !input || !eyebrow) throw Error("Không đo được khối đếm ngược");
-    const rightGap = Math.abs(input.x + input.width - (b.x + b.width));
-    if (rightGap > 2)
-      throw Error(
-        `${width}: không thẳng mép phải với form (lệch ${rightGap}px)`,
-      );
-    if (b.y - eyebrow.y > 40)
-      throw Error(`${width}: không nằm ở hàng đầu panel`);
     const h2 = await page.locator(".login h2").boundingBox();
-    if (!h2 || b.y + b.height > h2.y)
-      throw Error(`${width}: đè lên tiêu đề "Chào mừng"`);
+    const submit = await page.locator(".login .primary").boundingBox();
+    const gmail = await page.locator(".gmail-button").boundingBox();
+    if (!b || !input || !eyebrow || !h2 || !submit || !gmail)
+      throw Error("Không đo được vùng đăng nhập");
+    if (!(
+      eyebrow.y < b.y &&
+      b.y + b.height <= h2.y &&
+      h2.y < input.y &&
+      input.y < submit.y
+    ))
+      throw Error(`${width}: sai thứ tự nhãn, tờ lịch, tiêu đề, ô nhập, nút`);
+    for (const [name, r] of [
+      ["nhãn", eyebrow],
+      ["tờ lịch", b],
+      ["nút Gmail", gmail],
+    ])
+      if (Math.abs(mid(r) - mid(input)) > 2)
+        throw Error(
+          `${width}: ${name} lệch tâm ${Math.abs(mid(r) - mid(input))}px`,
+        );
+    const h2Text = await page.locator(".login h2").evaluate((e) => {
+      const r = globalThis.document.createRange();
+      r.selectNodeContents(e);
+      const t = r.getBoundingClientRect();
+      return { x: t.x, width: t.width };
+    });
+    if (Math.abs(mid(h2Text) - mid(input)) > 2)
+      throw Error(`${width}: tiêu đề "Chào mừng" lệch tâm`);
     if (b.x < 0 || b.x + b.width > width) throw Error(`${width}: tràn ngang`);
     await noOverflow(page);
     await ctx.close();
@@ -358,8 +391,8 @@ try {
     await page.clock.setFixedTime(new Date(now));
     await page.goto(URL);
     const box = page.getByRole("group", { name: "Đếm ngược đến ngày giỗ Tổ" });
-    await expect(box).toContainText(dateText);
-    await expect(box).toContainText(leftText);
+    await expect(box.locator(".ancestor-date")).toContainText(dateText);
+    await expect(box.locator(".ancestor-left")).toHaveText(leftText);
     await ctx.close();
   }
 

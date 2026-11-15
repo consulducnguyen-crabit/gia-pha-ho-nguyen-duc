@@ -46,21 +46,43 @@ export function AncestorCountdown() {
       role="group"
       aria-label="Đếm ngược đến ngày giỗ Tổ"
     >
-      <div className="ancestor-title">Giỗ Tổ · 01/9 âm lịch</div>
-      <div className="ancestor-date">
-        <CalendarIcon />
-        <time dateTime={iso}>
-          {weekdayName(date)}, {formatSolar(date)}
-        </time>
-      </div>
-      <div className="ancestor-left">
-        {daysLeft === 0 ? (
-          <b>Hôm nay</b>
-        ) : (
-          <>
-            Còn <b>{daysLeft}</b> ngày
-          </>
-        )}
+      {/* Tờ lịch bloc: gáy lịch phía trên, ô tháng/năm, thứ và số ngày lớn (chỉ trang trí; nội dung đọc nằm ở khối bên phải). */}
+      <div className="ancestor-binding" aria-hidden="true" />
+      <div className="ancestor-body">
+        <div className="ancestor-page" aria-hidden="true">
+          <div className="ancestor-mini">
+            <span>
+              <small>Tháng</small>
+              <b>{date.month}</b>
+            </span>
+            <span>
+              <small>Năm</small>
+              <b>{date.year}</b>
+            </span>
+          </div>
+          <div className="ancestor-weekday">{weekdayName(date)}</div>
+          <div className="ancestor-day">{date.day}</div>
+        </div>
+        <div className="ancestor-info">
+          <div className="ancestor-title">Giỗ Tổ</div>
+          <div className="ancestor-sub">01/9 âm lịch</div>
+          <div className="ancestor-date">
+            <CalendarIcon />
+            <time dateTime={iso}>
+              <span className="sr-only">{weekdayName(date)}, </span>
+              {formatSolar(date)}
+            </time>
+          </div>
+          <div className="ancestor-left">
+            {daysLeft === 0 ? (
+              <b>Hôm nay</b>
+            ) : (
+              <>
+                Còn <b>{daysLeft}</b> ngày
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
