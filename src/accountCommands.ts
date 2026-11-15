@@ -4,6 +4,13 @@
 
 export const PROD_PROJECT = "gia-pha-nguyen-duc-prod";
 const BASE = "npm run gia-pha:accounts --";
+/** Thư mục dự án mặc định trên máy quản trị (sửa được ở giao diện). */
+export const DEFAULT_PROJECT_DIR = "C:\\server\\gia-pha-ho-nguyen-duc";
+
+/** Đường dẫn cho PowerShell: luôn bọc nháy đơn (nháy đơn bên trong được nhân đôi) nên không chèn được lệnh khác. */
+export function psPath(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
 
 export interface CommandGroup {
   id: string;
@@ -38,7 +45,11 @@ function target(prod: boolean, write: boolean, del = false): string {
 export function buildCommandGroups(
   rawEmails: string[],
   prod: boolean,
+  projectDir = "",
 ): CommandGroup[] {
+  // Mỗi dòng tự chuyển vào thư mục dự án (npm chỉ tìm thấy script ở đó) nên dán vào PowerShell ở đâu cũng chạy được.
+  const dir = projectDir.trim();
+  const cd = dir ? `cd ${psPath(dir)}; ` : "";
   const emails = [...new Set(rawEmails.map((e) => e.trim()).filter(Boolean))];
   const selected = emails.length > 0;
   const each = (sample: string, make: (email: string) => string): string[] =>
@@ -46,7 +57,7 @@ export function buildCommandGroups(
   const read = target(prod, false);
   const write = target(prod, true);
   const del = target(prod, true, true);
-  return [
+  const groups: CommandGroup[] = [
     {
       id: "grant",
       title: "Cấp quyền cho Gmail",
@@ -124,5 +135,17 @@ export function buildCommandGroups(
       ],
       perAccount: false,
     },
+  ];
+  return [
+    {
+      id: "setup",
+      title: "Chuẩn bị (mỗi cửa sổ PowerShell mới)",
+      note: "Đặt khóa Admin (file khóa nằm ngoài repo) cho cửa sổ hiện tại; thay đường dẫn bằng file thật. Thiếu bước này, lệnh sẽ báo “Thiếu GOOGLE_APPLICATION_CREDENTIALS”.",
+      lines: [
+        `${cd}$env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\\đường-dẫn\\khóa-admin.json'`,
+      ],
+      perAccount: false,
+    },
+    ...groups.map((g) => ({ ...g, lines: g.lines.map((l) => cd + l) })),
   ];
 }

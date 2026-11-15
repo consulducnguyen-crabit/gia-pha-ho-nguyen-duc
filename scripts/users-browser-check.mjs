@@ -123,6 +123,7 @@ async function login(page, email) {
   await page.getByLabel("Mật khẩu").fill(PASSWORD);
   await page.getByRole("button", { name: "Đăng nhập →" }).click();
 }
+const CD = "cd 'C:\\server\\gia-pha-ho-nguyen-duc'; ";
 const userDoc = async (uid) => (await db.doc(`users/${uid}`).get()).data();
 const ledger = async () => (await db.doc("accessControl/admins").get()).data();
 async function audit(uid, version) {
@@ -219,14 +220,14 @@ try {
     const revoke = admin.getByRole("region", { name: "Thu hồi quyền" });
     await expect(tools.getByText("Chưa tick tài khoản nào")).toBeVisible();
     await expect(revoke.locator("code")).toHaveText([
-      "npm run gia-pha:accounts -- revoke --email ten@gmail.com --apply",
+      `${CD}npm run gia-pha:accounts -- revoke --email ten@gmail.com --apply`,
     ]);
     await admin
       .getByRole("checkbox", { name: "Chọn tài khoản Thành Viên M" })
       .check();
     await expect(tools.getByText("cho 1 tài khoản đã tick")).toBeVisible();
     await expect(revoke.locator("code")).toHaveText([
-      "npm run gia-pha:accounts -- revoke --email thanhvien.m@example.test --apply",
+      `${CD}npm run gia-pha:accounts -- revoke --email thanhvien.m@example.test --apply`,
     ]);
     const all = admin.getByRole("checkbox", {
       name: "Chọn hoặc bỏ chọn tất cả tài khoản",
@@ -261,11 +262,30 @@ try {
       name: "Xóa hẳn: thực hiện (KHÔNG hoàn tác)",
     });
     await expect(del.locator("code")).toHaveText([
-      'npm run gia-pha:accounts -- delete --email dahuy.r@example.test --apply --confirm-delete dahuy.r@example.test --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "XOA TAI KHOAN gia-pha-nguyen-duc-prod"',
+      CD +
+        'npm run gia-pha:accounts -- delete --email dahuy.r@example.test --apply --confirm-delete dahuy.r@example.test --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "XOA TAI KHOAN gia-pha-nguyen-duc-prod"',
     ]);
     await expect(revoke.locator("code")).toHaveText([
-      'npm run gia-pha:accounts -- revoke --email dahuy.r@example.test --apply --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod"',
+      CD +
+        'npm run gia-pha:accounts -- revoke --email dahuy.r@example.test --apply --project gia-pha-nguyen-duc-prod --confirm gia-pha-nguyen-duc-prod --ack "QUAN LY TAI KHOAN gia-pha-nguyen-duc-prod"',
     ]);
+
+    stage = "thư mục dự án: dòng chuẩn bị có biến khóa Admin; xóa ô thì bỏ cd";
+    const setup = admin.getByRole("region", {
+      name: "Chuẩn bị (mỗi cửa sổ PowerShell mới)",
+    });
+    await expect(setup.locator("code")).toContainText(
+      "$env:GOOGLE_APPLICATION_CREDENTIALS",
+    );
+    const dirBox = admin.getByLabel(/Thư mục dự án trên máy quản trị/);
+    await dirBox.fill("");
+    if ((await revoke.locator("code").innerText()).startsWith("cd "))
+      throw Error("Xóa ô thư mục mà lệnh vẫn có cd");
+    await dirBox.fill("D:\\Dự án 'x'");
+    await expect(revoke.locator("code")).toContainText(
+      "cd 'D:\\Dự án ''x'''; npm run gia-pha:accounts -- revoke",
+    );
+    await dirBox.fill("C:\\server\\gia-pha-ho-nguyen-duc");
 
     stage = "nút sao chép chép đúng dòng lệnh vào clipboard";
     await revoke.getByRole("button", { name: /^Sao chép lệnh/ }).click();

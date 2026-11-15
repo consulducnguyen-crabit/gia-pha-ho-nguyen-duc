@@ -2889,3 +2889,18 @@ body {
 .cmd-copy-note:empty {
   display: none;
 }
+
+.cmd-dir {
+  display: block;
+  margin: var(--space-3) 0;
+}
+.cmd-dir input {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-1);
+}
+.users-howto .cmd-dir code {
+  display: inline;
+  margin: 0;
+  padding: 0 var(--space-1);
+}
