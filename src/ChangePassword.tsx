@@ -52,7 +52,7 @@ export function ChangePasswordGate({
   return (
     <div className="gate">
       <main className="login" id="main">
-        <div className="eyebrow">GÌN GIỮ CỘI NGUỒN</div>
+        <div className="eyebrow">Gìn giữ cội nguồn</div>
         <h1>Đổi mật khẩu</h1>
         <p>
           Đây là lần đăng nhập đầu tiên bằng mật khẩu tạm do quản trị viên cấp.

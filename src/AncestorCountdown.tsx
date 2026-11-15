@@ -69,8 +69,8 @@ export function AncestorCountdown() {
           <div className="ancestor-date">
             <CalendarIcon />
             <time dateTime={iso}>
-              <span className="sr-only">{weekdayName(date)}, </span>
-              {formatSolar(date)}
+              <span className="nowrap">{weekdayName(date)},</span>{" "}
+              <span className="nowrap">{formatSolar(date)}</span>
             </time>
           </div>
           <div className="ancestor-left">

@@ -29,6 +29,8 @@ import { Proposals } from "./Proposals";
 import { PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
 import "@fontsource-variable/source-serif-4/wght.css";
+// Phông thư pháp Playball (OFL) cho nhãn "Gìn giữ cội nguồn": đóng gói cùng ứng dụng, không tải từ CDN.
+import "@fontsource/playball/index.css";
 import "./style.css";
 // Tiêu đề tab (WCAG 2.4.2) đặt ngay trong phần tử của từng <Route> để luôn khớp trang thật đang render
 // (kể cả route bị chặn quyền, không tồn tại, hoặc chỉ có trên emulator).
@@ -367,7 +369,7 @@ function Gate({ state, user }: { state: string; user: User | null }) {
       </section>
       <main className="login">
         <div className="login-top">
-          <div className="eyebrow">GÌN GIỮ CỘI NGUỒN</div>
+          <div className="eyebrow">Gìn giữ cội nguồn</div>
           <AncestorCountdown />
         </div>
         <h2>

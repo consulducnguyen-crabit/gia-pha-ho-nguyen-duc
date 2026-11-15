@@ -138,7 +138,7 @@ try {
       throw Error(`Tiêu đề cách mép trên ${titleTop}px ở ${width}px`);
     if (width > 800) {
       const formTop = await page
-        .getByText("GÌN GIỮ CỘI NGUỒN", { exact: true })
+        .getByText("Gìn giữ cội nguồn", { exact: true })
         .evaluate((e) => e.getBoundingClientRect().top);
       if (formTop > 40)
         throw Error(`Khối đăng nhập cách mép trên ${formTop}px ở ${width}px`);
@@ -338,6 +338,53 @@ try {
     await expect(box.locator("time")).toHaveAttribute("datetime", "2026-10-10");
     // Vùng đăng nhập căn giữa, thứ tự từ trên xuống: "Gìn giữ cội nguồn", tờ lịch giỗ Tổ, "Chào mừng", ô nhập, nút.
     const mid = (r) => r.x + r.width / 2;
+    // Nhãn thư pháp: phông Playball đã tải, cỡ lớn (>= 26px), màu son.
+    const brand = await page
+      .locator(".login-top .eyebrow")
+      .evaluate(async (e) => {
+        await globalThis.document.fonts.ready;
+        const st = globalThis.getComputedStyle(e);
+        return {
+          family: st.fontFamily,
+          size: Number.parseFloat(st.fontSize),
+          loaded: globalThis.document.fonts.check(
+            `${st.fontSize} Playball`,
+            e.textContent ?? "",
+          ),
+        };
+      });
+    if (!/Playball/.test(brand.family) || !brand.loaded)
+      throw Error(
+        `${width}: nhãn chưa dùng phông thư pháp Playball (${brand.family})`,
+      );
+    if (brand.size < 26)
+      throw Error(`${width}: nhãn chưa đủ lớn: ${brand.size}px`);
+    // Chữ trong tờ lịch (Giỗ Tổ, 01/9 âm lịch, thứ + ngày, còn N ngày) căn giữa cột bên phải.
+    const info = await box.locator(".ancestor-info").boundingBox();
+    for (const sel of [
+      ".ancestor-title",
+      ".ancestor-sub",
+      ".ancestor-date",
+      ".ancestor-left",
+    ]) {
+      const lines = await box.locator(sel).evaluate((e) => {
+        const r = globalThis.document.createRange();
+        r.selectNodeContents(e);
+        return [...r.getClientRects()].map((q) => q.x + q.width / 2);
+      });
+      const center = info.x + info.width / 2;
+      const text = await box
+        .locator(sel)
+        .evaluate((e) => globalThis.getComputedStyle(e).textAlign);
+      if (text !== "center" && sel !== ".ancestor-date")
+        throw Error(`${width}: ${sel} chưa căn giữa (${text})`);
+      // dòng đơn: tâm chữ lệch tâm cột không quá 12px (icon lịch nằm cùng dòng nên cho phép lệch nhẹ)
+      if (
+        lines.length &&
+        Math.abs(lines.reduce((a, c) => a + c, 0) / lines.length - center) > 14
+      )
+        throw Error(`${width}: ${sel} lệch tâm cột bên phải`);
+    }
     const b = await box.boundingBox();
     const input = await page.locator(".login input").first().boundingBox();
     const eyebrow = await page.locator(".login-top .eyebrow").boundingBox();
