@@ -234,6 +234,10 @@
 - Form Thêm/Sửa có checkbox "Đã mất"; có năm mất thì checkbox tự chọn và khóa (năm mất vẫn là nguồn chuẩn). Cây và hồ sơ hiện "đã mất" khi không có năm mất; Tổng quan tính là đã mất (không có tuổi, không bị coi là đang sống).
 - `reconcile` thêm `DECEASED_MISMATCH`. Không cần backfill: dữ liệu cũ mặc định chưa đánh dấu. Chưa deploy rules lên production.
 
+# Chuẩn hóa "Đã mất" theo đời — 2026-11-16
+
+- Lệnh mới `npm run gia-pha:person-deceased` (dry-run mặc định, `--show`, `--apply --expect-version --expect-count`, `--undo` khôi phục đúng trạng thái trước), hành động cổng prod `CHUAN HOA DA MAT`. Quy tắc: đời 1–4 và mọi vợ/chồng đều đã mất; vợ/chồng thuộc dòng họ đời > 4 chỉ báo xem lại. Chưa chạy trên production.
+
 # Ghi chú hiển thị cho mọi thành viên — 2026-11-14
 
 - Người dùng duyệt (phương án "Mọi thành viên"): ghi chú từng người hiện dạng tooltip ở Cây gia phả. Ảnh chụp cây thêm phần tử thứ 10 `note` (đã cắt 300 ký tự); `parseSnapshot` nhận 6–10 phần tử; `personPrivate` giữ bản đầy đủ cho quản trị viên.
