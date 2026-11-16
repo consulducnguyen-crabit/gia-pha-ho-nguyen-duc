@@ -1,10 +1,30 @@
-// Biểu mẫu thêm con / thêm vợ chồng — chỉ quản trị viên thấy; ghi qua commitAdd (lô nguyên tử có nhật ký).
+// Biểu mẫu thêm con / thêm vợ chồng — quản trị viên ghi trực tiếp qua commitAdd (lô nguyên tử có nhật ký);
+// thành viên thường dùng cùng biểu mẫu ở chế độ "đề xuất" (propose): chỉ gửi memberProposals, chưa ghi vào gia phả.
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { DuplicateNote } from "./DuplicateNote";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { db } from "./firebase";
-import { commitAdd, commitUnion, findRemovedUnion } from "./editClient";
+import {
+  commitAdd,
+  commitUnion,
+  findRemovedUnion,
+  loadMyProposals,
+  type MyProposal,
+} from "./editClient";
 import { latestRequest } from "./latestRequest";
+import {
+  buildProposal,
+  type ChildPayload,
+  type ProposalDoc,
+  type SpousePayload,
+} from "./memberProposal";
+import { SourceField, useProposeGate, useProposeSend } from "./ProposeParts";
+import {
+  lostOtherParent,
+  payloadToChildForm,
+  payloadToSpouseForm,
+  resubmitSource,
+} from "./proposalView";
 import { newPersonId, type AddOp } from "./editAdd";
 import { EditError, NAME_MAX, NOTE_MAX } from "./editCore";
 import { saveErrorMessage } from "./editForm";
@@ -26,12 +46,23 @@ import {
 } from "./treeModel";
 
 type Mode = "closed" | "child" | "spouse";
+/** Chế độ đề xuất (thành viên thường): ẩn "nối người đã có", thêm ô nguồn, gửi memberProposals thay vì ghi trực tiếp. */
+export interface ProposeInfo {
+  /** Đề xuất cũ làm gốc điền sẵn khi gửi lại. */
+  initial?: ProposalDoc;
+  pending: number;
+  lastSentMs: number | null;
+  onSent: () => void;
+  /** Gửi lỗi: nơi gọi tải lại dữ liệu (trạng thái đề xuất cũ, số chờ) mà không đóng biểu mẫu. */
+  onSendError?: (error: unknown) => void;
+}
 interface Props {
   index: TreeIndex;
   p: SnapPerson;
   uid: string;
   onSaved: (message: string, focusId: string) => void;
   onReload: () => void;
+  propose?: ProposeInfo;
 }
 
 function PersonFieldsInputs({
@@ -112,7 +143,7 @@ function PersonFieldsInputs({
           disabled={values.deathYear.trim() !== ""}
           onChange={(e) => set("deceased", e.target.checked)}
         />
-        Đã mất
+        <span className="check-text">Đã mất</span>
         <span className="tree-meta">
           {values.deathYear.trim() !== ""
             ? "Đã có năm mất nên được tính là đã mất."
@@ -153,6 +184,7 @@ export function AddPanel({
   onReload,
   errors,
   submitLabel = "Lưu",
+  busyLabel = "Đang lưu…",
   submitDisabled = false,
   children,
 }: {
@@ -167,6 +199,7 @@ export function AddPanel({
   errors: AddErrors;
   /** Nhãn nút gửi (mặc định "Lưu"). */
   submitLabel?: string;
+  busyLabel?: string;
   /** Khóa nút gửi (ví dụ đang tra liên kết cũ). */
   submitDisabled?: boolean;
   children: React.ReactNode;
@@ -212,7 +245,7 @@ export function AddPanel({
             className="primary"
             disabled={busy || submitDisabled}
           >
-            {busy ? "Đang lưu…" : submitLabel}
+            {busy ? busyLabel : submitLabel}
           </button>
           <button type="button" disabled={busy} onClick={onCancel}>
             Hủy
@@ -294,26 +327,50 @@ function ChildPanel({
   uid,
   onSaved,
   onReload,
+  propose,
   close,
 }: Props & { close: () => void }) {
   const uniq = useId();
   const [newId] = useState(() => newPersonId());
-  const [values, setValues] = useState<ChildForm>({
-    ...emptyPerson,
-    role: "",
-    otherParent: "",
-    category: "CLAN",
-    adoptive: false,
-    branch: p.branch ?? "",
-  });
-  const [errors, setErrors] = useState<AddErrors>({});
-  const { busy, saveError, conflict, submit } = useSubmit(
-    uid,
-    index,
-    p,
-    onSaved,
-    close,
+  const init =
+    propose?.initial?.kind === "CHILD"
+      ? (propose.initial.payload as ChildPayload)
+      : null;
+  const [values, setValues] = useState<ChildForm>(
+    init
+      ? payloadToChildForm(init, index.spouses(p.id))
+      : {
+          ...emptyPerson,
+          role: "",
+          otherParent: "",
+          category: "CLAN",
+          adoptive: false,
+          branch: p.branch ?? "",
+        },
   );
+  const [source, setSource] = useState(propose?.initial?.source ?? "");
+  const [errors, setErrors] = useState<AddErrors>({});
+  const direct = useSubmit(uid, index, p, onSaved, close);
+  const sender = useProposeSend(
+    uid,
+    propose?.initial,
+    propose?.onSent ?? (() => {}),
+    close,
+    propose?.onSendError,
+  );
+  const gate = useProposeGate(
+    uid,
+    propose?.pending ?? 0,
+    propose?.lastSentMs ?? null,
+  );
+  const { busy, saveError, conflict, submit } = propose
+    ? {
+        ...direct,
+        busy: sender.busy,
+        saveError: sender.saveError,
+        conflict: false,
+      }
+    : direct;
   const set = <K extends keyof ChildForm>(k: K, v: ChildForm[K]) =>
     setValues({ ...values, [k]: v });
   const spouses = index.spouses(p.id);
@@ -338,7 +395,7 @@ function ChildPanel({
       ? fatherGeneration + 1
       : null;
   // Chi mặc định theo chi của cha, trừ khi người dùng đã tự chọn.
-  const [branchTouched, setBranchTouched] = useState(false);
+  const [branchTouched, setBranchTouched] = useState(!!init);
   const fatherBranch =
     (fatherId && index.snapshot.persons.get(fatherId)?.branch) || "";
   const branchValue = branchTouched ? values.branch : fatherBranch;
@@ -351,8 +408,15 @@ function ChildPanel({
   const idOf = (k: string) => `${uniq}-${k}`;
   return (
     <AddPanel
-      title="Thêm con"
-      hint={`Thêm một người con của ${p.name}. Chỉ thêm mới, không đổi quan hệ đã có. Mọi lần lưu đều được ghi nhật ký.`}
+      title={propose ? "Đề xuất thêm con" : "Thêm con"}
+      hint={
+        propose
+          ? `Đề xuất thêm một người con của ${p.name}. Quản trị viên sẽ kiểm tra thông tin rồi mới ghi vào gia phả; chưa có thông báo đẩy, hãy xem kết quả ở "Đề xuất của tôi".`
+          : `Thêm một người con của ${p.name}. Chỉ thêm mới, không đổi quan hệ đã có. Mọi lần lưu đều được ghi nhật ký.`
+      }
+      submitLabel={propose ? "Gửi đề xuất" : "Lưu"}
+      busyLabel={propose ? "Đang gửi…" : "Đang lưu…"}
+      submitDisabled={propose ? gate.blocked : false}
       busy={busy}
       saveError={saveError}
       conflict={conflict}
@@ -360,16 +424,34 @@ function ChildPanel({
       onReload={onReload}
       onCancel={close}
       onSubmit={() => {
-        const result = buildChildOp(
-          p.id,
-          { ...values, category, branch: branchValue },
-          { newId, canBeLineageFather },
-        );
+        const form = { ...values, category, branch: branchValue };
+        if (propose) {
+          const r = buildProposal("CHILD", p.id, form, {
+            newId,
+            authorUid: uid,
+            canBeLineageFather,
+            source,
+            resubmitOf: propose.initial?.id,
+          });
+          if ("errors" in r)
+            return showProposalErrors(r.errors, setErrors, sender.setSaveError);
+          setErrors({});
+          void sender.send(r.proposal);
+          return;
+        }
+        const result = buildChildOp(p.id, form, { newId, canBeLineageFather });
         if ("errors" in result) return setErrors(result.errors);
         setErrors({});
         void submit(result.op, "Đã thêm người con và ghi nhật ký.");
       }}
     >
+      {propose && gate.notice}
+      {init && lostOtherParent(init, index.spouses(p.id)) && (
+        <p className="notice" role="status">
+          Người cha/mẹ còn lại đã chọn trước đó không còn trong danh sách; hãy
+          chọn lại nếu cần.
+        </p>
+      )}
       <fieldset className="proposal-fields">
         <legend>{p.name} là… (bắt buộc)</legend>
         {(["FATHER", "MOTHER"] as const).map((r) => (
@@ -483,6 +565,14 @@ function ChildPanel({
           {errors.category}
         </span>
       )}
+      {propose && (
+        <SourceField
+          value={source}
+          onChange={setSource}
+          error={errors.source}
+          errId={idOf("source-err")}
+        />
+      )}
     </AddPanel>
   );
 }
@@ -493,26 +583,51 @@ function SpousePanel({
   uid,
   onSaved,
   onReload,
+  propose,
   close,
 }: Props & { close: () => void }) {
   const uniq = useId();
   const [newId] = useState(() => newPersonId());
-  const [values, setValues] = useState<SpouseForm>({
-    ...emptyPerson,
-    kind: "new",
-    existingId: "",
-    category: "SPOUSE",
-    order: "",
-  });
+  const init =
+    propose?.initial?.kind === "SPOUSE"
+      ? (propose.initial.payload as SpousePayload)
+      : null;
+  const [values, setValues] = useState<SpouseForm>(
+    init
+      ? payloadToSpouseForm(init)
+      : {
+          ...emptyPerson,
+          kind: "new",
+          existingId: "",
+          category: "SPOUSE",
+          order: "",
+        },
+  );
+  const [source, setSource] = useState(propose?.initial?.source ?? "");
   const [search, setSearch] = useState("");
   const [errors, setErrors] = useState<AddErrors>({});
-  const { busy, saveError, conflict, submit, restoreUnion } = useSubmit(
+  const direct = useSubmit(uid, index, p, onSaved, close);
+  const { restoreUnion } = direct;
+  const sender = useProposeSend(
     uid,
-    index,
-    p,
-    onSaved,
+    propose?.initial,
+    propose?.onSent ?? (() => {}),
     close,
+    propose?.onSendError,
   );
+  const gate = useProposeGate(
+    uid,
+    propose?.pending ?? 0,
+    propose?.lastSentMs ?? null,
+  );
+  const { busy, saveError, conflict, submit } = propose
+    ? {
+        ...direct,
+        busy: sender.busy,
+        saveError: sender.saveError,
+        conflict: false,
+      }
+    : direct;
   // Cặp này từng bị GỠ liên kết: tạo mới sẽ bị chặn (liên kết đã tồn tại, chỉ ẩn), nên đổi sang nút khôi phục.
   const [removedUnion, setRemovedUnion] = useState<{
     removeVersion: number;
@@ -551,17 +666,46 @@ function SpousePanel({
   const idOf = (k: string) => `${uniq}-${k}`;
   return (
     <AddPanel
-      title="Thêm vợ/chồng"
-      hint={`Thêm quan hệ vợ/chồng cho ${p.name}. Thêm liên kết mới, hoặc khôi phục liên kết đã gỡ nếu hai người từng có; không đổi quan hệ đã có. Mọi lần lưu đều được ghi nhật ký.`}
+      title={propose ? "Đề xuất thêm vợ/chồng" : "Thêm vợ/chồng"}
+      hint={
+        propose
+          ? `Đề xuất thêm một người vợ/chồng mới cho ${p.name}. Quản trị viên sẽ kiểm tra thông tin rồi mới ghi vào gia phả; chưa có thông báo đẩy, hãy xem kết quả ở "Đề xuất của tôi".`
+          : `Thêm quan hệ vợ/chồng cho ${p.name}. Thêm liên kết mới, hoặc khôi phục liên kết đã gỡ nếu hai người từng có; không đổi quan hệ đã có. Mọi lần lưu đều được ghi nhật ký.`
+      }
+      busyLabel={propose ? "Đang gửi…" : "Đang lưu…"}
       busy={busy}
       saveError={saveError}
       conflict={conflict}
       errors={errors}
       onReload={onReload}
       onCancel={close}
-      submitLabel={removedUnion ? "Khôi phục liên kết đã gỡ" : "Lưu"}
-      submitDisabled={lookupState === "checking" || lookupState === "failed"}
+      submitLabel={
+        propose
+          ? "Gửi đề xuất"
+          : removedUnion
+            ? "Khôi phục liên kết đã gỡ"
+            : "Lưu"
+      }
+      submitDisabled={
+        propose
+          ? gate.blocked
+          : lookupState === "checking" || lookupState === "failed"
+      }
       onSubmit={() => {
+        if (propose) {
+          const r = buildProposal("SPOUSE", p.id, values, {
+            newId,
+            authorUid: uid,
+            canBeLineageFather: () => false,
+            source,
+            resubmitOf: propose.initial?.id,
+          });
+          if ("errors" in r)
+            return showProposalErrors(r.errors, setErrors, sender.setSaveError);
+          setErrors({});
+          void sender.send(r.proposal);
+          return;
+        }
         if (removedUnion && existingId) {
           setErrors({});
           void restoreUnion(
@@ -577,20 +721,24 @@ function SpousePanel({
         void submit(result.op, "Đã thêm quan hệ vợ/chồng và ghi nhật ký.");
       }}
     >
-      <fieldset className="proposal-fields">
-        <legend>Người vợ/chồng</legend>
-        {(["new", "existing"] as const).map((k) => (
-          <label key={k} className="checkbox-field">
-            <input
-              type="radio"
-              name={idOf("kind")}
-              checked={values.kind === k}
-              onChange={() => set("kind", k)}
-            />
-            {k === "new" ? "Người mới" : "Người đã có trong cây"}
-          </label>
-        ))}
-      </fieldset>
+      {propose && gate.notice}
+      {/* Chế độ đề xuất chỉ thêm người MỚI: không có lựa chọn nối người đã có. */}
+      {!propose && (
+        <fieldset className="proposal-fields">
+          <legend>Người vợ/chồng</legend>
+          {(["new", "existing"] as const).map((k) => (
+            <label key={k} className="checkbox-field">
+              <input
+                type="radio"
+                name={idOf("kind")}
+                checked={values.kind === k}
+                onChange={() => set("kind", k)}
+              />
+              {k === "new" ? "Người mới" : "Người đã có trong cây"}
+            </label>
+          ))}
+        </fieldset>
+      )}
       {values.kind === "existing" ? (
         <>
           <label>
@@ -687,8 +835,27 @@ function SpousePanel({
           </span>
         )}
       </label>
+      {propose && (
+        <SourceField
+          value={source}
+          onChange={setSource}
+          error={errors.source}
+          errId={idOf("source-err")}
+        />
+      )}
     </AddPanel>
   );
+}
+
+/** Lỗi buildProposal: lỗi theo ô hiện cạnh ô; lỗi chung (không có ô) hiện ở khung báo lỗi của biểu mẫu. */
+function showProposalErrors(
+  errors: AddErrors,
+  setErrors: (e: AddErrors) => void,
+  setSaveError: (m: string | null) => void,
+) {
+  const { form, otherParent, branch, ...rest } = errors;
+  setErrors(rest);
+  setSaveError([form, otherParent, branch].filter(Boolean).join(" ") || null);
 }
 
 export function PersonAdd(props: Props) {
@@ -730,5 +897,178 @@ export function PersonAdd(props: Props) {
         Thêm vợ/chồng
       </button>
     </p>
+  );
+}
+
+/**
+ * Thành viên thường: "Đề xuất thêm con / thêm vợ/chồng". Mở sẵn biểu mẫu bằng ?propose=child|spouse (và
+ * &resubmit=<mã đề xuất cũ> để điền sẵn khi gửi lại từ "Đề xuất của tôi"); tham số được xóa sau khi đọc.
+ */
+export function PersonPropose({
+  index,
+  p,
+  uid,
+}: Pick<Props, "index" | "p" | "uid">) {
+  const [params, setParams] = useSearchParams();
+  const [mode, setMode] = useState<Mode>(() => {
+    const a = params.get("propose");
+    return a === "child" || a === "spouse" ? a : "closed";
+  });
+  const [resubmitId, setResubmitId] = useState(() => params.get("resubmit"));
+  useEffect(() => {
+    if (params.has("propose") || params.has("resubmit")) {
+      const next = new URLSearchParams(params);
+      next.delete("propose");
+      next.delete("resubmit");
+      setParams(next, { replace: true });
+    }
+  }, []);
+  const [round, setRound] = useState(0);
+  const open = mode !== "closed";
+  const freshOpen = useRef(true);
+  const [data, setData] = useState<
+    | { status: "loading" }
+    | { status: "error" }
+    | {
+        status: "ready";
+        pending: number;
+        lastSentMs: number | null;
+        items: MyProposal[];
+      }
+  >({ status: "loading" });
+  // Chỉ tải khi mở biểu mẫu (mỗi lần xem hồ sơ không tốn lượt đọc Firestore). Tải lại giữa chừng (round đổi sau
+  // lỗi gửi) giữ nguyên dữ liệu cũ trên màn hình để không mất nội dung đang nhập.
+  useEffect(() => {
+    if (!open) {
+      freshOpen.current = true;
+      return;
+    }
+    if (freshOpen.current) {
+      freshOpen.current = false;
+      setData({ status: "loading" });
+    }
+    let live = true;
+    loadMyProposals(db!, uid)
+      .then((r) => live && setData({ status: "ready", ...r }))
+      .catch(
+        () =>
+          live &&
+          setData((d) => (d.status === "ready" ? d : { status: "error" })),
+      );
+    return () => {
+      live = false;
+    };
+  }, [uid, open, round]);
+  const [sent, setSent] = useState(false);
+  const sentRef = useRef<HTMLParagraphElement | null>(null);
+  useEffect(() => {
+    if (sent) sentRef.current?.focus();
+  }, [sent]);
+  const [restore, setRestore] = useState<Mode | null>(null);
+  const childBtn = useRef<HTMLButtonElement | null>(null);
+  const spouseBtn = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (mode === "closed" && restore && !sent) {
+      (restore === "child" ? childBtn : spouseBtn).current?.focus();
+      setRestore(null);
+    }
+  }, [mode, restore, sent]);
+  const close = (from: Mode) => () => {
+    setRestore(from);
+    setMode("closed");
+  };
+  if (mode !== "closed") {
+    if (data.status === "loading")
+      return (
+        <p role="status" className="notice">
+          Đang kiểm tra số đề xuất của bạn…
+        </p>
+      );
+    if (data.status === "error")
+      return (
+        <div role="alert" className="notice">
+          Không tải được các đề xuất của bạn nên chưa thể gửi đề xuất mới.{" "}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              setData({ status: "loading" });
+              setRound((n) => n + 1);
+            }}
+          >
+            Thử lại
+          </button>{" "}
+          <button type="button" className="link-button" onClick={close(mode)}>
+            Đóng
+          </button>
+        </div>
+      );
+    const kind = mode === "child" ? "CHILD" : "SPOUSE";
+    const old = data.items.find((i) => i.doc.id === resubmitId)?.doc;
+    const propose: ProposeInfo = {
+      initial: resubmitSource(old, uid, p.id, kind) ?? undefined,
+      pending: data.pending,
+      lastSentMs: data.lastSentMs,
+      onSent: () => {
+        setSent(true);
+        setResubmitId(null);
+      },
+      onSendError: () => setRound((n) => n + 1),
+    };
+    const Panel = mode === "child" ? ChildPanel : SpousePanel;
+    return (
+      <>
+        {resubmitId && !propose.initial && (
+          <p className="notice" role="status">
+            Không tìm thấy đề xuất gốc để điền sẵn (có thể đã được xử lý, đã rút
+            hoặc không còn trong danh sách nên không gửi lại được). Biểu mẫu
+            dưới đây để trống.
+          </p>
+        )}
+        <Panel
+          key={`${mode}:${resubmitId ?? ""}`}
+          index={index}
+          p={p}
+          uid={uid}
+          propose={propose}
+          onSaved={() => {}}
+          onReload={() => {}}
+          close={close(mode)}
+        />
+      </>
+    );
+  }
+  return (
+    <>
+      {sent && (
+        <p role="status" className="notice" tabIndex={-1} ref={sentRef}>
+          Đã gửi đề xuất. Đề xuất đang chờ quản trị viên kiểm tra; chưa có thông
+          báo đẩy, hãy xem kết quả ở{" "}
+          <Link to="/my-proposals">Đề xuất của tôi</Link>.
+        </p>
+      )}
+      <p className="edit-actions">
+        <button
+          type="button"
+          ref={childBtn}
+          onClick={() => {
+            setSent(false);
+            setMode("child");
+          }}
+        >
+          Đề xuất thêm con
+        </button>
+        <button
+          type="button"
+          ref={spouseBtn}
+          onClick={() => {
+            setSent(false);
+            setMode("spouse");
+          }}
+        >
+          Đề xuất thêm vợ/chồng
+        </button>
+      </p>
+    </>
   );
 }

@@ -1,3 +1,10 @@
+# Đề xuất thêm thành viên (PR2: giao diện thành viên) — 2026-11-16
+
+- Thành viên thường: hồ sơ có "Đề xuất thêm con / thêm vợ/chồng" (dùng lại biểu mẫu của quản trị viên ở chế độ đề xuất, thêm ô "Nguồn/căn cứ"; chỉ người mới); trang mới `#/my-proposals` "Đề xuất của tôi" (trạng thái bằng chữ, lý do, rút lại có xác nhận, gửi lại điền sẵn, số chờ n/5) và mục menu tương ứng. Quản trị viên không thấy các mục này. Giới hạn 5 chờ duyệt và 60 giây ép ở giao diện (rules vẫn chặn 60 giây).
+- Mã: `src/ProposeParts.tsx`, `src/proposalView.ts`, `src/MyProposals.tsx`, `PersonPropose` trong `src/PersonAdd.tsx`, `loadMyProposals` và tùy chọn `withdrawPrevious` của `submitProposal` trong `src/editClient.ts`, style `.my-proposal*`. Không đổi `firestore.rules`.
+- Sau review: xem hồ sơ không còn truy vấn `memberProposals` (chỉ tải khi mở biểu mẫu); lỗi rút/gửi lại do quản trị viên xử lý trước có câu báo riêng và tải lại; cảnh báo khi đủ 50 đề xuất; focus ở bước rút; nhắc khi cha/mẹ còn lại không điền sẵn được; sửa khoảng cách nhãn "Đã mất" và chú thích ô nhập (cả form quản trị viên, không đổi hành vi).
+- Kiểm thử: `tests/proposalView.test.ts`, `scripts/member-proposal-browser-check.mjs` (`npm run test:browser:member-proposal`, thêm vào job `browser` của CI). Chi tiết: `docs/MEMBER_PROPOSALS.md`.
+
 # Đề xuất thêm thành viên (PR1: lõi, rules, test; chưa giao diện) — 2026-11-16
 
 - Thành viên gửi đề xuất thêm người MỚI (thêm con / thêm vợ chồng); quản trị viên trong sổ từ chối, yêu cầu bổ sung hoặc duyệt. Duyệt = admin thêm người như cũ (`applyAdd`) trong cùng lô với việc đánh dấu APPROVED; nhật ký `edit-{n}` ghi `after.proposalId`. Đề xuất giữ vĩnh viễn, không sửa nội dung, không delete. Yêu cầu bổ sung ghi riêng `infoRequest*`, quyết định cuối ghi `decision*`: không ghi đè nhau (giữ dấu vết kiểm toán).

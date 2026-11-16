@@ -7,7 +7,7 @@ import { PersonEdit } from "./PersonEdit";
 import { MemberList } from "./MemberList";
 import { PersonNameLink } from "./PersonNameLink";
 import { PersonDelete } from "./PersonDelete";
-import { PersonAdd } from "./PersonAdd";
+import { PersonAdd, PersonPropose } from "./PersonAdd";
 import { PersonRelations } from "./PersonRelations";
 import { PersonUnions } from "./PersonUnions";
 import { branchInfo } from "./branchInfo";
@@ -640,6 +640,15 @@ export function PersonPage({
                 setSaved({ id: focusId, message });
                 reload();
               }}
+            />
+          )}
+          {/* Thành viên thường: chỉ ĐỀ XUẤT thêm người mới (quản trị viên có nút thêm trực tiếp ở trên). */}
+          {!canEdit && (
+            <PersonPropose
+              key={`propose:${id}`}
+              index={index}
+              p={p}
+              uid={uid}
             />
           )}
           {canEdit && (
