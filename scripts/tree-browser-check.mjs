@@ -70,6 +70,17 @@ try {
     page.getByRole("link", { name: "Cụ Giả Thủy Tổ" }),
   ).toBeVisible();
 
+  stage =
+    "ô tìm kiếm: gợi ý nằm trong placeholder, nhãn chỉ dành cho trình đọc màn hình";
+  await expect(
+    page.getByPlaceholder("Tìm theo tên (không cần gõ dấu)"),
+  ).toBeVisible();
+  await expect(page.getByLabel("Tìm theo tên")).toBeVisible();
+  const labelBox = await page
+    .locator(".tree-search .sr-only")
+    .evaluate((el) => el.getBoundingClientRect().width);
+  if (labelBox > 1) throw Error("Nhãn ô tìm kiếm còn hiện trên màn hình");
+
   stage = "expand and collapse";
   await expect(page.getByRole("link", { name: "Giả Văn An" })).toBeVisible();
   const toggle = page.getByRole("button", { name: /con cháu của Giả Văn An/ });

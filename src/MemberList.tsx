@@ -49,12 +49,12 @@ export function MemberList({
     <>
       <div className="tree-toolbar tree-toolbar-top tree-toolbar-list">
         <label>
-          Tìm theo tên
+          <span className="sr-only">Tìm theo tên</span>
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Không cần gõ dấu"
+            placeholder="Tìm theo tên (không cần gõ dấu)"
             className="form-field"
           />
         </label>

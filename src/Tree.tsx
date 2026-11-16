@@ -448,12 +448,12 @@ function TreeView({
       )}
       <div className="tree-toolbar tree-toolbar-top">
         <label className="tree-search">
-          Tìm theo tên
+          <span className="sr-only">Tìm theo tên</span>
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Không cần gõ dấu"
+            placeholder="Tìm theo tên (không cần gõ dấu)"
             className="form-field"
           />
         </label>
