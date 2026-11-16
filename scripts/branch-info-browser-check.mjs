@@ -140,6 +140,37 @@ async function checkRole(email, isAdmin) {
     await expect(box.getByText("Ghi chú quản trị (chi)")).toHaveCount(0);
     await expect(page.getByText(/Ghi chú quản trị giả/)).toHaveCount(0);
   }
+  stage = `${label}: hàng công cụ sát thanh menu, nút "+" nổi chỉ dành cho quản trị`;
+  const fab = page.getByRole("link", { name: "Thêm thành viên" });
+  const toolbarGap = await page.evaluate(
+    () =>
+      document.querySelector(".tree-toolbar-top").getBoundingClientRect().top -
+      document.querySelector(".topbar").getBoundingClientRect().bottom,
+  );
+  if (toolbarGap > 40)
+    throw Error(`${label}: hàng công cụ cách menu ${toolbarGap}px`);
+  if (!isAdmin) await expect(fab).toHaveCount(0);
+  else {
+    await expect(fab).toHaveCount(1);
+    await expect(fab).toHaveAttribute("href", "#/add-member");
+    await expect(fab).toHaveAttribute("title", "Thêm thành viên");
+    await page.evaluate(() => {
+      document.querySelector("main").style.minHeight = "4000px";
+      globalThis.scrollTo(0, 1500);
+    });
+    const topbarBottom = await page.evaluate(
+      () => document.querySelector(".topbar").getBoundingClientRect().bottom,
+    );
+    const rect = await fab.boundingBox();
+    if (!rect || rect.y < topbarBottom - 1 || rect.y > topbarBottom + 40)
+      throw Error(
+        `${label}: nút "+" không dính dưới menu khi cuộn (${rect?.y})`,
+      );
+    await page.evaluate(() => {
+      document.querySelector("main").style.minHeight = "";
+      globalThis.scrollTo(0, 0);
+    });
+  }
   await noOverflow(page, `${label}-branch-I`);
 
   stage = `${label}: long text is clipped with expand button; unknown founder has no link`;
