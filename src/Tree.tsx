@@ -339,6 +339,16 @@ function ViewTabs() {
   );
 }
 
+// Tiêu đề trang + tab chế độ xem: tab ở mép trái, tên trang ở mép phải; dùng chung hai chế độ.
+function TreeHead({ title }: { title: string }) {
+  return (
+    <div className="tree-head">
+      <ViewTabs />
+      <h1>{title}</h1>
+    </div>
+  );
+}
+
 function TreeView({
   index,
   isAdmin,
@@ -401,9 +411,8 @@ function TreeView({
   if (view === "list")
     return (
       <>
-        <h1>Danh sách thành viên</h1>
-        <ViewTabs />
         <MemberList
+          header={<TreeHead title="Danh sách thành viên" />}
           snapshot={index.snapshot}
           renderMeta={(p) => (
             <>
@@ -477,10 +486,7 @@ function TreeView({
           <button onClick={() => setExpanded(new Set())}>Thu gọn tất cả</button>
         </div>
       </div>
-      <div className="tree-head">
-        <h1>Cây gia phả</h1>
-        <ViewTabs />
-      </div>
+      <TreeHead title="Cây gia phả" />
       <p className="tree-summary">
         {clanCount} thành viên thuộc dòng họ, {maxGeneration} đời. Bấm tên để
         xem hồ sơ.

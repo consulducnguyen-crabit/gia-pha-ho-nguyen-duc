@@ -10,10 +10,13 @@ import type { Category, SnapPerson, Snapshot } from "./treeModel";
 export function MemberList({
   snapshot,
   renderMeta,
+  header,
 }: {
   snapshot: Snapshot;
   /** Phần phụ sau họ tên (năm, đời, chi, nhãn), do trang cây cung cấp để dùng chung kiểu hiển thị. */
   renderMeta: (p: SnapPerson) => ReactNode;
+  /** Tiêu đề trang + tab, đặt dưới hàng tìm kiếm (hàng tìm kiếm nằm sát thanh menu như tab Sơ đồ cây). */
+  header?: ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const [branch, setBranch] = useState("");
@@ -44,7 +47,7 @@ export function MemberList({
   }, [shown]);
   return (
     <>
-      <div className="tree-toolbar">
+      <div className="tree-toolbar tree-toolbar-top tree-toolbar-list">
         <label>
           Tìm theo tên
           <input
@@ -84,6 +87,7 @@ export function MemberList({
           </select>
         </label>
       </div>
+      {header}
       <p className="tree-summary" role="status">
         {shown.length === rows.length
           ? `${rows.length} thành viên`
