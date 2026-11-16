@@ -2676,7 +2676,7 @@ body {
 }
 .chi-watermark span {
   position: absolute;
-  top: var(--space-2);
+  top: 56px; /* dưới đường kẻ của đầu khối chi, không đè lên đường kẻ */
   right: 0;
   max-width: 85%;
   font: 600 clamp(26px, 8vw, 48px) / 1.05 var(--font-heading);
@@ -2959,13 +2959,18 @@ main:has(> .tree-toolbar-top) {
   margin-bottom: var(--space-3);
 }
 .tree-head h1 {
-  margin: 0;
+  margin: 0 0 0 auto;
   padding-bottom: var(--space-2);
   font-size: var(--text-section);
 }
 .tree-head .tree-tabs {
   margin: 0;
   border-bottom: 0;
+}
+/* Danh sách thành viên: không có nút "+" nên không chừa chỗ bên phải. */
+.tree-toolbar-list {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  padding-right: 0;
 }
 .tree-head + .tree-summary {
   margin: 0 0 var(--space-3);
@@ -2976,12 +2981,23 @@ main:has(> .tree-toolbar-top) {
     width: 48px;
     height: 48px;
   }
-  .tree-toolbar-top {
+  .tree-toolbar-top,
+  .tree-toolbar-list {
     grid-template-columns: 1fr;
     gap: var(--space-2);
     padding-right: 0;
   }
   .tree-toolbar-top .tree-search {
     padding-right: 60px;
+  }
+}
+@media (max-width: 560px) {
+  /* Hẹp: tên trang lên trên, tab xuống dưới, cùng căn trái. */
+  .tree-head {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+  .tree-head h1 {
+    margin-left: 0;
   }
 }
