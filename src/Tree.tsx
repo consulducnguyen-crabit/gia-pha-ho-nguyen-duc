@@ -458,13 +458,13 @@ function TreeView({
           />
         </label>
         <label>
-          Xem theo chi
+          <span className="sr-only">Xem theo chi</span>
           <select
             value={branch}
             onChange={(event) => setBranch(event.target.value)}
             className="form-field"
           >
-            <option value="">Toàn họ</option>
+            <option value="">Toàn họ (chọn chi để lọc)</option>
             {index.snapshot.branches.map((b) => (
               <option key={b.code} value={b.code}>
                 {b.name}
