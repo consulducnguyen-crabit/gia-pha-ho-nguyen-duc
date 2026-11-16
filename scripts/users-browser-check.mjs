@@ -218,7 +218,16 @@ try {
       name: "Công cụ trên máy quản trị",
     });
     const revoke = admin.getByRole("region", { name: "Thu hồi quyền" });
-    await expect(tools.getByText("Chưa tick tài khoản nào")).toBeVisible();
+    await expect(tools.getByText("Đang tạo lệnh cho")).toHaveCount(0);
+    // Đã bỏ các đoạn hướng dẫn dài ở trang Quản lý tài khoản.
+    for (const gone of [
+      "Danh sách tài khoản đã được cấp hoặc vô hiệu hóa quyền. Quản trị viên",
+      "Thành viên đăng ký trực tiếp với quản trị viên",
+      "Các lệnh dưới đây chạy trong PowerShell",
+      "Khi nào dùng Firebase Console",
+      "Chưa tick tài khoản nào",
+    ])
+      await expect(admin.getByText(gone)).toHaveCount(0);
     await expect(revoke.locator("code")).toHaveText([
       `${CD}npm run gia-pha:accounts -- revoke --email ten@gmail.com --apply`,
     ]);
@@ -251,7 +260,7 @@ try {
         .and(admin.locator(":checked")),
     ).toHaveCount(4);
     await all.uncheck();
-    await expect(tools.getByText("Chưa tick tài khoản nào")).toBeVisible();
+    await expect(tools.getByText("Đang tạo lệnh cho")).toHaveCount(0);
 
     stage = "cờ production thêm đúng project/confirm/ack";
     await admin

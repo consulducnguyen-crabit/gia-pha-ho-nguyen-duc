@@ -134,14 +134,6 @@ export function CreateAccountSection({
   return (
     <section className="users-create" aria-labelledby={`${uniq}-h`}>
       <h2 id={`${uniq}-h`}>Tạo tài khoản</h2>
-      <p className="tree-summary">
-        Thành viên đăng ký trực tiếp với quản trị viên. Tạo tài khoản theo số
-        điện thoại hoặc email; hệ thống sinh mật khẩu tạm để bạn gửi riêng cho
-        thành viên (Zalo), thành viên phải đổi mật khẩu ở lần đăng nhập đầu. Tài
-        khoản mới chỉ có quyền Chỉ xem. Thành viên có Gmail thì chọn “Chỉ
-        Gmail”: không cần mật khẩu, thành viên bấm “Đăng nhập bằng Gmail” là
-        vào.
-      </p>
       {!enabled && (
         <p role="alert" className="notice">
           Sổ quản trị chưa sẵn sàng nên chưa tạo được tài khoản.
