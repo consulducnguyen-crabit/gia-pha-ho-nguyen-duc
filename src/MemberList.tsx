@@ -59,13 +59,13 @@ export function MemberList({
           />
         </label>
         <label>
-          Xem theo chi
+          <span className="sr-only">Xem theo chi</span>
           <select
             value={branch}
             onChange={(e) => setBranch(e.target.value)}
             className="form-field"
           >
-            <option value="">Toàn họ</option>
+            <option value="">Toàn họ (chọn chi để lọc)</option>
             {snapshot.branches.map((b) => (
               <option key={b.code} value={b.code}>
                 {b.name}
@@ -74,13 +74,13 @@ export function MemberList({
           </select>
         </label>
         <label>
-          Nhóm
+          <span className="sr-only">Nhóm</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as "" | Category)}
             className="form-field"
           >
-            <option value="">Tất cả</option>
+            <option value="">Tất cả nhóm</option>
             <option value="CLAN">Thuộc dòng họ</option>
             <option value="SPOUSE">Người kết hôn vào</option>
             <option value="EXTERNAL">Họ ngoại</option>
