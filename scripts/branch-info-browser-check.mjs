@@ -140,8 +140,7 @@ async function checkRole(email, isAdmin) {
     await expect(box.getByText("Ghi chú quản trị (chi)")).toHaveCount(0);
     await expect(page.getByText(/Ghi chú quản trị giả/)).toHaveCount(0);
   }
-  stage = `${label}: hàng công cụ sát thanh menu, nút "+" nổi chỉ dành cho quản trị`;
-  const fab = page.getByRole("link", { name: "Thêm thành viên" });
+  stage = `${label}: hàng công cụ sát thanh menu; nút "Thêm thành viên" nằm trên thanh menu, chỉ dành cho quản trị`;
   const toolbarGap = await page.evaluate(
     () =>
       document.querySelector(".tree-toolbar-top").getBoundingClientRect().top -
@@ -149,27 +148,36 @@ async function checkRole(email, isAdmin) {
   );
   if (toolbarGap > 40)
     throw Error(`${label}: hàng công cụ cách menu ${toolbarGap}px`);
-  if (!isAdmin) await expect(fab).toHaveCount(0);
+  await expect(page.locator(".fab, .fab-anchor")).toHaveCount(0);
+  const add = page.locator(".topbar").getByRole("link", {
+    name: "Thêm thành viên",
+  });
+  if (!isAdmin) await expect(add).toHaveCount(0);
   else {
-    await expect(fab).toHaveCount(1);
-    await expect(fab).toHaveAttribute("href", "#/add-member");
-    await expect(fab).toHaveAttribute("title", "Thêm thành viên");
-    await page.evaluate(() => {
-      document.querySelector("main").style.minHeight = "4000px";
-      globalThis.scrollTo(0, 1500);
-    });
-    const topbarBottom = await page.evaluate(
-      () => document.querySelector(".topbar").getBoundingClientRect().bottom,
-    );
-    const rect = await fab.boundingBox();
-    if (!rect || rect.y < topbarBottom - 1 || rect.y > topbarBottom + 40)
-      throw Error(
-        `${label}: nút "+" không dính dưới menu khi cuộn (${rect?.y})`,
-      );
-    await page.evaluate(() => {
-      document.querySelector("main").style.minHeight = "";
-      globalThis.scrollTo(0, 0);
-    });
+    await expect(add).toHaveCount(1);
+    await expect(add).toHaveAttribute("href", "#/add-member");
+    const addBox = await add.boundingBox();
+    const emailBox = await page.locator(".header-user").boundingBox();
+    const navBox = await page.locator(".topbar nav").boundingBox();
+    if (!addBox || !emailBox || !navBox)
+      throw Error(`${label}: thiếu khung nút Thêm thành viên`);
+    if (addBox.y < emailBox.y + emailBox.height - 1)
+      throw Error(`${label}: nút Thêm thành viên không nằm dưới tên đăng nhập`);
+    if (addBox.y + addBox.height < navBox.y)
+      throw Error(`${label}: nút Thêm thành viên không cùng hàng với menu`);
+  }
+  if (isAdmin) {
+    stage = `${label}: điện thoại — nút Thêm thành viên nằm trong menu mở`;
+    await page.setViewportSize({ width: 360, height: 800 });
+    await expect(add).toBeHidden();
+    await page.getByRole("button", { name: "Menu" }).click();
+    await expect(add).toBeVisible();
+    if (process.env.SHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.SHOT_DIR}/admin-menu-open-360.png`,
+      });
+    await page.getByRole("button", { name: "Đóng" }).click();
+    await page.setViewportSize({ width: 1280, height: 900 });
   }
   await noOverflow(page, `${label}-branch-I`);
 

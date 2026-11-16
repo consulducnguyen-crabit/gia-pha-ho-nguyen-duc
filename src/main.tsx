@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
   HashRouter,
+  Link,
   Navigate,
   NavLink,
   Route,
@@ -215,6 +216,11 @@ function App() {
               <NavLink to="/audit">Nhật ký chỉnh sửa</NavLink>
             )}
           </nav>
+          {canManageMembership && (
+            <Link className="primary link topbar-add" to="/add-member">
+              <span aria-hidden="true">+</span> Thêm thành viên
+            </Link>
+          )}
           <span className="header-user">
             <span className="header-user-email" title={loginLabel(user?.email)}>
               <span className="header-user-label">Đang đăng nhập: </span>
