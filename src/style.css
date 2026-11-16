@@ -2458,11 +2458,24 @@ body {
   max-width: 40ch;
 }
 .topbar nav {
-  grid-area: 2 / 1 / 3 / 3;
+  grid-area: 2 / 1;
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--space-1);
   margin-top: var(--space-2);
+}
+/* Nút Thêm thành viên (chỉ quản trị): cùng hàng với menu, bên phải, dưới tên đăng nhập. */
+.topbar .topbar-add {
+  grid-area: 2 / 2;
+  align-self: end;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-2);
+  text-decoration: none;
+  white-space: nowrap;
 }
 .topbar nav a {
   margin-top: 0;
@@ -2505,6 +2518,11 @@ body {
   }
   .topbar nav a.active {
     border-left-color: var(--color-primary);
+  }
+  .topbar .topbar-add {
+    display: flex;
+    justify-content: center;
+    margin: var(--space-3) 0 0;
   }
   .topbar .header-user {
     justify-content: space-between;
@@ -2897,52 +2915,13 @@ body {
   padding: 0 var(--space-1);
 }
 
-/* Trang cây: hàng công cụ sát thanh menu, tiêu đề + tab một hàng, nút thêm thành viên tròn dính khi cuộn (chỉ trình bày) */
+/* Trang cây: hàng công cụ sát thanh menu, tiêu đề + tab một hàng, (chỉ trình bày) */
 main:has(> .tree-toolbar-top) {
   padding-top: var(--space-3);
 }
-.fab-anchor {
-  position: sticky;
-  top: calc(var(--chi-sticky-top, 76px) + var(--space-2));
-  height: 0;
-  z-index: 15; /* dưới thanh menu (20): menu mở trên điện thoại phủ lên nút */
-}
-@media (min-width: 900px) {
-  .fab-anchor {
-    top: calc(var(--chi-sticky-top-wide, 120px) + var(--space-2));
-  }
-}
-.fab {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 52px;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: var(--color-surface);
-  border: 2px solid var(--color-surface);
-  box-shadow: 0 2px 8px rgb(58 43 29 / 30%);
-  text-decoration: none;
-}
-.fab:hover {
-  background: var(--color-primary-hover);
-}
-.fab:focus-visible {
-  outline: none;
-  box-shadow:
-    var(--focus-ring),
-    0 2px 8px rgb(58 43 29 / 30%);
-}
-.fab svg {
-  width: 24px;
-  height: 24px;
-}
 .tree-toolbar-top {
   margin: 0 0 var(--space-3);
-  padding: var(--space-3) 64px var(--space-3) 0;
+  padding: var(--space-3) 0;
   grid-template-columns: minmax(200px, 1.4fr) minmax(160px, 1fr) auto auto;
   gap: var(--space-3) var(--space-4);
 }
@@ -2967,28 +2946,18 @@ main:has(> .tree-toolbar-top) {
   margin: 0;
   border-bottom: 0;
 }
-/* Danh sách thành viên: không có nút "+" nên không chừa chỗ bên phải. */
 .tree-toolbar-list {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  padding-right: 0;
 }
 .tree-head + .tree-summary {
   margin: 0 0 var(--space-3);
   font-size: 14px;
 }
 @media (max-width: 800px) {
-  .fab {
-    width: 48px;
-    height: 48px;
-  }
   .tree-toolbar-top,
   .tree-toolbar-list {
     grid-template-columns: 1fr;
     gap: var(--space-2);
-    padding-right: 0;
-  }
-  .tree-toolbar-top .tree-search {
-    padding-right: 60px;
   }
 }
 @media (max-width: 560px) {
