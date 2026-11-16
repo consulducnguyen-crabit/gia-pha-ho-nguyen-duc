@@ -64,6 +64,15 @@ Không có migration production; request/graph cũ thiếu cấu trúc bị ch�
 reviewer được bảo vệ khỏi luồng quản lý ordinary-member để không âm thầm xóa quyền.
 Xem PROPOSALS.md về workflow, giới hạn graph và rollback.
 
+## Đề xuất thêm thành viên — schema 1 (chỉ rules, chưa deploy)
+
+Xem `docs/MEMBER_PROPOSALS.md`. Khác `changeRequests` (luồng emulator-only).
+
+- `memberProposals/{id}`, `id == newId` dạng `p-[a-z0-9]{12}`: `schemaVersion` 1, `kind` (`CHILD`|`SPOUSE`), `anchorId` (người đã có trong cây), `newId`, `payload` (map, khóa cố định: name, sex, birthYear, deathYear, deceased, note; CHILD thêm role FATHER|MOTHER, otherParentId, adoptive, category CLAN|EXTERNAL, branch; SPOUSE thêm category SPOUSE|EXTERNAL, order), `source`? (1–300), `resubmitOf`?, `status` (PENDING|APPROVED|REJECTED|NEEDS_INFO|WITHDRAWN), `authorUid`, `createdAt`, `updatedAt`; khi xử lý: `withdrawnAt`; yêu cầu bổ sung: `infoRequestedBy`, `infoRequestedAt`, `infoRequestReason` (1–500); quyết định cuối: `decidedBy`, `decidedAt`, `decisionReason` (REJECTED bắt buộc 1–500, APPROVED tùy chọn), `appliedEditVersion`. Hai nhóm không ghi đè nhau. Nội dung (`kind`, `anchorId`, `newId`, `payload`, `source`...) không bao giờ đổi; không delete. Chứa dữ liệu cá nhân: chỉ tác giả và quản trị viên trong sổ đọc được.
+- `proposalThrottle/{uid}`: `lastAt`, `lastProposalId`, `schemaVersion` 1. Chống spam: sửa cách lần trước > 60 giây; gắn với đúng một đề xuất.
+- `auditLogs/edit-{n}` (PERSON_ADDED/SPOUSE_ADDED) có thể mang `after.proposalId` khi được duyệt từ đề xuất.
+- Chỉ mục: truy vấn của thành viên `where authorUid == uid` (một trường, chỉ mục mặc định); không thêm chỉ mục tổng hợp trong PR này.
+
 ## Tài khoản và lời mời trong app — schema 1 (PR-A, chưa deploy)
 
 > **Lưu ý (2026-11-15):** phần lời mời (`accountInvites`, `invitationNonce`, sự kiện `INVITATION_*`/`INVITE_*`) đã bị gỡ ở PR3 và đợt dọn backend; chỉ còn lại để tra cứu lịch sử. Không còn rule hay mã nào ghi/đọc chúng; dữ liệu cũ nếu có không cấp quyền gì. Phần `accessControl/admins`, `users` và `ACCOUNT_*` vẫn đang dùng.

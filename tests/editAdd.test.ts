@@ -426,3 +426,37 @@ describe("ghi chú khi thêm người", () => {
     expect(s.persons["p-new"][9]).toBe("ghi chú vợ");
   });
 });
+
+describe("proposalId (duyệt từ đề xuất thành viên)", () => {
+  const pid = "p-abcdefghijkl";
+  const s = () => state({ [pid]: null });
+  const auditAfter = (r: ReturnType<typeof run>) =>
+    byPath(r)["auditLogs/edit-3"].data.after as Record<string, unknown>;
+
+  it("không có proposalId thì nhật ký không có after.proposalId (hành vi cũ)", () => {
+    expect(auditAfter(run(child({ newId: pid }), s()))).not.toHaveProperty("proposalId");
+  });
+  it("thêm con và vợ/chồng mới đều ghi after.proposalId", () => {
+    const c = applyAdd(s(), { op: child({ newId: pid }), expectedVersion: 2, actorUid: "admin", proposalId: pid });
+    expect(auditAfter(c)).toMatchObject({ proposalId: pid, name: "Giả Văn Con" });
+    const sp = applyAdd(s(), {
+      op: {
+        type: "addSpouse",
+        personId: "c",
+        order: null,
+        spouse: { kind: "new", newId: pid, category: "SPOUSE", person: { ...kid, name: "Vợ Mới", sex: "F" } },
+      },
+      expectedVersion: 2,
+      actorUid: "admin",
+      proposalId: pid,
+    });
+    expect(auditAfter(sp)).toMatchObject({ proposalId: pid });
+  });
+  it("proposalId sai định dạng hoặc khác mã người mới bị từ chối", () => {
+    const go = (proposalId: string, newId = pid) => () =>
+      applyAdd(state({ [newId]: null }), { op: child({ newId }), expectedVersion: 2, actorUid: "admin", proposalId });
+    expect(code(go("p-other0000000"))).toBe("INVALID");
+    expect(code(go("p-new", "p-new"))).toBe("INVALID");
+    expect(code(go(""))).toBe("INVALID");
+  });
+});

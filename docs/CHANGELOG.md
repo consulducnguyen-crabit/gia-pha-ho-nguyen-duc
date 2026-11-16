@@ -1,3 +1,11 @@
+# Đề xuất thêm thành viên (PR1: lõi, rules, test; chưa giao diện) — 2026-11-16
+
+- Thành viên gửi đề xuất thêm người MỚI (thêm con / thêm vợ chồng); quản trị viên trong sổ từ chối, yêu cầu bổ sung hoặc duyệt. Duyệt = admin thêm người như cũ (`applyAdd`) trong cùng lô với việc đánh dấu APPROVED; nhật ký `edit-{n}` ghi `after.proposalId`. Đề xuất giữ vĩnh viễn, không sửa nội dung, không delete. Yêu cầu bổ sung ghi riêng `infoRequest*`, quyết định cuối ghi `decision*`: không ghi đè nhau (giữ dấu vết kiểm toán).
+- `firestore.rules`: thêm `memberProposals` và `proposalThrottle` (1 đề xuất/60 giây/tài khoản; throttle gắn đúng một đề xuất để không lách bằng lô). Không đổi các rule cũ. **Chưa deploy production** (người dùng tự deploy sau khi merge).
+- Mã: `src/memberProposal.ts` (hàm thuần), `src/editClient.ts` (`submitProposal`, `withdrawProposal`, `decideProposal`, `commitApproveProposal`), `src/editAdd.ts` (`proposalId` tùy chọn), `src/auditView.ts` (`proposalIdOf`, dòng "Từ đề xuất #…").
+- Tài liệu: `docs/MEMBER_PROPOSALS.md` (thiết kế, bảng đếm truy cập, hai bước dự phòng, rollback), `SECURITY_RULES.md` mục 5b/5c, `DATABASE_SCHEMA.md`, `OPEN_DECISIONS.md` mục 5. `scripts/restore-check.mjs` kiểm thêm hai collection mới.
+- Kiểm thử: `tests/memberProposal.test.ts`, `tests/memberProposalRules.test.ts` (emulator), cập nhật `editAdd`/`auditView`. Không có UI nên không có kịch bản Playwright mới.
+
 # Favicon chữ Nguyễn và cài ứng dụng lên màn hình chính — 2026-11-15
 
 - Favicon 阮 (kiểu ấn son), manifest PWA, biểu tượng 192/512/maskable và apple-touch-icon; service worker tối giản **không cache** (`public/sw.js`); nút "Cài ứng dụng lên màn hình chính" (Chrome/Android) và hướng dẫn thêm vào màn hình chính (iPhone/iPad) ở trang đăng nhập. Chi tiết: `docs/INSTALL_APP.md`.

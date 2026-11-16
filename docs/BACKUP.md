@@ -16,6 +16,7 @@ Spark không có export Firestore tự động, nên sao lưu do quản trị vi
 - Nơi lưu: `backups/` hoặc `private-data/` trong repo (bị `.gitignore` chặn) hoặc thư mục ngoài repo (ổ ngoài, đám mây riêng tư). Thư mục khác trong repo bị từ chối.
 - **Mã hóa tùy chọn:** đặt `GIA_PHA_BACKUP_PASSPHRASE` (≥ 12 ký tự) khi sao lưu; AES-256-GCM, khóa từ scrypt. Cần cùng cụm mật khẩu để verify/compare/restore. Mất cụm mật khẩu = mất bản sao lưu: ghi lại ở nơi an toàn khác nơi lưu sao lưu.
 - Không có Storage (chưa dùng). Tài khoản Auth không có mật khẩu trong sao lưu: sau khôi phục, tạo lại bằng `gia-pha:accounts` (`grant`/`create`/`reset-password`).
+- Collection `memberProposals` và `proposalThrottle` (đề xuất thêm thành viên, `docs/MEMBER_PROPOSALS.md`) là collection gốc nên được sao lưu/khôi phục như các collection khác; `scripts/restore-check.mjs` kiểm số lượng và hash của chúng.
 - Giới hạn: chỉ collection gốc (hiện chưa có subcollection). Nếu thêm subcollection, phải mở rộng công cụ trước khi tin vào sao lưu.
 
 ## Diễn tập khôi phục (đã chạy trên emulator với dữ liệu demo)

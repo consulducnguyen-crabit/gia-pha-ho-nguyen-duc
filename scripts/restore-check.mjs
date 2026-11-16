@@ -41,6 +41,8 @@ try {
       "generationOverrides",
       "auditLogs",
       "changeRequests",
+      "memberProposals",
+      "proposalThrottle",
       "persons/nested-regression/names",
     ]) {
       const result = await getDocs(collection(context.firestore(), path));
