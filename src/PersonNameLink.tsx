@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import type { SnapPerson } from "./treeModel";
+import { isDeceased, type SnapPerson } from "./treeModel";
 
 export const LONG_PRESS_MS = 500;
 const TIP_MAX_WIDTH = 320;
@@ -13,6 +13,7 @@ const EDGE = 8;
 
 export function PersonNameLink({ p }: { p: SnapPerson }) {
   const note = p.note ?? null;
+  const nameClass = isDeceased(p) ? "tree-name is-deceased" : "tree-name";
   const tipId = useId();
   const wrapRef = useRef<HTMLSpanElement | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,7 +69,7 @@ export function PersonNameLink({ p }: { p: SnapPerson }) {
 
   if (!note)
     return (
-      <Link to={`/person/${p.id}`} className="tree-name">
+      <Link to={`/person/${p.id}`} className={nameClass}>
         {p.name}
       </Link>
     );
@@ -86,7 +87,7 @@ export function PersonNameLink({ p }: { p: SnapPerson }) {
     >
       <Link
         to={`/person/${p.id}`}
-        className="tree-name has-note"
+        className={`${nameClass} has-note`}
         aria-describedby={tipId}
         onTouchStart={() => {
           touching.current = true;

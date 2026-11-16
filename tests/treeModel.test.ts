@@ -5,6 +5,7 @@ import {
   NOTE_CLIP,
   buildIndex,
   clipNote,
+  isDeceased,
   parseSnapshot,
   sameNamePeople,
   setTupleDeceased,
@@ -304,5 +305,14 @@ describe("ghi chú trong ảnh chụp", () => {
     expect(t).toHaveLength(10);
     expect(t.slice(6)).toEqual([[], null, false, "ghi chú"]);
     expect(parse(t).note).toBe("ghi chú");
+  });
+});
+
+describe("isDeceased", () => {
+  it("có năm mất hoặc cờ đã mất thì là đã mất; còn lại thì không", () => {
+    expect(isDeceased({ deathYear: 1973 })).toBe(true);
+    expect(isDeceased({ deathYear: null, deceased: true })).toBe(true);
+    expect(isDeceased({ deathYear: null, deceased: false })).toBe(false);
+    expect(isDeceased({ deathYear: null })).toBe(false); // ảnh chụp cũ chưa có cờ
   });
 });

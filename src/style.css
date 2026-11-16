@@ -2543,6 +2543,11 @@ body {
 .note-wrap {
   display: inline;
 }
+/* Người đã mất: họ tên màu đỏ để dễ phân biệt khi rà soát dữ liệu (năm mất/"đã mất" vẫn có chữ đi kèm, màu không phải dấu hiệu duy nhất). */
+.tree-name.is-deceased {
+  color: var(--color-danger);
+  text-decoration-color: var(--color-danger);
+}
 .tree-name.has-note {
   text-decoration-style: dotted;
   -webkit-touch-callout: none; /* không hiện bản xem trước liên kết của iOS khi giữ */
