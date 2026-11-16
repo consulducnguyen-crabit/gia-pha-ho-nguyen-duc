@@ -98,3 +98,10 @@ có). Chỉ xem mắt các ảnh trong phiên này: ho-so 360 (trước/sau), c�
 - Nav xuống 4-5 dòng ở 320/360px cho quản trị trên emulator nên đẩy nội dung xuống.
 - Title nay đặt trong phần tử của từng `<Route>` (component `Titled`) và theo trạng thái ở màn hình cổng;
   audit kiểm title khớp h1 và route chặn/không có trả "Không tìm thấy trang".
+
+# Đề xuất thêm thành viên — giao diện thành viên — 16/11/2026
+
+- Kiểm bằng `npm run test:browser:member-proposal` (Playwright, emulator, dữ liệu giả): biểu mẫu đề xuất, biểu mẫu thêm con của quản trị viên (đối chiếu), danh sách "Đề xuất của tôi", trạng thái đủ 5 chờ duyệt; không tràn ngang ở 360/768/1280 (đo `scrollWidth`).
+- Ảnh chụp (đặt `SHOT_DIR`) ĐÃ XEM sau khi sửa khoảng cách nhãn: form đề xuất 360/768/1280, form quản trị viên 360/768/1280, danh sách 360/1280, đủ-5-chờ 360/768. Chưa xem lại sau lần sửa CSS cuối: danh sách 768 và đủ-5-chờ 1280 (đã xem bản trước khi sửa CSS; hai trang này không dùng phần CSS đã sửa).
+- Sửa trình bày dùng chung: nhãn "Đã mất" không bị bẻ chữ và có khoảng cách với chú thích; chú thích dưới ô nhập ("19/2000 ký tự", nhắc ghi chú) xuống dòng riêng; áp cho cả form quản trị viên, hành vi không đổi.
+- Nhãn trường, nhắc nhở ghi chú và vùng chạm dùng lại biểu mẫu quản trị viên; chưa kiểm bằng trình đọc màn hình thật.

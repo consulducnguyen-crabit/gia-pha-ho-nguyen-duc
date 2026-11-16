@@ -2975,3 +2975,73 @@ main:has(> .tree-toolbar-top) {
     margin-left: 0;
   }
 }
+
+/* Đề xuất của tôi (thành viên thường): trạng thái luôn có chữ, màu chỉ nhấn thêm */
+.my-proposals {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.my-proposal {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-4);
+}
+.my-proposal h2 {
+  font-size: 18px;
+  margin: 0 0 var(--space-2);
+}
+.my-proposal p {
+  margin: 0 0 var(--space-2);
+}
+.proposal-text {
+  white-space: pre-wrap;
+}
+.proposal-status {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  font-size: var(--text-small);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+}
+.proposal-status[data-status="PENDING"],
+.proposal-status[data-status="NEEDS_INFO"] {
+  color: var(--color-warning);
+}
+.proposal-status[data-status="APPROVED"] {
+  color: var(--color-success);
+}
+.proposal-status[data-status="REJECTED"] {
+  color: var(--color-danger);
+}
+.my-proposal .edit-actions .link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  border: 1px solid var(--color-control-border);
+  color: var(--color-primary);
+}
+.my-proposal .edit-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Nhãn "Đã mất" không bị bẻ chữ; chú thích tách khỏi nhãn (checkbox: có khoảng cách; ô nhập: xuống dòng riêng) */
+.edit-panel .check-text {
+  white-space: nowrap;
+}
+.edit-panel label.checkbox-field:has(> input[type="checkbox"]) {
+  gap: var(--space-2);
+}
+.edit-panel label:not(.checkbox-field) > .tree-meta {
+  display: block;
+  margin-top: var(--space-1);
+}

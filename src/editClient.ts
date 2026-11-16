@@ -1,7 +1,13 @@
 // Nối lõi sửa (editCore) với Firestore: đọc và ghi trong CÙNG một giao dịch.
 import {
+  collection,
   doc,
   getDoc,
+  getDocFromServer,
+  getDocsFromServer,
+  limit,
+  query,
+  where,
   runTransaction,
   serverTimestamp,
   updateDoc,
@@ -10,12 +16,14 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import {
+  MAX_PENDING,
   PROPOSAL_ID,
   canTransition,
   cleanReason,
   proposalToAddOp,
   readProposal,
   type ChildPayload,
+  type ProposalDoc,
   type ProposalInput,
   type SpousePayload,
 } from "./memberProposal";
@@ -361,6 +369,8 @@ export async function commitDelete(
 export async function submitProposal(
   db: Firestore,
   proposal: ProposalInput,
+  // withdrawPrevious=false: gửi lại từ đề xuất đã TỪ CHỐI (trạng thái cuối, không rút được) chỉ ghi liên kết resubmitOf.
+  opts: { withdrawPrevious?: boolean } = {},
 ): Promise<void> {
   const batch = writeBatch(db);
   const { id, ...rest } = proposal;
@@ -374,13 +384,65 @@ export async function submitProposal(
     lastProposalId: id,
     schemaVersion: 1,
   });
-  if (proposal.resubmitOf)
+  if (proposal.resubmitOf && opts.withdrawPrevious !== false)
     batch.update(doc(db, "memberProposals", proposal.resubmitOf), {
       status: "WITHDRAWN",
       updatedAt: serverTimestamp(),
       withdrawnAt: serverTimestamp(),
     });
   await batch.commit();
+}
+
+/** Đọc đề xuất của chính mình (rules chỉ cho truy vấn có authorUid == uid). Lỗi mạng/quyền thì ném lên cho giao diện. */
+export async function loadMyProposals(
+  db: Firestore,
+  uid: string,
+): Promise<{
+  items: MyProposal[];
+  pending: number;
+  lastSentMs: number | null;
+  /** Đủ 50 tài liệu: có thể còn đề xuất cũ hơn không được tải (không có orderBy, thứ tự theo mã tài liệu). */
+  truncated: boolean;
+}> {
+  const col = collection(db, "memberProposals");
+  const [all, pend, throttle] = await Promise.all([
+    getDocsFromServer(query(col, where("authorUid", "==", uid), limit(50))),
+    // Đếm chờ riêng (chỉ ràng buộc bằng, không cần index ghép) để số đúng kể cả khi có hơn 50 đề xuất.
+    getDocsFromServer(
+      query(
+        col,
+        where("authorUid", "==", uid),
+        where("status", "==", "PENDING"),
+        limit(MAX_PENDING + 1),
+      ),
+    ),
+    getDocFromServer(doc(db, "proposalThrottle", uid)),
+  ]);
+  const ms = (v: unknown) =>
+    v && typeof (v as { toMillis?: unknown }).toMillis === "function"
+      ? (v as { toMillis(): number }).toMillis()
+      : null;
+  const items: MyProposal[] = [];
+  for (const d of all.docs) {
+    const p = readProposal(d.id, d.data());
+    if (p)
+      items.push({
+        doc: p,
+        createdAtMs: ms(d.data().createdAt),
+        updatedAtMs: ms(d.data().updatedAt),
+      });
+  }
+  return {
+    items,
+    pending: pend.size,
+    truncated: all.size >= 50,
+    lastSentMs: throttle.exists() ? ms(throttle.data().lastAt) : null,
+  };
+}
+export interface MyProposal {
+  doc: ProposalDoc;
+  createdAtMs: number | null;
+  updatedAtMs: number | null;
 }
 
 /** Tác giả rút đề xuất đang chờ duyệt hoặc cần bổ sung. */

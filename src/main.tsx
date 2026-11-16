@@ -29,6 +29,7 @@ import { pruneWelcome } from "./welcome";
 import { AncestorCountdown } from "./AncestorCountdown";
 import { startInstallCapture } from "./installPrompt";
 import { registerServiceWorker } from "./registerServiceWorker";
+import { MyProposalsPage } from "./MyProposals";
 import { Proposals } from "./Proposals";
 import { clearTreeCache, PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
@@ -205,6 +206,10 @@ function App() {
             {canManageMembership && (
               <NavLink to="/review-queue">Cần kiểm tra</NavLink>
             )}
+            {/* Thành viên thường theo dõi đề xuất thêm người; quản trị viên thêm trực tiếp nên không có mục này. */}
+            {!canManageMembership && (
+              <NavLink to="/my-proposals">Đề xuất của tôi</NavLink>
+            )}
             {emulator && <NavLink to="/changes">Đề xuất thay đổi</NavLink>}
             {emulator && canReviewChanges && (
               <NavLink to="/review">Hộp duyệt</NavLink>
@@ -285,6 +290,18 @@ function App() {
                     </Titled>
                   ) : (
                     <Navigate to="/" replace />
+                  )
+                }
+              />
+              <Route
+                path="/my-proposals"
+                element={
+                  canManageMembership ? (
+                    <Navigate to="/" replace />
+                  ) : (
+                    <Titled title="Đề xuất của tôi">
+                      <MyProposalsPage key={user!.uid} uid={user!.uid} />
+                    </Titled>
                   )
                 }
               />
