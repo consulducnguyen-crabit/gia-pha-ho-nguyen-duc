@@ -96,6 +96,25 @@ try {
   await page.getByLabel("Xem theo chi").selectOption("II");
   await expect(page.locator(".member-list li")).toHaveCount(2);
   await page.getByLabel("Xem theo chi").selectOption("");
+  // Lọc theo đời: placeholder "Lọc theo Đời", chỉ liệt kê các đời có trong cây (người kết hôn vào không có đời).
+  const gen = page.getByLabel("Lọc theo Đời");
+  await expect(gen.locator("option")).toHaveText([
+    "Lọc theo Đời",
+    "Đời 1",
+    "Đời 2",
+    "Đời 3",
+    "Đời 4",
+  ]);
+  await gen.selectOption("4");
+  await expect(page.locator(".member-list li")).toHaveCount(3);
+  await gen.selectOption("1");
+  await expect(page.locator(".member-list li")).toHaveCount(1);
+  await gen.selectOption("3");
+  await page.getByLabel("Xem theo chi").selectOption("II");
+  await expect(page.locator(".member-list li")).toHaveCount(1); // kết hợp với chi
+  await page.getByLabel("Xem theo chi").selectOption("");
+  await gen.selectOption("");
+  await expect(page.locator(".member-list li")).toHaveCount(8);
 
   // Về tab cây bằng nút Quay lại; đường dẫn lạ chuyển về /tree.
   await page.goBack();
