@@ -138,18 +138,11 @@ export function AccountTools({ emails }: { emails: string[] }) {
   return (
     <section className="users-howto" aria-labelledby="account-tools-h">
       <h2 id="account-tools-h">Công cụ trên máy quản trị</h2>
-      <p>
-        Các lệnh dưới đây chạy trong PowerShell tại thư mục dự án trên máy quản
-        trị (cần <b>GOOGLE_APPLICATION_CREDENTIALS</b> trỏ tới khóa để ngoài
-        repo). Lệnh ghi mặc định chỉ in kế hoạch cho tới khi có <b>--apply</b>.
-        Tài khoản đăng nhập bằng số điện thoại có email dạng{" "}
-        <b>0914222987@gp.nguyenduc</b>.
-      </p>
-      <p role="status" className="cmd-selection">
-        {selected
-          ? `Đang tạo lệnh cho ${emails.length} tài khoản đã tick ở bảng trên.`
-          : "Chưa tick tài khoản nào: lệnh dùng email mẫu. Tick tài khoản ở bảng trên để lệnh tự điền email."}
-      </p>
+      {selected && (
+        <p role="status" className="cmd-selection">
+          {`Đang tạo lệnh cho ${emails.length} tài khoản đã tick ở bảng trên.`}
+        </p>
+      )}
       <label className="cmd-dir">
         Thư mục dự án trên máy quản trị (mỗi lệnh bắt đầu bằng <code>cd</code>{" "}
         vào đây; để trống nếu bạn đã đứng sẵn trong thư mục)
@@ -186,15 +179,6 @@ export function AccountTools({ emails }: { emails: string[] }) {
       {groups.map((g) => (
         <Group key={g.id} g={g} selected={selected} />
       ))}
-      <h3>Khi nào dùng Firebase Console</h3>
-      <p>
-        Console phù hợp để xem danh sách hoặc xóa tài khoản đăng nhập mồ côi (có
-        trong Authentication nhưng không có hồ sơ ở đây). Console{" "}
-        <b>không đặt lại được mật khẩu</b> của tài khoản số điện thoại (email
-        ngầm không nhận được thư): dùng lệnh <b>reset-password</b> ở trên, hoặc
-        xóa tài khoản rồi tạo lại ở khu “Tạo tài khoản”. Xóa trong Console cũng
-        cần xóa hồ sơ <b>users</b> tương ứng.
-      </p>
     </section>
   );
 }

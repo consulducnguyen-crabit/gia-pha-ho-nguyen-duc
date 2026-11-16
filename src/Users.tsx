@@ -152,12 +152,6 @@ export function UsersPage({ uid }: { uid: string }) {
   return (
     <>
       <h1>Quản lý tài khoản</h1>
-      <p className="tree-summary">
-        Danh sách tài khoản đã được cấp hoặc vô hiệu hóa quyền. Quản trị viên có
-        thể sửa tên hiển thị, đổi quyền Quản trị/Chỉ xem, vô hiệu hóa hoặc bật
-        lại tài khoản đã có, và tạo tài khoản mới (đăng nhập bằng số điện thoại,
-        email hoặc chỉ Gmail) ở khu “Tạo tài khoản” bên dưới.
-      </p>
       {done && (
         <p role="status" className="notice" tabIndex={-1} ref={doneRef}>
           {done}
