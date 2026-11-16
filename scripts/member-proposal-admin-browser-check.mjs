@@ -451,6 +451,13 @@ try {
   await v1.page.getByRole("link", { name: "Đề xuất của tôi" }).click();
   await expect(v1.page.getByText("ĐÃ DUYỆT", { exact: true })).toBeVisible();
   await expect(v1.page.getByText(/Ghi chú: Đã đối chiếu sổ \(giả\)/)).toBeVisible();
+  stage = "dòng ĐÃ DUYỆT màu xanh (--color-success), vẫn có chữ";
+  const approvedColor = await v1.page
+    .getByText(/Quản trị viên đã duyệt và ghi vào gia phả/)
+    .evaluate((el) => globalThis.getComputedStyle(el).color);
+  if (approvedColor !== "rgb(56, 87, 59)")
+    throw Error(`Màu dòng đã duyệt: ${approvedColor}`);
+  await shots(v1.page, "my-proposal-approved");
   await v1.ctx.close();
   const v3 = await newPage("thanhvien3-dxa@example.test");
   await v3.page.getByRole("link", { name: "Đề xuất của tôi" }).click();
@@ -458,6 +465,13 @@ try {
   await expect(
     v3.page.getByText("Lý do từ chối: Trùng với người đã có trong cây (giả)."),
   ).toBeVisible();
+  stage = "lý do TỪ CHỐI màu đỏ (--color-danger), vẫn có chữ";
+  const rejectedColor = await v3.page
+    .getByText("Lý do từ chối: Trùng với người đã có trong cây (giả).")
+    .evaluate((el) => globalThis.getComputedStyle(el).color);
+  if (rejectedColor !== "rgb(155, 44, 34)")
+    throw Error(`Màu lý do từ chối: ${rejectedColor}`);
+  await shots(v3.page, "my-proposal-rejected");
   await v3.ctx.close();
   const v2 = await newPage("thanhvien2-dxa@example.test");
   await v2.page.getByRole("link", { name: "Đề xuất của tôi" }).click();

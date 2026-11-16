@@ -208,12 +208,12 @@ export function MyProposalsPage({ uid }: { uid: string }) {
                       </p>
                     )}
                     {d.status === "REJECTED" && d.decisionReason && (
-                      <p className="proposal-text">
+                      <p className="proposal-text proposal-note-rejected">
                         Lý do từ chối: {d.decisionReason}
                       </p>
                     )}
                     {d.status === "APPROVED" && (
-                      <p className="tree-meta">
+                      <p className="tree-meta proposal-note-approved">
                         Quản trị viên đã duyệt và ghi vào gia phả.
                         {d.decisionReason
                           ? ` Ghi chú: ${d.decisionReason}`
