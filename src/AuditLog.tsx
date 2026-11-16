@@ -6,6 +6,8 @@ import { Link } from "react-router-dom";
 import { doc, getDocFromServer } from "firebase/firestore";
 import { db } from "./firebase";
 import { latestRequest } from "./latestRequest";
+import { getProposalRaw } from "./editClient";
+import { proposalMatchesAudit } from "./proposalAdmin";
 import { loadTreeIndex } from "./Tree";
 import type { TreeIndex } from "./treeModel";
 import {
@@ -143,6 +145,9 @@ function AuditTable({
   const [event, setEvent] = useState("");
   const [needle, setNeedle] = useState("");
   const [actors, setActors] = useState<Record<string, Actor>>({});
+  // Đối chiếu "Từ đề xuất #…" với memberProposals khi mở chi tiết (mỗi cặp bản ghi/đề xuất một lần).
+  const [links, setLinks] = useState<Record<string, ProposalCheck>>({});
+  const checked = useRef(new Set<string>());
   const requests = useRef(latestRequest());
   const alive = useRef(true);
   const asked = useRef(new Set<string>());
@@ -275,6 +280,29 @@ function AuditTable({
     }
   }, [rows]);
 
+  // after.proposalId là dữ liệu tự khai của nhật ký: chỉ coi là đúng khi đề xuất APPROVED và appliedEditVersion khớp.
+  const verifyProposal = useCallback((version: number, proposalId: string) => {
+    const key = `${version}:${proposalId}`;
+    if (checked.current.has(key)) return;
+    checked.current.add(key);
+    setLinks((l) => ({ ...l, [key]: "checking" }));
+    getProposalRaw(db!, proposalId).then(
+      (data) => {
+        if (!alive.current) return;
+        setLinks((l) => ({
+          ...l,
+          [key]: proposalMatchesAudit(proposalId, data, version)
+            ? "ok"
+            : "mismatch",
+        }));
+      },
+      () => {
+        checked.current.delete(key); // lỗi tạm thời: cho thử lại lần mở sau
+        if (alive.current) setLinks((l) => ({ ...l, [key]: "error" }));
+      },
+    );
+  }, []);
+
   const count = loaded.records.size;
   const loadAllLeft = LOAD_ALL_CAP - count;
   return (
@@ -370,7 +398,13 @@ function AuditTable({
             )}
             {shown.map((r) =>
               r.view ? (
-                <AuditRow key={r.version} view={r.view} actors={actors} />
+                <AuditRow
+                  key={r.version}
+                  view={r.view}
+                  actors={actors}
+                  links={links}
+                  onOpenDetails={verifyProposal}
+                />
               ) : (
                 <tr key={r.version}>
                   <th scope="row" className="audit-version">
@@ -426,12 +460,51 @@ function PersonCell({ person }: { person: PersonRef }) {
   );
 }
 
+type ProposalCheck = "checking" | "ok" | "mismatch" | "error";
+
+/** Dòng "Từ đề xuất #…": liên kết CHỈ khi đã đối chiếu khớp; còn lại ghi rõ chưa xác minh. */
+function ProposalLine({
+  version,
+  proposalId,
+  check,
+}: {
+  version: number;
+  proposalId: string;
+  check: ProposalCheck | undefined;
+}) {
+  if (check === "ok")
+    return (
+      <li>
+        Từ đề xuất #{proposalId} (đã xác minh):{" "}
+        <Link to={`/member-proposals?id=${proposalId}`}>Mở đề xuất</Link>
+      </li>
+    );
+  if (check === "mismatch")
+    return (
+      <li>
+        Bản ghi ghi “từ đề xuất #{proposalId}” nhưng chưa xác minh: đề xuất
+        không tồn tại, chưa được duyệt hoặc không khớp lần sửa #{version}.
+      </li>
+    );
+  return (
+    <li>
+      Từ đề xuất #{proposalId} (
+      {check === "error" ? "chưa kiểm tra được, mở lại chi tiết để thử" : "đang kiểm tra…"}
+      )
+    </li>
+  );
+}
+
 function AuditRow({
   view,
   actors,
+  links,
+  onOpenDetails,
 }: {
   view: AuditView;
   actors: Record<string, Actor>;
+  links: Record<string, ProposalCheck>;
+  onOpenDetails: (version: number, proposalId: string) => void;
 }) {
   const actor = view.actorUid ? actors[view.actorUid] : undefined;
   return (
@@ -464,12 +537,25 @@ function AuditRow({
             <li key={i}>{line}</li>
           ))}
         </ul>
-        <details className="audit-details">
+        <details
+          className="audit-details"
+          onToggle={(e) => {
+            if (view.proposalId && e.currentTarget.open)
+              onOpenDetails(view.version, view.proposalId);
+          }}
+        >
           <summary>Chi tiết</summary>
           <ul className="audit-summary">
             {view.details.map((line, i) => (
               <li key={i}>{line}</li>
             ))}
+            {view.proposalId && (
+              <ProposalLine
+                version={view.version}
+                proposalId={view.proposalId}
+                check={links[`${view.version}:${view.proposalId}`]}
+              />
+            )}
             <li>Mã bản ghi: auditLogs/edit-{view.version}</li>
             {view.person.id && <li>Mã người: {view.person.id}</li>}
             {view.actorUid && SAFE_UID.test(view.actorUid) && (

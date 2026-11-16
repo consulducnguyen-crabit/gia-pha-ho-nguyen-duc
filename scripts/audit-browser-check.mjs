@@ -57,6 +57,13 @@ const adminUid = await account("quantri@example.test", {
   canManageMembership: true,
   displayName: "Quản Trị Giả",
 });
+// Sổ quản trị viên nhất quán với cờ canManageMembership (menu đếm đề xuất chờ duyệt cần ledgerAdmin, nếu không sẽ 403).
+await db.doc("accessControl/admins").set({
+  adminUids: [adminUid],
+  version: 1,
+  lastTargetUid: "",
+  schemaVersion: 1,
+});
 await account("thanhvien@example.test", {});
 const oldUid = await account("cu@example.test", {
   enabled: false,

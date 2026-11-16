@@ -30,6 +30,8 @@ import { AncestorCountdown } from "./AncestorCountdown";
 import { startInstallCapture } from "./installPrompt";
 import { registerServiceWorker } from "./registerServiceWorker";
 import { MyProposalsPage } from "./MyProposals";
+import { MemberProposalsAdminPage } from "./MemberProposalsAdmin";
+import { countPendingProposals } from "./editClient";
 import { Proposals } from "./Proposals";
 import { clearTreeCache, PersonPage, ReviewQueuePage, TreePage } from "./Tree";
 import { UsersPage } from "./Users";
@@ -137,6 +139,31 @@ function App() {
       unsubscribe();
     };
   }, []);
+  // Số đề xuất thêm thành viên đang CHỜ DUYỆT (chỉ quản trị viên đã xác nhận từ máy chủ). Một truy vấn đếm khi vào và
+  // sau mỗi quyết định (không onSnapshot: tiết kiệm lượt đọc Spark). Lỗi (rules chưa triển khai, mạng...) -> ẩn số,
+  // không ảnh hưởng menu.
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+  const countSeq = useRef(0);
+  const refreshPendingCount = React.useCallback(() => {
+    const seq = ++countSeq.current;
+    if (!db) return;
+    countPendingProposals(db).then(
+      (n) => {
+        if (seq === countSeq.current) setPendingCount(n);
+      },
+      () => {
+        if (seq === countSeq.current) setPendingCount(null);
+      },
+    );
+  }, []);
+  useEffect(() => {
+    if (!canManageMembership || !user) {
+      countSeq.current++;
+      setPendingCount(null);
+      return;
+    }
+    refreshPendingCount();
+  }, [canManageMembership, user?.uid, refreshPendingCount]);
   // Đổi route trong ứng dụng: đưa focus vào vùng nội dung để bàn phím/trình đọc màn hình bắt đầu từ trang mới.
   useEffect(() => {
     if (firstRoute.current) {
@@ -209,6 +236,15 @@ function App() {
             {/* Thành viên thường theo dõi đề xuất thêm người; quản trị viên thêm trực tiếp nên không có mục này. */}
             {!canManageMembership && (
               <NavLink to="/my-proposals">Đề xuất của tôi</NavLink>
+            )}
+            {/* Quản trị viên duyệt đề xuất thêm thành viên (khác "Hộp duyệt" /review chỉ có trên emulator). */}
+            {canManageMembership && (
+              <NavLink to="/member-proposals">
+                Đề xuất chờ duyệt
+                {pendingCount !== null && pendingCount > 0
+                  ? ` (${pendingCount})`
+                  : ""}
+              </NavLink>
             )}
             {emulator && <NavLink to="/changes">Đề xuất thay đổi</NavLink>}
             {emulator && canReviewChanges && (
@@ -302,6 +338,22 @@ function App() {
                     <Titled title="Đề xuất của tôi">
                       <MyProposalsPage key={user!.uid} uid={user!.uid} />
                     </Titled>
+                  )
+                }
+              />
+              <Route
+                path="/member-proposals"
+                element={
+                  canManageMembership ? (
+                    <Titled title="Đề xuất chờ duyệt">
+                      <MemberProposalsAdminPage
+                        key={user!.uid}
+                        uid={user!.uid}
+                        onChanged={refreshPendingCount}
+                      />
+                    </Titled>
+                  ) : (
+                    <Navigate to="/" replace />
                   )
                 }
               />

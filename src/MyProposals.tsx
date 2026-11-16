@@ -59,6 +59,13 @@ export function MyProposalsPage({ uid }: { uid: string }) {
   useEffect(() => {
     if (withdrawn) doneRef.current?.focus();
   }, [withdrawn]);
+  // Rút lỗi: đưa focus vào thông báo lỗi (nút xác nhận đã biến mất nên focus sẽ mất nếu không chuyển).
+  const errorRef = useRef<HTMLParagraphElement | null>(null);
+  // Bộ đếm đổi mỗi lần lỗi để lỗi lặp cùng chuỗi vẫn chuyển focus.
+  const [errorNonce, setErrorNonce] = useState(0);
+  useEffect(() => {
+    if (actionError) errorRef.current?.focus();
+  }, [actionError, errorNonce]);
   useEffect(() => {
     let live = true;
     Promise.all([
@@ -94,6 +101,7 @@ export function MyProposalsPage({ uid }: { uid: string }) {
     } catch (error) {
       setConfirming(null);
       setActionError(withdrawErrorMessage(error));
+      setErrorNonce((n) => n + 1);
     } finally {
       setBusy(false);
       // Thành công hay lỗi (thường do quản trị viên vừa xử lý) đều tải lại để hiện trạng thái thật.
@@ -142,7 +150,7 @@ export function MyProposalsPage({ uid }: { uid: string }) {
             </p>
           )}
           {actionError && (
-            <p role="alert" className="notice">
+            <p role="alert" className="notice" tabIndex={-1} ref={errorRef}>
               {actionError}
             </p>
           )}

@@ -50,6 +50,8 @@ type Mode = "closed" | "child" | "spouse";
 export interface ProposeInfo {
   /** Đề xuất cũ làm gốc điền sẵn khi gửi lại. */
   initial?: ProposalDoc;
+  /** Đang gửi lại nhưng không còn đề xuất gốc hợp lệ: khóa nút gửi (tránh tạo đề xuất mới mất resubmitOf). */
+  locked?: boolean;
   pending: number;
   lastSentMs: number | null;
   onSent: () => void;
@@ -65,7 +67,8 @@ interface Props {
   propose?: ProposeInfo;
 }
 
-function PersonFieldsInputs({
+// Dùng chung với biểu mẫu duyệt đề xuất của quản trị viên (ProposalReview.tsx): cùng nhãn và cảnh báo ghi chú.
+export function PersonFieldsInputs({
   values,
   errors,
   set,
@@ -416,7 +419,7 @@ function ChildPanel({
       }
       submitLabel={propose ? "Gửi đề xuất" : "Lưu"}
       busyLabel={propose ? "Đang gửi…" : "Đang lưu…"}
-      submitDisabled={propose ? gate.blocked : false}
+      submitDisabled={propose ? gate.blocked || !!propose.locked : false}
       busy={busy}
       saveError={saveError}
       conflict={conflict}
@@ -688,7 +691,7 @@ function SpousePanel({
       }
       submitDisabled={
         propose
-          ? gate.blocked
+          ? gate.blocked || !!propose.locked
           : lookupState === "checking" || lookupState === "failed"
       }
       onSubmit={() => {
@@ -976,6 +979,8 @@ export function PersonPropose({
   const close = (from: Mode) => () => {
     setRestore(from);
     setMode("closed");
+    // Đóng biểu mẫu gửi lại thì bỏ liên kết cũ: lần mở sau là đề xuất mới bình thường.
+    setResubmitId(null);
   };
   if (mode !== "closed") {
     if (data.status === "loading")
@@ -1007,6 +1012,8 @@ export function PersonPropose({
     const old = data.items.find((i) => i.doc.id === resubmitId)?.doc;
     const propose: ProposeInfo = {
       initial: resubmitSource(old, uid, p.id, kind) ?? undefined,
+      // Có yêu cầu gửi lại mà đề xuất gốc không còn hợp lệ (đã xử lý/rút, hoặc đổi sau lần tải lại): không cho gửi.
+      locked: !!resubmitId && !resubmitSource(old, uid, p.id, kind),
       pending: data.pending,
       lastSentMs: data.lastSentMs,
       onSent: () => {
@@ -1020,9 +1027,10 @@ export function PersonPropose({
       <>
         {resubmitId && !propose.initial && (
           <p className="notice" role="status">
-            Không tìm thấy đề xuất gốc để điền sẵn (có thể đã được xử lý, đã rút
-            hoặc không còn trong danh sách nên không gửi lại được). Biểu mẫu
-            dưới đây để trống.
+            Không tìm thấy đề xuất gốc để điền sẵn (đã được xử lý, đã rút hoặc
+            không còn trong danh sách) nên không gửi lại được. Hãy xem "Đề xuất
+            của tôi", hoặc bấm Hủy rồi chọn lại nút đề xuất để gửi một đề xuất
+            mới.
           </p>
         )}
         <Panel

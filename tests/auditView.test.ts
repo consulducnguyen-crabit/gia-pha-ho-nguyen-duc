@@ -161,9 +161,13 @@ describe("describeAudit: 12 sự kiện", () => {
         }),
         lookup,
       );
-    expect(mk("PERSON_ADDED", "p-abcdefghijkl").details).toContain("Từ đề xuất #p-abcdefghijkl");
-    expect(mk("SPOUSE_ADDED", "p-abcdefghijkl").details).toContain("Từ đề xuất #p-abcdefghijkl");
+    // Mã chỉ được trả về như "tự khai" (proposalId); KHÔNG vào details để không hiện như sự thật chưa xác minh.
+    expect(mk("PERSON_ADDED", "p-abcdefghijkl").proposalId).toBe("p-abcdefghijkl");
+    expect(mk("SPOUSE_ADDED", "p-abcdefghijkl").proposalId).toBe("p-abcdefghijkl");
+    expect(mk("PERSON_ADDED", "p-abcdefghijkl").details.join(" ")).not.toContain("đề xuất");
+    expect(mk("PERSON_ADDED", "<b>x</b>").proposalId).toBeNull();
     expect(mk("PERSON_ADDED", "<b>x</b>").details.join(" ")).not.toContain("đề xuất");
+    expect(mk("PERSON_EDITED", "p-abcdefghijkl").proposalId).toBeNull();
     expect(proposalIdOf({ proposalId: 5 })).toBeNull();
     expect(proposalIdOf(null)).toBeNull();
   });

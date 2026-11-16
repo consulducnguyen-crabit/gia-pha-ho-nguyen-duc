@@ -1,3 +1,12 @@
+# Đề xuất thêm thành viên (PR3: giao diện quản trị viên duyệt) — 2026-11-16
+
+- Quản trị viên: mục menu "Đề xuất chờ duyệt (n)" và trang `#/member-proposals` (hàng đợi, lịch sử theo trạng thái, chi tiết điền sẵn có thể sửa, Duyệt/Từ chối/Cần bổ sung, cảnh báo trùng không chặn, "gửi lại của" đã kiểm). Số chờ đếm bằng một truy vấn đếm (không nghe liên tục). Duyệt ghi người mới cùng lô như thêm trực tiếp (nhật ký có `proposalId`).
+- Nhật ký: "Từ đề xuất #…" chỉ có liên kết khi đề xuất APPROVED và `appliedEditVersion` khớp; ngược lại "chưa xác minh". `describeAudit` trả `proposalId` (tự khai) thay vì dòng chi tiết.
+- Review vòng 1: khóa biểu mẫu duyệt tới khi cây tải xong + xác nhận khi bỏ cha/mẹ còn lại; Thử lại cây ở chi tiết; focus vùng lỗi sau tải lại, về tiêu đề khi đóng chi tiết mở từ liên kết; tra lại tên người gửi lỗi tạm thời khi mở chi tiết; focus lỗi rút lặp (MyProposals).
+- Nợ PR2: focus vào lỗi rút; khóa gửi khi đề xuất gốc của "gửi lại" không còn hợp lệ; `limit(51)` cắt 50.
+- Mã: `src/MemberProposalsAdmin.tsx`, `src/ProposalReview.tsx`, `src/proposalAdmin.ts`, hàm đọc mới trong `src/editClient.ts`, export `PersonFieldsInputs`. Không đổi `firestore.rules`.
+- Kiểm thử: `tests/proposalAdmin.test.ts`, `scripts/member-proposal-admin-browser-check.mjs` (thêm vào job `browser` CI); `audit-browser-check` seed thêm sổ quản trị viên. Chi tiết: `docs/MEMBER_PROPOSALS.md`.
+
 # Đề xuất thêm thành viên (PR2: giao diện thành viên) — 2026-11-16
 
 - Thành viên thường: hồ sơ có "Đề xuất thêm con / thêm vợ/chồng" (dùng lại biểu mẫu của quản trị viên ở chế độ đề xuất, thêm ô "Nguồn/căn cứ"; chỉ người mới); trang mới `#/my-proposals` "Đề xuất của tôi" (trạng thái bằng chữ, lý do, rút lại có xác nhận, gửi lại điền sẵn, số chờ n/5) và mục menu tương ứng. Quản trị viên không thấy các mục này. Giới hạn 5 chờ duyệt và 60 giây ép ở giao diện (rules vẫn chặn 60 giây).
