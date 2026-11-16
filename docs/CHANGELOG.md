@@ -234,6 +234,13 @@
 - Form Thêm/Sửa có checkbox "Đã mất"; có năm mất thì checkbox tự chọn và khóa (năm mất vẫn là nguồn chuẩn). Cây và hồ sơ hiện "đã mất" khi không có năm mất; Tổng quan tính là đã mất (không có tuổi, không bị coi là đang sống).
 - `reconcile` thêm `DECEASED_MISMATCH`. Không cần backfill: dữ liệu cũ mặc định chưa đánh dấu. Chưa deploy rules lên production.
 
+# Nhật ký phiên 2026-11-15/16 (kết phiên)
+
+- Giao diện/tính năng đã merge: #85–#86 trang đăng nhập (nhãn+ô cùng hàng, chữ câu đối lớn, nút Đăng nhập = nút Gmail); #87 favicon chữ 阮 + PWA "Thêm vào màn hình chính" (service worker không cache); #88 tạo tài khoản **chỉ Gmail** (`emailGrants`, nhận quyền một lần, audit `ACCOUNT_CLAIMED`); #89 Tổng quan bỏ nút/ghi chú "Tải lại dữ liệu", dữ liệu luôn đọc mới khi đăng nhập/tải lại trang; #90–#92 Quản lý tài khoản: tick chọn, tài khoản vô hiệu hóa xếp cuối, lệnh công cụ theo tài khoản + nút sao chép, dòng `cd` và đường dẫn khóa Admin; #93 lệnh `gia-pha:person-deceased`.
+- Production: deploy `firestore.rules` (Gmail-only); `snapshot-sex` 437 người; `person-deceased` 70 người (đời 1–4 + vợ/chồng), có nhật ký `maint-person-deceased-*` để hoàn tác. `editVersion` 16.
+- Chờ quyết định: công bố hàng loạt ghi chú cá nhân (mục 12 OPEN_DECISIONS.md, PR #94). Chưa chạy `snapshot-note --apply`.
+- Còn mở: PWA chưa thử trên thiết bị thật; kế hoạch icon "bấm là chạy lệnh quản trị" (giao thức tùy chỉnh) chưa được chốt phương án.
+
 # Chuẩn hóa "Đã mất" theo đời — 2026-11-16
 
 - Lệnh mới `npm run gia-pha:person-deceased` (dry-run mặc định, `--show`, `--apply --expect-version --expect-count`, `--undo` khôi phục đúng trạng thái trước), hành động cổng prod `CHUAN HOA DA MAT`. Quy tắc: đời 1–4 và mọi vợ/chồng đều đã mất; vợ/chồng thuộc dòng họ đời > 4 chỉ báo xem lại. Chưa chạy trên production.
