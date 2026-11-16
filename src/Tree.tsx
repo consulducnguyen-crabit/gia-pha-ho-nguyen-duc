@@ -416,21 +416,29 @@ function TreeView({
     );
   return (
     <>
-      <h1>Cây gia phả</h1>
-      <ViewTabs />
       {isAdmin && (
-        <p className="tree-add-member">
-          <Link className="primary link" to="/add-member">
-            + Thêm thành viên
+        <div className="fab-anchor">
+          <Link
+            className="fab"
+            to="/add-member"
+            aria-label="Thêm thành viên"
+            title="Thêm thành viên"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
           </Link>
-        </p>
+        </div>
       )}
-      <p className="tree-summary">
-        {clanCount} thành viên thuộc dòng họ, {maxGeneration} đời. Bấm tên để
-        xem hồ sơ.
-      </p>
-      <div className="tree-toolbar">
-        <label>
+      <div className="tree-toolbar tree-toolbar-top">
+        <label className="tree-search">
           Tìm theo tên
           <input
             type="search"
@@ -469,6 +477,14 @@ function TreeView({
           <button onClick={() => setExpanded(new Set())}>Thu gọn tất cả</button>
         </div>
       </div>
+      <div className="tree-head">
+        <h1>Cây gia phả</h1>
+        <ViewTabs />
+      </div>
+      <p className="tree-summary">
+        {clanCount} thành viên thuộc dòng họ, {maxGeneration} đời. Bấm tên để
+        xem hồ sơ.
+      </p>
       {selectedBranch && (
         <BranchInfoBox key={selectedBranch.code} info={selectedBranch} />
       )}
