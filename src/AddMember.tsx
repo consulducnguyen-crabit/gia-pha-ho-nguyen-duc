@@ -57,13 +57,13 @@ export function AddMemberPage({ uid }: { uid: string }) {
       {index && (
         <>
           <label className="add-member-search">
-            Tìm người đã có trong cây
+            <span className="sr-only">Tìm người đã có trong cây</span>
             <input
               type="search"
               className="form-field"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Không cần gõ dấu"
+              placeholder="Tìm người đã có trong cây (không cần gõ dấu)"
               autoFocus
             />
           </label>

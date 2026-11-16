@@ -171,9 +171,10 @@ function SetParentPanel({
         )}
       </fieldset>
       <label>
-        Tìm theo tên
+        <span className="sr-only">Tìm theo tên</span>
         <input
           className="form-field"
+          placeholder="Tìm theo tên (không cần gõ dấu)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

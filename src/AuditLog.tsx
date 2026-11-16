@@ -296,12 +296,12 @@ function AuditTable({
           </select>
         </label>
         <label>
-          Mã hoặc tên người
+          <span className="sr-only">Mã hoặc tên người</span>
           <input
             type="search"
             value={needle}
             onChange={(e) => setNeedle(e.target.value)}
-            placeholder="Không cần gõ dấu"
+            placeholder="Mã hoặc tên người (không cần gõ dấu)"
             className="form-field"
           />
         </label>
