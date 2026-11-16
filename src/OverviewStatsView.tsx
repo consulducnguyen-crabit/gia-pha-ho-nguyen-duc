@@ -531,18 +531,13 @@ function MissingSection({ stats }: { stats: OverviewStats }) {
   return (
     <section aria-labelledby="stats-missing" className="stats-missing">
       <h3 id="stats-missing">Hồ sơ còn thiếu thông tin</h3>
-      <p className="stats-note">
-        Kiểm theo họ tên, giới tính, năm sinh; người thuộc dòng họ kiểm thêm đời
-        và chi. Đời nhỏ hơn đời nhỏ nhất của mọi người khai chi (thủy tổ và các
-        đời trên) chưa thuộc chi nào nên không tính là thiếu chi. Năm mất và ghi
-        chú không bắt buộc. <b>{nf.format(missing.people)} người</b> thiếu ít
-        nhất một mục.
-        {sex.allUnsynced
-          ? " Chưa kiểm giới tính vì ảnh chụp cây chưa đồng bộ giới tính."
-          : sex.unsynced > 0
-            ? ` ${nf.format(sex.unsynced)} người chưa đồng bộ giới tính nên chưa kiểm mục này.`
-            : ""}
-      </p>
+      {(sex.allUnsynced || sex.unsynced > 0) && (
+        <p className="stats-note">
+          {sex.allUnsynced
+            ? "Chưa kiểm giới tính vì ảnh chụp cây chưa đồng bộ giới tính."
+            : `${nf.format(sex.unsynced)} người chưa đồng bộ giới tính nên chưa kiểm mục này.`}
+        </p>
+      )}
       {groups.length === 0 && (
         <p role="status">Không có hồ sơ nào thiếu mục bắt buộc.</p>
       )}
