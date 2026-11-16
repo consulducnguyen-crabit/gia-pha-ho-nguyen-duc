@@ -50,8 +50,7 @@ export function OverviewStats({ uid }: { uid: string }) {
   }, [uid]);
 
   return (
-    <div className="stats">
-      <h2>Số liệu gia phả</h2>
+    <div className="stats" role="region" aria-label="Số liệu gia phả">
       {state.status === "loading" && (
         <p role="status" className="stats-note">
           Đang tải số liệu…

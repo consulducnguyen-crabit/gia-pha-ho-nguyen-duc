@@ -161,8 +161,12 @@ async function checkRole(email, isAdmin) {
 
   stage = `${label}: số liệu và hiện/ẩn nút Thêm thành viên`;
   await expect(
-    page.getByRole("heading", { name: "Số liệu gia phả" }),
+    page.getByRole("region", { name: "Số liệu gia phả" }),
   ).toBeVisible();
+  // Tiêu đề hiển thị "Số liệu gia phả" đã bỏ khỏi trang đầu.
+  await expect(
+    page.getByRole("heading", { name: "Số liệu gia phả" }),
+  ).toHaveCount(0);
   await expect(page.getByText(`${TOTAL} thành viên`)).toBeVisible();
   // Không còn ghi chú "lúc tải"/cơ sở tính và không có nút tải lại riêng (người dùng tải lại cả trang).
   await expect(page.getByText("Theo dữ liệu lúc tải")).toHaveCount(0);
