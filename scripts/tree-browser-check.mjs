@@ -81,6 +81,20 @@ try {
     .evaluate((el) => el.getBoundingClientRect().width);
   if (labelBox > 1) throw Error("Nhãn ô tìm kiếm còn hiện trên màn hình");
 
+  stage = "người đã mất có họ tên màu đỏ, người còn lại giữ màu thường";
+  const colorOf = (name) =>
+    page
+      .getByRole("link", { name, exact: true })
+      .evaluate((el) => globalThis.getComputedStyle(el).color);
+  const deadColor = await colorOf("Giả Văn An"); // có năm mất 1973
+  const liveColor = await colorOf("Giả Thị Bình");
+  if (deadColor !== "rgb(155, 44, 34)")
+    throw Error(`Màu tên người đã mất: ${deadColor}`);
+  if (liveColor === deadColor) throw Error("Người còn sống cũng bị tô đỏ");
+  if (process.env.SHOT_DIR)
+    await page.screenshot({
+      path: `${process.env.SHOT_DIR}/tree-deceased-1280.png`,
+    });
   stage = "expand and collapse";
   await expect(page.getByRole("link", { name: "Giả Văn An" })).toBeVisible();
   const toggle = page.getByRole("button", { name: /con cháu của Giả Văn An/ });

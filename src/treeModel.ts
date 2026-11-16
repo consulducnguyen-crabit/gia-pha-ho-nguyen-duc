@@ -388,6 +388,13 @@ export function buildIndex(snapshot: Snapshot): TreeIndex {
   };
 }
 
+/** Đã mất: có năm mất hoặc được đánh dấu "đã mất" (cùng quy tắc với yearsLabel và thống kê Tổng quan). */
+export function isDeceased(
+  p: Pick<SnapPerson, "deathYear" | "deceased">,
+): boolean {
+  return p.deathYear !== null || p.deceased === true;
+}
+
 export function yearsLabel(
   p: Pick<SnapPerson, "birthYear" | "deathYear" | "deceased">,
 ) {
