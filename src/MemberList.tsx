@@ -21,9 +21,22 @@ export function MemberList({
   const [query, setQuery] = useState("");
   const [branch, setBranch] = useState("");
   const [category, setCategory] = useState<"" | Category>("");
+  const [generation, setGeneration] = useState("");
   const rows = useMemo(
     () => sortMembers(snapshot.persons.values(), snapshot.branches),
     [snapshot],
+  );
+  // Các đời có trong ảnh chụp cây (người vợ/chồng, họ ngoại không có đời nên không góp mặt).
+  const generations = useMemo(
+    () =>
+      [
+        ...new Set(
+          rows
+            .map((r) => r.person.generation)
+            .filter((g): g is number => g !== null),
+        ),
+      ].sort((a, b) => a - b),
+    [rows],
   );
   const key = normalizeName(query);
   const shown = useMemo(
@@ -32,9 +45,10 @@ export function MemberList({
         (r) =>
           (!category || r.person.category === category) &&
           (!branch || r.person.branch === branch) &&
+          (!generation || r.person.generation === Number(generation)) &&
           (!key || r.person.normalized.includes(key)),
       ),
-    [rows, key, branch, category],
+    [rows, key, branch, category, generation],
   );
   const groups = useMemo(() => {
     const out: { name: string; items: typeof shown }[] = [];
@@ -69,6 +83,21 @@ export function MemberList({
             {snapshot.branches.map((b) => (
               <option key={b.code} value={b.code}>
                 {b.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="sr-only">Lọc theo Đời</span>
+          <select
+            value={generation}
+            onChange={(e) => setGeneration(e.target.value)}
+            className="form-field"
+          >
+            <option value="">Lọc theo Đời</option>
+            {generations.map((g) => (
+              <option key={g} value={g}>
+                Đời {g}
               </option>
             ))}
           </select>
