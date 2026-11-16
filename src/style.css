@@ -3020,6 +3020,14 @@ main:has(> .tree-toolbar-top) {
 .proposal-status[data-status="REJECTED"] {
   color: var(--color-danger);
 }
+/* Lý do từ chối: chữ đỏ; đề xuất đã duyệt: chữ xanh (đi kèm chữ, màu chỉ nhấn thêm) */
+.my-proposal p.proposal-note-rejected {
+  color: var(--color-danger);
+}
+.my-proposal p.proposal-note-approved {
+  color: var(--color-success);
+  font-weight: 600;
+}
 .my-proposal .edit-actions .link {
   display: inline-flex;
   align-items: center;

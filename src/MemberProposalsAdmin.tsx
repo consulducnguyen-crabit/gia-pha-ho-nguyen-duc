@@ -236,7 +236,9 @@ export function MemberProposalsAdminPage({
               </p>
             )}
             {d.status === "REJECTED" && d.decisionReason && (
-              <p className="proposal-text">Lý do từ chối: {d.decisionReason}</p>
+              <p className="proposal-text proposal-note-rejected">
+                Lý do từ chối: {d.decisionReason}
+              </p>
             )}
             <div className="edit-actions">
               <button
