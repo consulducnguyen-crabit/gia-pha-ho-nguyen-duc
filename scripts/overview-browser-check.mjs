@@ -230,6 +230,9 @@ async function checkRole(email, isAdmin) {
   await expect(
     page.getByRole("heading", { name: "Hồ sơ còn thiếu thông tin" }),
   ).toBeVisible();
+  // Đã bỏ đoạn ghi chú giải thích cách kiểm và số người thiếu.
+  await expect(page.getByText("Kiểm theo họ tên")).toHaveCount(0);
+  await expect(page.getByText("thiếu ít nhất một mục")).toHaveCount(0);
   const sexGroup = page.locator("details", { hasText: "Thiếu giới tính" });
   await expect(sexGroup).not.toHaveAttribute("open", "");
   await sexGroup.locator("summary").focus();
