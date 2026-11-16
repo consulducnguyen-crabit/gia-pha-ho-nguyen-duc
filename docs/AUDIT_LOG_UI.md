@@ -27,6 +27,8 @@ chỉ 12 sự kiện sửa; không liệt kê). PR này KHÔNG đổi `firestore
 - Nhãn tiếng Việt cho cả 12 sự kiện; sự kiện lạ hiện "Sự kiện khác (mã)". Danh sách trong `src/auditView.ts` được
   test đối chiếu với `firestore.rules` (cả `allow get` lẫn `auditCreateOk`).
 
+- Bản ghi PERSON_ADDED/SPOUSE_ADDED có `after.proposalId`: ở "Chi tiết" hiện "Từ đề xuất #…"; khi mở chi tiết giao diện đọc `memberProposals/{id}` và chỉ hiện liên kết "Mở đề xuất" nếu đề xuất APPROVED và `appliedEditVersion` bằng phiên bản nhật ký, nếu không ghi "chưa xác minh" (không liên kết). Xem `docs/MEMBER_PROPOSALS.md`.
+
 ## Giới hạn đã biết
 
 - Lọc (theo sự kiện, theo mã/tên người) chỉ áp dụng trong các bản ĐÃ TẢI; giao diện ghi rõ "lọc trong N bản đã tải".

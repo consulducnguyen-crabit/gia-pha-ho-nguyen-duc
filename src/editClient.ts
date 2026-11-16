@@ -2,6 +2,7 @@
 import {
   collection,
   doc,
+  getCountFromServer,
   getDoc,
   getDocFromServer,
   getDocsFromServer,
@@ -401,12 +402,13 @@ export async function loadMyProposals(
   items: MyProposal[];
   pending: number;
   lastSentMs: number | null;
-  /** Đủ 50 tài liệu: có thể còn đề xuất cũ hơn không được tải (không có orderBy, thứ tự theo mã tài liệu). */
+  /** Có hơn 50 tài liệu: còn đề xuất không được tải (không có orderBy, thứ tự theo mã tài liệu). */
   truncated: boolean;
 }> {
   const col = collection(db, "memberProposals");
   const [all, pend, throttle] = await Promise.all([
-    getDocsFromServer(query(col, where("authorUid", "==", uid), limit(50))),
+    // Lấy 51 để biết CÓ HƠN 50 hay không; chỉ hiển thị 50.
+    getDocsFromServer(query(col, where("authorUid", "==", uid), limit(51))),
     // Đếm chờ riêng (chỉ ràng buộc bằng, không cần index ghép) để số đúng kể cả khi có hơn 50 đề xuất.
     getDocsFromServer(
       query(
@@ -423,7 +425,7 @@ export async function loadMyProposals(
       ? (v as { toMillis(): number }).toMillis()
       : null;
   const items: MyProposal[] = [];
-  for (const d of all.docs) {
+  for (const d of all.docs.slice(0, 50)) {
     const p = readProposal(d.id, d.data());
     if (p)
       items.push({
@@ -435,7 +437,7 @@ export async function loadMyProposals(
   return {
     items,
     pending: pend.size,
-    truncated: all.size >= 50,
+    truncated: all.size > 50,
     lastSentMs: throttle.exists() ? ms(throttle.data().lastAt) : null,
   };
 }
@@ -443,6 +445,100 @@ export interface MyProposal {
   doc: ProposalDoc;
   createdAtMs: number | null;
   updatedAtMs: number | null;
+}
+
+// ---- Quản trị viên đọc đề xuất (rules: ledgerAdmin() được get/list mọi đề xuất) ---------------------------------------
+const tsMs = (v: unknown) =>
+  v && typeof (v as { toMillis?: unknown }).toMillis === "function"
+    ? (v as { toMillis(): number }).toMillis()
+    : null;
+function toItem(id: string, data: DocumentData): MyProposal | null {
+  const p = readProposal(id, data);
+  return p
+    ? { doc: p, createdAtMs: tsMs(data.createdAt), updatedAtMs: tsMs(data.updatedAt) }
+    : null;
+}
+
+/**
+ * Hàng đợi quản trị viên: CHỜ DUYỆT + CẦN BỔ SUNG, tối đa `max` mục (chỉ ràng buộc bằng `in`, không cần index ghép;
+ * thứ tự do giao diện sắp). `truncated` = có thể còn mục không được tải.
+ */
+export async function loadProposalQueue(
+  db: Firestore,
+  max: number,
+): Promise<{ items: MyProposal[]; truncated: boolean }> {
+  const snap = await getDocsFromServer(
+    query(
+      collection(db, "memberProposals"),
+      where("status", "in", ["PENDING", "NEEDS_INFO"]),
+      limit(max),
+    ),
+  );
+  const items: MyProposal[] = [];
+  for (const d of snap.docs) {
+    const i = toItem(d.id, d.data());
+    if (i) items.push(i);
+  }
+  return { items, truncated: snap.size >= max };
+}
+
+/** Lịch sử theo MỘT trạng thái (đã duyệt/từ chối/đã rút), tối đa `max` mục. */
+export async function loadProposalHistory(
+  db: Firestore,
+  status: "APPROVED" | "REJECTED" | "WITHDRAWN",
+  max: number,
+): Promise<{ items: MyProposal[]; truncated: boolean }> {
+  const snap = await getDocsFromServer(
+    query(
+      collection(db, "memberProposals"),
+      where("status", "==", status),
+      limit(max),
+    ),
+  );
+  const items: MyProposal[] = [];
+  for (const d of snap.docs) {
+    const i = toItem(d.id, d.data());
+    if (i) items.push(i);
+  }
+  return { items, truncated: snap.size >= max };
+}
+
+/** Số đề xuất CHỜ DUYỆT (một truy vấn đếm: 1 lượt đọc tính phí cho mỗi 1000 mục). */
+export async function countPendingProposals(db: Firestore): Promise<number> {
+  const r = await getCountFromServer(
+    query(collection(db, "memberProposals"), where("status", "==", "PENDING")),
+  );
+  return r.data().count;
+}
+
+/** Đọc một đề xuất theo mã (null nếu không có hoặc sai hình dạng); lỗi mạng/quyền được ném lên. */
+export async function getProposalById(
+  db: Firestore,
+  id: string,
+): Promise<MyProposal | null> {
+  if (!PROPOSAL_ID.test(id)) return null;
+  const snap = await getDocFromServer(doc(db, "memberProposals", id));
+  return snap.exists() ? toItem(snap.id, snap.data()) : null;
+}
+
+/** Dữ liệu thô của một đề xuất (để đối chiếu với nhật ký); null nếu không tồn tại. */
+export async function getProposalRaw(
+  db: Firestore,
+  id: string,
+): Promise<DocumentData | null> {
+  if (!PROPOSAL_ID.test(id)) return null;
+  const snap = await getDocFromServer(doc(db, "memberProposals", id));
+  return snap.exists() ? snap.data() : null;
+}
+
+/** Hồ sơ tài khoản của người gửi (admin được get users/{uid}); uid sai dạng thì coi như không có. */
+export async function getAccountProfile(
+  db: Firestore,
+  uid: string,
+): Promise<{ exists: boolean; data: DocumentData | null }> {
+  if (!SAFE_ID.test(uid)) return { exists: false, data: null };
+  const snap = await getDocFromServer(doc(db, "users", uid));
+  return { exists: snap.exists(), data: snap.exists() ? snap.data() : null };
 }
 
 /** Tác giả rút đề xuất đang chờ duyệt hoặc cần bổ sung. */

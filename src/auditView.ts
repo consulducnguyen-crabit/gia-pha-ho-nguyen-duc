@@ -164,6 +164,8 @@ export interface AuditView {
   /** Mã người thực hiện (chỉ khi hợp lệ), rỗng nếu không đọc được. */
   actorUid: string;
   person: PersonRef;
+  /** after.proposalId đúng dạng (chỉ PERSON_ADDED/SPOUSE_ADDED); CHƯA xác minh với memberProposals. */
+  proposalId: string | null;
   summary: string[];
   details: string[];
   /** Mã và tên (đã chuẩn hóa) của mọi người liên quan, dùng cho ô lọc. */
@@ -323,6 +325,9 @@ export function describeAudit(
       ? `hoàn tác lần ở phiên bản #${revertsVersion}`
       : "";
   let hint: string | null = null;
+  // after.proposalId do bản ghi TỰ KHAI nên chưa đáng tin: giao diện chỉ hiện "Từ đề xuất" có liên kết sau khi đối
+  // chiếu memberProposals (xem proposalMatchesAudit); không đưa vào details để khỏi hiện như sự thật.
+  let proposalId: string | null = null;
   const removed = isRec(before.removed) ? before.removed : null;
 
   switch (event) {
@@ -368,8 +373,7 @@ export function describeAudit(
       const chars = int(after.noteChars);
       if (chars !== null && chars > 0)
         details.push(`Có ghi chú riêng (${chars} ký tự); nội dung không hiện.`);
-      const fromProposal = proposalIdOf(after);
-      if (fromProposal) details.push(`Từ đề xuất #${fromProposal}`);
+      proposalId = proposalIdOf(after);
       break;
     }
     case "SPOUSE_ADDED": {
@@ -379,8 +383,7 @@ export function describeAudit(
       );
       const order = text(after.order);
       if (order) details.push(`Thứ tự: ${order}`);
-      const fromProposal = proposalIdOf(after);
-      if (fromProposal) details.push(`Từ đề xuất #${fromProposal}`);
+      proposalId = proposalIdOf(after);
       break;
     }
     case "PARENT_CHANGED": {
@@ -497,6 +500,7 @@ export function describeAudit(
     time: formatVnTime(d.timestamp),
     actorUid,
     person,
+    proposalId,
     summary,
     details,
     searchIds: [...ids].join(" "),

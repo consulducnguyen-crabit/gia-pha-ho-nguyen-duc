@@ -105,3 +105,9 @@ có). Chỉ xem mắt các ảnh trong phiên này: ho-so 360 (trước/sau), c�
 - Ảnh chụp (đặt `SHOT_DIR`) ĐÃ XEM sau khi sửa khoảng cách nhãn: form đề xuất 360/768/1280, form quản trị viên 360/768/1280, danh sách 360/1280, đủ-5-chờ 360/768. Chưa xem lại sau lần sửa CSS cuối: danh sách 768 và đủ-5-chờ 1280 (đã xem bản trước khi sửa CSS; hai trang này không dùng phần CSS đã sửa).
 - Sửa trình bày dùng chung: nhãn "Đã mất" không bị bẻ chữ và có khoảng cách với chú thích; chú thích dưới ô nhập ("19/2000 ký tự", nhắc ghi chú) xuống dòng riêng; áp cho cả form quản trị viên, hành vi không đổi.
 - Nhãn trường, nhắc nhở ghi chú và vùng chạm dùng lại biểu mẫu quản trị viên; chưa kiểm bằng trình đọc màn hình thật.
+
+## Đề xuất thêm thành viên, giao diện quản trị viên (PR3) — 2026-11-16
+
+- Chạy `npm run test:browser:member-proposal-admin` (Vite + emulator, dữ liệu giả) với SHOT_DIR; kịch bản kiểm không tràn ngang ở 360/768/1280 cho danh sách, chi tiết/duyệt, lịch sử, nhật ký.
+- Cập nhật sau review vòng 1: đã xem thêm danh sách 360 và 768, chi tiết 768, lịch sử 768 (TỪ CHỐI), sau quyết định 768 (thông báo + danh sách), người gốc bị ẩn 360 (cảnh báo, nút Duyệt khóa), trạng thái chờ cây 360. Vẫn chưa xem: lịch sử ở 360/1280, người gốc bị ẩn 768/1280, trạng thái chờ cây 768/1280, hộp xác nhận bỏ cha/mẹ còn lại (chỉ kiểm bằng kịch bản). Ảnh lần đầu liệt kê dưới đây:
+- Đã xem bằng mắt: danh sách 1280 (8 mục, nhãn trạng thái bằng chữ), chi tiết/duyệt 1280 và 360 (thông tin, khung cảnh báo trùng, biểu mẫu, ô lý do, hàng nút), nhật ký 768 (dòng "Từ đề xuất" trong chi tiết; bảng cuộn ngang trong vùng riêng như thiết kế cũ). CHƯA xem bằng mắt: danh sách 360/768, chi tiết 768, lịch sử, ảnh sau quyết định, ảnh người gốc bị ẩn (chỉ có kiểm tra tràn ngang tự động). Chưa kiểm tra screen reader thật.
