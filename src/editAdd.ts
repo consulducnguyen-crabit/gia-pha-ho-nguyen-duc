@@ -64,6 +64,8 @@ export interface AddInput {
   op: AddOp;
   expectedVersion: number;
   actorUid: string;
+  /** Duyệt từ đề xuất thành viên (memberProposals): ghi vào nhật ký after.proposalId; phải bằng mã người mới. */
+  proposalId?: string;
 }
 export interface AddResult {
   writes: EditWrite[];
@@ -73,6 +75,7 @@ export interface AddResult {
 }
 
 const ID = /^[A-Za-z0-9_-]{1,100}$/;
+const PROPOSAL_ID = /^p-[a-z0-9]{12}$/;
 const CAT_CODE = { CLAN: "C", SPOUSE: "S", EXTERNAL: "E" } as const;
 
 /** Mã người cần đọc (cả người sẽ tạo, để chắc chắn chưa tồn tại). */
@@ -181,6 +184,11 @@ export function applyAdd(state: AddState, input: AddInput): AddResult {
   if (op.type !== "addChild" && op.type !== "addSpouse")
     invalid("Loại thao tác chưa được hỗ trợ.");
   if (!input.actorUid) invalid("Thiếu người thực hiện.");
+  if (input.proposalId !== undefined) {
+    const created = op.type === "addChild" ? op.newId : op.spouse.kind === "new" ? op.spouse.newId : null;
+    if (!PROPOSAL_ID.test(input.proposalId) || input.proposalId !== created)
+      invalid("Mã đề xuất không khớp người mới.");
+  }
   const version = currentEditVersion(state.snapshot);
   if (
     !Number.isInteger(input.expectedVersion) ||
@@ -438,7 +446,7 @@ export function applyAdd(state: AddState, input: AddInput): AddResult {
       editVersion: nextVersion,
       fields,
       before: {},
-      after,
+      after: input.proposalId ? { ...after, proposalId: input.proposalId } : after,
       timestamp: SERVER_TIME,
       schemaVersion: 1,
     },

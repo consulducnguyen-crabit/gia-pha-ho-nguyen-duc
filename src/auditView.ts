@@ -92,6 +92,12 @@ export function formatVnTime(value: unknown): string {
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
 }
 
+/** Mã đề xuất thành viên mà bản ghi này được duyệt từ đó (after.proposalId), hoặc null nếu không có/không hợp lệ. */
+export function proposalIdOf(after: unknown): string | null {
+  const id = isRec(after) ? after.proposalId : null;
+  return typeof id === "string" && /^p-[a-z0-9]{12}$/.test(id) ? id : null;
+}
+
 /** Mã người rút gọn để hiện khi không tra được tên: abcd…wxyz. */
 export function shortUid(uid: string): string {
   const s = clip(uid, 128);
@@ -362,6 +368,8 @@ export function describeAudit(
       const chars = int(after.noteChars);
       if (chars !== null && chars > 0)
         details.push(`Có ghi chú riêng (${chars} ký tự); nội dung không hiện.`);
+      const fromProposal = proposalIdOf(after);
+      if (fromProposal) details.push(`Từ đề xuất #${fromProposal}`);
       break;
     }
     case "SPOUSE_ADDED": {
@@ -371,6 +379,8 @@ export function describeAudit(
       );
       const order = text(after.order);
       if (order) details.push(`Thứ tự: ${order}`);
+      const fromProposal = proposalIdOf(after);
+      if (fromProposal) details.push(`Từ đề xuất #${fromProposal}`);
       break;
     }
     case "PARENT_CHANGED": {

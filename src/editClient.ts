@@ -4,9 +4,21 @@ import {
   getDoc,
   runTransaction,
   serverTimestamp,
+  updateDoc,
+  writeBatch,
   type Firestore,
   type DocumentData,
 } from "firebase/firestore";
+import {
+  PROPOSAL_ID,
+  canTransition,
+  cleanReason,
+  proposalToAddOp,
+  readProposal,
+  type ChildPayload,
+  type ProposalInput,
+  type SpousePayload,
+} from "./memberProposal";
 import { addTargets, applyAdd, type AddOp, type AddResult } from "./editAdd";
 import {
   applyRelation,
@@ -337,6 +349,159 @@ export async function commitDelete(
       input,
     );
     stageWrites(db, tx as unknown as SetTarget, result.writes);
+    return result;
+  });
+}
+
+// ---- Đề xuất thêm thành viên (memberProposals; docs/MEMBER_PROPOSALS.md) -----------------------------------------
+/**
+ * Gửi đề xuất: một lô gồm đề xuất mới + proposalThrottle/{uid} (rules đòi lastAt == request.time và lastProposalId
+ * == mã đề xuất, tối đa 1 đề xuất/60 giây) [+ rút lại đề xuất cũ khi "gửi lại"].
+ */
+export async function submitProposal(
+  db: Firestore,
+  proposal: ProposalInput,
+): Promise<void> {
+  const batch = writeBatch(db);
+  const { id, ...rest } = proposal;
+  batch.set(doc(db, "memberProposals", id), {
+    ...rest,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  batch.set(doc(db, "proposalThrottle", proposal.authorUid), {
+    lastAt: serverTimestamp(),
+    lastProposalId: id,
+    schemaVersion: 1,
+  });
+  if (proposal.resubmitOf)
+    batch.update(doc(db, "memberProposals", proposal.resubmitOf), {
+      status: "WITHDRAWN",
+      updatedAt: serverTimestamp(),
+      withdrawnAt: serverTimestamp(),
+    });
+  await batch.commit();
+}
+
+/** Tác giả rút đề xuất đang chờ duyệt hoặc cần bổ sung. */
+export async function withdrawProposal(
+  db: Firestore,
+  proposalId: string,
+): Promise<void> {
+  if (!PROPOSAL_ID.test(proposalId))
+    throw new EditError("INVALID", "Mã đề xuất không hợp lệ.");
+  await updateDoc(doc(db, "memberProposals", proposalId), {
+    status: "WITHDRAWN",
+    updatedAt: serverTimestamp(),
+    withdrawnAt: serverTimestamp(),
+  });
+}
+
+/** Quản trị viên từ chối hoặc yêu cầu bổ sung (bắt buộc có lý do). Duyệt dùng commitApproveProposal. */
+export async function decideProposal(
+  db: Firestore,
+  input: {
+    proposalId: string;
+    status: "REJECTED" | "NEEDS_INFO";
+    reason: string;
+    actorUid: string;
+  },
+): Promise<void> {
+  if (!PROPOSAL_ID.test(input.proposalId))
+    throw new EditError("INVALID", "Mã đề xuất không hợp lệ.");
+  if (input.status !== "REJECTED" && input.status !== "NEEDS_INFO")
+    throw new EditError("INVALID", "Trạng thái không hợp lệ.");
+  const reason = cleanReason(input.reason, true);
+  // Yêu cầu bổ sung ghi riêng infoRequest*; quyết định cuối ghi decided*: không bên nào ghi đè bên kia (rules ép).
+  await updateDoc(
+    doc(db, "memberProposals", input.proposalId),
+    input.status === "NEEDS_INFO"
+      ? {
+          status: "NEEDS_INFO",
+          infoRequestedBy: input.actorUid,
+          infoRequestedAt: serverTimestamp(),
+          infoRequestReason: reason,
+          updatedAt: serverTimestamp(),
+        }
+      : {
+          status: "REJECTED",
+          decidedBy: input.actorUid,
+          decidedAt: serverTimestamp(),
+          decisionReason: reason,
+          updatedAt: serverTimestamp(),
+        },
+  );
+}
+
+/**
+ * Duyệt đề xuất: ghi người mới (applyAdd, nhật ký có proposalId) và đánh dấu APPROVED trong CÙNG giao dịch.
+ * `edits` = chỗ quản trị viên sửa nội dung ghi vào bản chính thức (không đổi được anchorId/kind).
+ */
+export async function commitApproveProposal(
+  db: Firestore,
+  input: {
+    proposalId: string;
+    expectedVersion: number;
+    actorUid: string;
+    edits?: Partial<ChildPayload & SpousePayload>;
+    reason?: string;
+  },
+): Promise<AddResult> {
+  if (!PROPOSAL_ID.test(input.proposalId))
+    throw new EditError("INVALID", "Mã đề xuất không hợp lệ.");
+  const reason = cleanReason(input.reason, false);
+  const ref = doc(db, "memberProposals", input.proposalId);
+  const approvedFields = (version: number) => ({
+    status: "APPROVED",
+    decidedBy: input.actorUid,
+    decidedAt: serverTimestamp(),
+    appliedEditVersion: version,
+    updatedAt: serverTimestamp(),
+    ...(reason ? { decisionReason: reason } : {}),
+  });
+  const readProposalDoc = async (
+    get: (r: typeof ref) => Promise<{ exists(): boolean; data(): unknown }>,
+  ) => {
+    const snap = await get(ref);
+    const p = snap.exists() ? readProposal(input.proposalId, snap.data()) : null;
+    if (!p) throw new EditError("NOT_FOUND", "Không tìm thấy đề xuất.");
+    if (!canTransition(p.status, "APPROVED", "admin"))
+      throw new EditError("BAD_STATE", "Đề xuất này không còn ở trạng thái duyệt được.");
+    if (p.authorUid === input.actorUid)
+      throw new EditError("INVALID", "Không được duyệt đề xuất của chính mình.");
+    return p;
+  };
+  const plan = async (
+    p: NonNullable<ReturnType<typeof readProposal>>,
+    get: (r: ReturnType<typeof doc>) => Promise<{ exists(): boolean; data(): unknown }>,
+  ) => {
+    const op = proposalToAddOp(p, input.edits);
+    const ids = addTargets(op);
+    if (ids.some((id) => !SAFE_ID.test(id)))
+      throw new EditError("INVALID", "Mã người không hợp lệ.");
+    const snapshot = await get(doc(db, "treeSnapshots", "main"));
+    if (!snapshot.exists())
+      throw new EditError("BAD_STATE", "Chưa có ảnh chụp cây.");
+    const docs: Record<string, DocumentData | null> = {};
+    for (const id of ids) {
+      const d = await get(doc(db, "persons", id));
+      docs[id] = d.exists() ? (d.data() as DocumentData) : null;
+    }
+    return applyAdd(
+      { snapshot: snapshot.data() as DocumentData, docs },
+      {
+        op,
+        expectedVersion: input.expectedVersion,
+        actorUid: input.actorUid,
+        proposalId: p.id,
+      },
+    );
+  };
+  return runTransaction(db, async (tx) => {
+    const p = await readProposalDoc((r) => tx.get(r));
+    const result = await plan(p, (x) => tx.get(x));
+    stageWrites(db, tx as unknown as SetTarget, result.writes);
+    tx.update(ref, approvedFields(result.nextVersion));
     return result;
   });
 }

@@ -1,5 +1,7 @@
 # Đề xuất và phê duyệt — emulator
 
+> Không nhầm với luồng **đề xuất thêm thành viên trong app** (chỉ Firestore rules, chạy trên Spark): xem `docs/MEMBER_PROPOSALS.md`. Tài liệu này là luồng emulator-only dùng Cloud Functions.
+
 Chỉ dùng demo-gia-pha, Auth/Functions/Firestore emulator loopback và dữ liệu giả.
 Không deploy production, không chọn người quản trị thật hoặc thay đổi bảy chính sách.
 

@@ -647,6 +647,127 @@ service cloud.firestore {
   match /changeRequests/{id} {
    allow read: if member() && resource.data.authorUid == request.auth.uid;
   }
+  // --- Member proposals: add a NEW person (child / spouse) (docs/MEMBER_PROPOSALS.md) --------------------------
+  // memberProposals/{id}, id == newId (p-xxxxxxxxxxxx). A member creates a PENDING proposal (never touching canonical
+  // data); a ledger admin (never the author) rejects / asks for info / approves. APPROVED is allowed ONLY in the very
+  // batch that writes the new person + relation/union + treeSnapshots/main + auditLogs/edit-{n} (which the existing
+  // createGate/relationCreateOk/unionCreateOk/snapshotUpdateOk already validate as an admin edit). Proposal content is
+  // immutable; terminal states (APPROVED/REJECTED/WITHDRAWN) never change; no delete (permanent log).
+  // Access budget (limit 10/op): create 2; withdraw 1; reject/needs-info 2; approve 8.
+  function proposalStrOk(s, max) {
+   return s is string && s.size() <= max && s.matches('[^\\x00-\\x08\\x0b-\\x1f\\x7f-\\x{9f}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2066}-\\x{2069}]*');
+  }
+  // Names also reject C1 controls and invisible/bidi format characters (nameOk itself stays unchanged).
+  function proposalNameOk(n) {
+   return nameOk(n) && n.matches('[^\\x7f-\\x{9f}\\x{200b}-\\x{200f}\\x{202a}-\\x{202e}\\x{2066}-\\x{2069}]*');
+  }
+  function proposalIdOk(s) { return s is string && s.matches('[A-Za-z0-9_-]{1,100}'); }
+  function proposalNewIdOk(s) { return s is string && s.matches('p-[a-z0-9]{12}'); }
+  function proposalYearOk(y) { return y == null || (y is int && y >= 1000 && y <= 2200); }
+  function proposalPersonOk(p) {
+   return proposalNameOk(p.name) && (p.sex == null || p.sex in ['M', 'F'])
+    && proposalYearOk(p.birthYear) && proposalYearOk(p.deathYear)
+    && p.deceased is bool && proposalStrOk(p.note, 2000);
+  }
+  function proposalChildOk(p, anchor) {
+   let k = ['name', 'sex', 'birthYear', 'deathYear', 'deceased', 'note', 'role', 'otherParentId', 'adoptive', 'category', 'branch'];
+   return p.keys().hasOnly(k) && p.keys().hasAll(k) && proposalPersonOk(p)
+    && p.role in ['FATHER', 'MOTHER']
+    && (p.otherParentId == null || (proposalIdOk(p.otherParentId) && p.otherParentId != anchor))
+    && p.adoptive is bool && p.category in ['CLAN', 'EXTERNAL']
+    && (p.branch == null || (p.category == 'CLAN' && p.branch is string && p.branch.matches('[A-Za-z0-9_-]{1,40}')));
+  }
+  function proposalSpouseOk(p) {
+   let k = ['name', 'sex', 'birthYear', 'deathYear', 'deceased', 'note', 'category', 'order'];
+   return p.keys().hasOnly(k) && p.keys().hasAll(k) && proposalPersonOk(p)
+    && p.category in ['SPOUSE', 'EXTERNAL']
+    && (p.order == null || (p.order is string && p.order.matches('[^\\x00-\\x1f\\x7f]{1,20}')));
+  }
+  function throttleDoc(uid) { return /databases/$(database)/documents/proposalThrottle/$(uid); }
+  // One proposal per throttle write: the throttle doc must name THIS proposal, so a batch cannot smuggle many.
+  function proposalCreateOk(id) {
+   let d = request.resource.data;
+   let t = getAfter(throttleDoc(request.auth.uid)).data;
+   return member()
+    && d.keys().hasOnly(['schemaVersion', 'kind', 'anchorId', 'newId', 'payload', 'source', 'resubmitOf', 'status',
+        'authorUid', 'createdAt', 'updatedAt'])
+    && d.keys().hasAll(['schemaVersion', 'kind', 'anchorId', 'newId', 'payload', 'status', 'authorUid', 'createdAt', 'updatedAt'])
+    && d.schemaVersion == 1 && d.status == 'PENDING' && d.authorUid == request.auth.uid
+    && d.createdAt == request.time && d.updatedAt == request.time
+    && proposalNewIdOk(id) && d.newId == id
+    && proposalIdOk(d.anchorId) && d.anchorId != d.newId
+    && (!('source' in d) || (proposalStrOk(d.source, 300) && d.source.size() > 0))
+    && (!('resubmitOf' in d) || (proposalNewIdOk(d.resubmitOf) && d.resubmitOf != id))
+    && d.payload is map
+    && ((d.kind == 'CHILD' && proposalChildOk(d.payload, d.anchorId))
+     || (d.kind == 'SPOUSE' && proposalSpouseOk(d.payload)))
+    && t.lastAt == request.time && t.lastProposalId == id;
+  }
+  function proposalWithdrawOk() {
+   let b = resource.data;
+   let a = request.resource.data;
+   return member() && b.authorUid == request.auth.uid && b.status in ['PENDING', 'NEEDS_INFO']
+    && a.diff(b).affectedKeys().hasOnly(['status', 'updatedAt', 'withdrawnAt'])
+    && a.status == 'WITHDRAWN' && a.updatedAt == request.time && a.withdrawnAt == request.time;
+  }
+  // The batch must be an ordinary, already-validated admin add of exactly this proposal's person.
+  function proposalApprovedInBatch(b, a) {
+   let n = nextEditVersion();
+   let au = auditData(n);
+   let pid = b.newId;
+   return a.appliedEditVersion == n && getAfter(snapshotPath()).data.editVersion == n
+    && au.actorUid == request.auth.uid && au.createdPersonIds == [pid]
+    && au.after.get('proposalId', null) == pid
+    && !exists(personDoc(pid)) && existsAfter(personDoc(pid))
+    && (b.kind == 'CHILD'
+     ? (au.event == 'PERSON_ADDED' && au.personId == pid && existsAfter(relationDoc('r-' + b.anchorId + '-' + pid)))
+     : (au.event == 'SPOUSE_ADDED' && au.personId == b.anchorId
+        && au.unionId == 'u-' + (b.anchorId < pid ? b.anchorId + '-' + pid : pid + '-' + b.anchorId)
+        && existsAfter(unionDoc(au.unionId))));
+  }
+  // Asking for more info (PENDING -> NEEDS_INFO) writes ONLY infoRequest* fields; the final decision writes ONLY
+  // decided*/decisionReason/appliedEditVersion, so the info-request history is never overwritten.
+  function proposalInfoOk() {
+   let b = resource.data;
+   let a = request.resource.data;
+   return ledgerAdmin() && b.authorUid != request.auth.uid && b.status == 'PENDING' && a.status == 'NEEDS_INFO'
+    && a.diff(b).affectedKeys().hasOnly(['status', 'infoRequestedBy', 'infoRequestedAt', 'infoRequestReason', 'updatedAt'])
+    && a.infoRequestedBy == request.auth.uid && a.infoRequestedAt == request.time && a.updatedAt == request.time
+    && proposalStrOk(a.get('infoRequestReason', null), 500) && a.infoRequestReason.size() > 0;
+  }
+  function proposalDecideOk() {
+   let b = resource.data;
+   let a = request.resource.data;
+   return ledgerAdmin() && b.authorUid != request.auth.uid && b.status in ['PENDING', 'NEEDS_INFO']
+    && a.diff(b).affectedKeys().hasOnly(['status', 'decidedBy', 'decidedAt', 'decisionReason', 'appliedEditVersion', 'updatedAt'])
+    && a.status in ['APPROVED', 'REJECTED']
+    && a.decidedBy == request.auth.uid && a.decidedAt == request.time && a.updatedAt == request.time
+    && (a.status == 'APPROVED'
+     ? (a.get('decisionReason', null) == null || (proposalStrOk(a.decisionReason, 500) && a.decisionReason.size() > 0))
+        && proposalApprovedInBatch(b, a)
+     : (proposalStrOk(a.get('decisionReason', null), 500) && a.decisionReason.size() > 0
+        && !('appliedEditVersion' in a)));
+  }
+  match /memberProposals/{id} {
+   // A member reads/lists only their own proposals (queries must filter by authorUid); ledger admins read all. No delete.
+   allow get: if member() && (resource.data.authorUid == request.auth.uid || ledgerAdmin());
+   allow list: if ledgerAdmin() || (member() && resource.data.authorUid == request.auth.uid);
+   allow create: if proposalCreateOk(id);
+   allow update: if proposalWithdrawOk() || proposalInfoOk() || proposalDecideOk();
+  }
+  // Anti-spam: at most one new proposal per 60 s per account; lastProposalId ties the throttle write to one proposal.
+  function throttleOk(uid) {
+   let d = request.resource.data;
+   return member() && uid == request.auth.uid
+    && d.keys().hasOnly(['lastAt', 'lastProposalId', 'schemaVersion'])
+    && d.keys().hasAll(['lastAt', 'lastProposalId', 'schemaVersion'])
+    && d.schemaVersion == 1 && d.lastAt == request.time && proposalNewIdOk(d.lastProposalId);
+  }
+  match /proposalThrottle/{uid} {
+   allow get: if member() && uid == request.auth.uid;
+   allow create: if throttleOk(uid);
+   allow update: if throttleOk(uid) && request.time > resource.data.lastAt + duration.value(60, 's');
+  }
   // Canonical data, names, sources, relationships, overrides and media metadata
   // remain closed until granular ACL and trusted workflows are verified.
   match /{document=**} { allow read, write: if false; }

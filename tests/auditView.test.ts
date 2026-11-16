@@ -9,6 +9,7 @@ import {
   lostAccess,
   matchesFilter,
   pageVersions,
+  proposalIdOf,
   parseDeletedRows,
   shortUid,
   type PersonLookup,
@@ -146,6 +147,25 @@ describe("describeAudit: 12 sự kiện", () => {
     );
     expect(v.summary[0]).toBe("Thêm vợ/chồng: Người Mới (người mới tạo)");
     expect(v.details).toContain("Thứ tự: 2");
+    expect(v.details.join(" ")).not.toContain("đề xuất");
+  });
+
+  it("từ đề xuất thành viên: hiện mã hợp lệ, bỏ mã lạ", () => {
+    const mk = (event: string, proposalId: unknown) =>
+      describeAudit(
+        9,
+        base(event, {
+          personId: "p-new",
+          createdPersonIds: ["p-new"],
+          after: { name: "Người Mới", spouseId: "p-new", proposalId },
+        }),
+        lookup,
+      );
+    expect(mk("PERSON_ADDED", "p-abcdefghijkl").details).toContain("Từ đề xuất #p-abcdefghijkl");
+    expect(mk("SPOUSE_ADDED", "p-abcdefghijkl").details).toContain("Từ đề xuất #p-abcdefghijkl");
+    expect(mk("PERSON_ADDED", "<b>x</b>").details.join(" ")).not.toContain("đề xuất");
+    expect(proposalIdOf({ proposalId: 5 })).toBeNull();
+    expect(proposalIdOf(null)).toBeNull();
   });
 
   it("PARENT_CHANGED: đặt mới và thay thế", () => {
